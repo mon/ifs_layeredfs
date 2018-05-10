@@ -44,12 +44,11 @@ typedef int32_t AVS_FILE;
 typedef int(*avs_reader_t)(uint32_t* context, void *bytes, size_t nbytes);
 
 // file functions
-extern AVS_FILE(*avs_fs_open)(const char* name, int mode, int flags);
+extern AVS_FILE(*avs_fs_open)(const char* name, uint16_t mode, int flags);
 extern void(*avs_fs_close)(AVS_FILE f);
 extern int(*avs_fs_fstat)(AVS_FILE f, struct avs_stat *st);
 extern avs_reader_t avs_fs_read;
 extern int(*avs_fs_lseek)(AVS_FILE f, long int offset, int origin);
-extern decltype(stat) *avs_fs_lstat;
 
 // property handling
 extern int32_t(*property_read_query_memsize)(avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1);

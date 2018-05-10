@@ -12,11 +12,8 @@ typedef struct {
 	char
 		*avs_fs_open,
 		*avs_fs_close,
-		//*avs_fs_fstat,
-		*avs_fs_lstat,
 		*avs_fs_read,
 		*avs_fs_lseek,
-		//*avs_fs_mount,
 		*mdigest_create,
 		*mdigest_update,
 		*mdigest_finish,
@@ -40,8 +37,6 @@ const avs_exports_t avs_exports[] = {
 	x.dll_name =					L"libavs-win32.dll";
 	x.avs_fs_open =					"avs_fs_open";
 	x.avs_fs_close =				"avs_fs_close";
-	//x.avs_fs_fstat =				"avs_fs_fstat";
-	x.avs_fs_lstat =				"avs_fs_lstat";
 	x.avs_fs_read =					"avs_fs_read";
 	x.avs_fs_lseek =				"avs_fs_lseek";
 	x.mdigest_create =				"mdigest_create";
@@ -65,8 +60,6 @@ const avs_exports_t avs_exports[] = {
 	x.dll_name =					L"libavs-win32.dll";
 	x.avs_fs_open =					"XCd229cc000090";
 	x.avs_fs_close =				"XCd229cc00011f";
-	//x.avs_fs_fstat =				"XCd229cc0000c3";
-	x.avs_fs_lstat =				"XCd229cc0000c0";
 	x.avs_fs_read =					"XCd229cc00010d";
 	x.avs_fs_lseek =				"XCd229cc00004d";
 	x.mdigest_create =				"XCd229cc00003d";
@@ -90,9 +83,6 @@ const avs_exports_t avs_exports[] = {
 	x.dll_name =					L"libavs-win32.dll";
 	x.avs_fs_open =					"XCnbrep700004e";
 	x.avs_fs_close =				"XCnbrep7000055";
-	//x.avs_fs_fstat =				"XCnbrep7000062";
-	//x.avs_fs_mount =				"XCnbrep700004b";
-	x.avs_fs_lstat =				"XCnbrep7000063";
 	x.avs_fs_read =					"XCnbrep7000051";
 	x.avs_fs_lseek =				"XCnbrep700004f";
 	x.mdigest_create =				"XCnbrep700013f";
@@ -116,7 +106,6 @@ const avs_exports_t avs_exports[] = {
 	x.dll_name =					L"libavs-win32.dll";
 	x.avs_fs_open =					"XCnbrep7000039";
 	x.avs_fs_close =				"XCnbrep7000040";
-	x.avs_fs_lstat =				"XCnbrep700004e";
 	x.avs_fs_read =					"XCnbrep700003c";
 	x.avs_fs_lseek =				"XCnbrep700003a";
 	x.mdigest_create =				"XCnbrep7000133";
@@ -139,12 +128,11 @@ const avs_exports_t avs_exports[] = {
 };
 
 // file functions
-AVS_FILE(*avs_fs_open)(const char* name, int mode, int flags);
+AVS_FILE(*avs_fs_open)(const char* name, uint16_t mode, int flags);
 void(*avs_fs_close)(AVS_FILE f);
 int(*avs_fs_fstat)(AVS_FILE f, struct avs_stat *st);
 avs_reader_t avs_fs_read;
 int(*avs_fs_lseek)(AVS_FILE f, long int offset, int origin);
-decltype(stat) *avs_fs_lstat;
 
 // property handling
 int32_t(*property_read_query_memsize)(avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1);
@@ -182,11 +170,9 @@ bool init_avs(void) {
 		auto mod_handle = GetModuleHandle(avs_exports[i].dll_name);
 		TEST_HOOK_AND_APPLY(avs_fs_open);
 		//TEST_HOOK_AND_APPLY(avs_fs_mount);
-		//TEST_HOOK_AND_APPLY(avs_fs_fstat);
 		LOAD_FUNC(avs_fs_close);
 		LOAD_FUNC(avs_fs_read);
 		LOAD_FUNC(avs_fs_lseek);
-		LOAD_FUNC(avs_fs_lstat);
 
 		LOAD_FUNC(mdigest_create);
 		LOAD_FUNC(mdigest_update);
@@ -206,6 +192,7 @@ bool init_avs(void) {
 		LOAD_FUNC(cstream_finish);
 		LOAD_FUNC(cstream_destroy);
 		success = true;
+		break;
 	}
 	return success;
 }

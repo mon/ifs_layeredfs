@@ -74,10 +74,9 @@ wchar_t *str_widen(const char *src)
 
 bool file_exists(const char* name) {
 	auto res = avs_fs_open(name, 1, 420);
-	// yes, that extra comparison really is needed
-	if (res > 0 && res != (AVS_FILE)name)
+	if (res > 0)
 		avs_fs_close(res);
-	return res > 0 && res != (AVS_FILE)name;
+	return res > 0;
 }
 
 time_t file_time(const char* path) {
