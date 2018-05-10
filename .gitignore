@@ -1,0 +1,10 @@
+*.db
+*.zip
+.vs/hook/v15/
+*.vcxproj
+Debug/
+ipch/
+minhook/
+hook/x64/Release/hook.tlog/link.command.1.tlog
+Release/
+*.filters
