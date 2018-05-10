@@ -339,7 +339,8 @@ extern "C" {
 	__declspec(dllexport) int init(void) {
 		// reset contents for fresh run
 		fopen_s(&logfile, "ifs_hook.log", "w");
-		fclose(logfile);
+		if(logfile)
+			fclose(logfile);
 		logf("IFS layeredFS v" VERSION " DLL init...");
 		if (MH_Initialize() != MH_OK) {
 			logf("Couldn't initialize MinHook");
