@@ -20,7 +20,7 @@ using std::string;
 #include "lodepng.h"
 #include "stb_dxt.h"
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 #define MOD_FOLDER "./data_mod"
 
 // debugging
@@ -301,7 +301,9 @@ void handle_texture(string const&norm_path, string &mod_path) {
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 	if(name == NULL)
 		return avs_fs_open(name, mode, flags);
-	//logf("opening %s mode %d flags %d", name, mode, flags);
+#ifdef _DEBUG
+	logf("opening %s mode %d flags %d", name, mode, flags);
+#endif
 	string path = name;
 
 	// can it be modded?
@@ -331,7 +333,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 
 	auto to_open = mod_path_valid ? mod_path : path;
 	auto ret = avs_fs_open(to_open.c_str(), mode, flags);
-	//logf("return %d", ret);
+	// logf("returned %d", ret);
 	return ret;
 }
 

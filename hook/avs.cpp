@@ -10,6 +10,8 @@
 typedef struct {
 	LPCWSTR dll_name;
 	char
+		*version_name,
+		*unique_check, // for IIDX vs SDVX cloud, almost all funcs are identical
 		*avs_fs_open,
 		*avs_fs_close,
 		*avs_fs_read,
@@ -33,8 +35,10 @@ typedef struct {
 } avs_exports_t;
 
 const avs_exports_t avs_exports[] = {
-	[&] { avs_exports_t x; // unobfuscated
+	[&] { avs_exports_t x;
+	x.version_name =				"normal";
 	x.dll_name =					L"libavs-win32.dll";
+	x.unique_check =				NULL;
 	x.avs_fs_open =					"avs_fs_open";
 	x.avs_fs_close =				"avs_fs_close";
 	x.avs_fs_read =					"avs_fs_read";
@@ -56,8 +60,10 @@ const avs_exports_t avs_exports[] = {
 	x.cstream_destroy =				"cstream_destroy";
 	return x;
 	}(),
-	[&] { avs_exports_t x; // sdvx arcade
+	[&] { avs_exports_t x;
+	x.version_name =				"sdvx";
 	x.dll_name =					L"libavs-win32.dll";
+	x.unique_check =				NULL;
 	x.avs_fs_open =					"XCd229cc000090";
 	x.avs_fs_close =				"XCd229cc00011f";
 	x.avs_fs_read =					"XCd229cc00010d";
@@ -80,7 +86,9 @@ const avs_exports_t avs_exports[] = {
 	return x;
 	}(),
 	[&] { avs_exports_t x; // sdvx cloud
+	x.version_name =				"sdvx_cloud";
 	x.dll_name =					L"libavs-win32.dll";
+	x.unique_check =				"XCnbrep700013c";
 	x.avs_fs_open =					"XCnbrep700004e";
 	x.avs_fs_close =				"XCnbrep7000055";
 	x.avs_fs_read =					"XCnbrep7000051";
@@ -103,7 +111,9 @@ const avs_exports_t avs_exports[] = {
 	return x;
 	}(),
 	[&] { avs_exports_t x; // IIDX
+	x.version_name =				"iidx";
 	x.dll_name =					L"libavs-win32.dll";
+	x.unique_check =				NULL;
 	x.avs_fs_open =					"XCnbrep7000039";
 	x.avs_fs_close =				"XCnbrep7000040";
 	x.avs_fs_read =					"XCnbrep700003c";
@@ -163,11 +173,13 @@ void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
 
 #define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(avs_exports[i].dll_name, avs_exports[i]. ## func, hook_ ## func, (LPVOID*) &func) != MH_OK || func == NULL) continue
 #define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i]. ## func)) == NULL) continue
+#define CHECK_UNIQUE(func) if( avs_exports[i]. ## func != NULL && GetProcAddress(mod_handle, avs_exports[i]. ## func) == NULL) continue
 
 bool init_avs(void) {
 	bool success = false;
 	for (int i = 0; i < lenof(avs_exports); i++) {
 		auto mod_handle = GetModuleHandle(avs_exports[i].dll_name);
+		CHECK_UNIQUE(unique_check);
 		TEST_HOOK_AND_APPLY(avs_fs_open);
 		//TEST_HOOK_AND_APPLY(avs_fs_mount);
 		LOAD_FUNC(avs_fs_close);
@@ -192,6 +204,7 @@ bool init_avs(void) {
 		LOAD_FUNC(cstream_finish);
 		LOAD_FUNC(cstream_destroy);
 		success = true;
+		logf("Detected dll: %s", avs_exports[i].version_name);
 		break;
 	}
 	return success;
