@@ -302,7 +302,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 	if(name == NULL)
 		return avs_fs_open(name, mode, flags);
 #ifdef _DEBUG
-	logf("opening %s mode %d flags %d", name, mode, flags);
+	//logf("opening %s mode %d flags %d", name, mode, flags);
 #endif
 	string path = name;
 
