@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include <windows.h>
 #include <stdio.h>
 
@@ -11,26 +10,10 @@ typedef struct {
 	LPCWSTR dll_name;
 	char
 		*version_name,
-		*unique_check, // for IIDX vs SDVX cloud, almost all funcs are identical
-		*avs_fs_open,
-		*avs_fs_close,
-		*avs_fs_read,
-		*avs_fs_lseek,
-		*mdigest_create,
-		*mdigest_update,
-		*mdigest_finish,
-		*mdigest_destroy,
-		*property_read_query_memsize,
-		*property_create,
-		*property_insert_read,
-		*property_search,
-		*property_node_read,
-		*property_destroy,
-		*property_node_traversal,
-		*cstream_create,
-		*cstream_operate,
-		*cstream_finish,
-		*cstream_destroy
+		*unique_check // for IIDX vs SDVX cloud, almost all funcs are identical
+#undef X
+#define X(ret_type, name, ...) , * name
+		AVS_FUNC_LIST
 	;
 } avs_exports_t;
 
@@ -52,6 +35,8 @@ const avs_exports_t avs_exports[] = {
 	x.property_insert_read =		"property_insert_read";
 	x.property_search =				"property_search";
 	x.property_node_read =			"property_node_read";
+	x.property_node_write =			"property_node_write";
+	x.property_file_write =			"property_file_write";
 	x.property_destroy =			"property_destroy";
 	x.property_node_traversal =		"property_node_traversal";
 	x.cstream_create =				"cstream_create";
@@ -77,6 +62,8 @@ const avs_exports_t avs_exports[] = {
 	x.property_insert_read =		"XCd229cc00009a";
 	x.property_search =				"XCd229cc00012e";
 	x.property_node_read =			"XCd229cc0000f3";
+	x.property_node_write =			"XCd229cc00002d";
+	x.property_file_write =			"XCd229cc000052";
 	x.property_destroy =			"XCd229cc00013c";
 	x.property_node_traversal =		"XCd229cc000046";
 	x.cstream_create =				"XCd229cc000141";
@@ -102,6 +89,8 @@ const avs_exports_t avs_exports[] = {
 	x.property_insert_read =		"XCnbrep7000094";
 	x.property_search =				"XCnbrep70000a1";
 	x.property_node_read =			"XCnbrep70000ab";
+	x.property_node_write =			"XCnbrep70000ac";
+	x.property_file_write =			"XCnbrep70000b6";
 	x.property_destroy =			"XCnbrep7000091";
 	x.property_node_traversal =		"XCnbrep70000a6";
 	x.cstream_create =				"XCnbrep7000130";
@@ -127,6 +116,8 @@ const avs_exports_t avs_exports[] = {
 	x.property_insert_read =		"XCnbrep700007f";
 	x.property_search =				"XCnbrep700008c";
 	x.property_node_read =			"XCnbrep7000096";
+	x.property_node_write =			"XCnbrep7000097";
+	x.property_file_write =			"XCnbrep70000a1";
 	x.property_destroy =			"XCnbrep700007c";
 	x.property_node_traversal =		"XCnbrep7000091";
 	x.cstream_create =				"XCnbrep7000124";
@@ -137,33 +128,9 @@ const avs_exports_t avs_exports[] = {
 	}(),
 };
 
-// file functions
-AVS_FILE(*avs_fs_open)(const char* name, uint16_t mode, int flags);
-void(*avs_fs_close)(AVS_FILE f);
-int(*avs_fs_fstat)(AVS_FILE f, struct avs_stat *st);
-avs_reader_t avs_fs_read;
-int(*avs_fs_lseek)(AVS_FILE f, long int offset, int origin);
-
-// property handling
-int32_t(*property_read_query_memsize)(avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1);
-property_t(*property_create)(int flags, void *buffer, uint32_t buffer_size);
-int(*property_insert_read)(property_t prop, int unk0, avs_reader_t reader, AVS_FILE f);
-property_t(*property_search)(property_t prop, node_t node, const char *path);
-void(*property_node_read)(node_t node, property_type type, void* out, uint32_t out_size);
-void(*property_destroy)(property_t prop);
-node_t(*property_node_traversal)(node_t node, int flags);
-
-// md5sum (and sha1 if needed)
-mdigest_p(*mdigest_create)(mdigest_algs_t algorithm);
-void(*mdigest_update)(mdigest_p digest, char* data, int size);
-void(*mdigest_finish)(mdigest_p digest, uint8_t* hash, int size);
-void(*mdigest_destroy)(mdigest_p digest);
-
-// compression
-cstream_t*(*cstream_create)(compression_type type);
-bool(*cstream_operate)(cstream_t* compressor);
-bool(*cstream_finish)(cstream_t* compressor);
-bool(*cstream_destroy)(cstream_t* compressor);
+#undef X
+#define X(ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
+AVS_FUNC_LIST
 
 /*void* (*avs_fs_mount)(char* mountpoint, char* fsroot, char* fstype, int a5);
 void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
@@ -196,6 +163,8 @@ bool init_avs(void) {
 		LOAD_FUNC(property_insert_read);
 		LOAD_FUNC(property_search);
 		LOAD_FUNC(property_node_read);
+		LOAD_FUNC(property_node_write);
+		LOAD_FUNC(property_file_write);
 		LOAD_FUNC(property_destroy);
 		LOAD_FUNC(property_node_traversal);
 
@@ -231,8 +200,9 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
 	}
 	compressor->input_buffer = input;
 	compressor->input_size = length;
-	// worst case, for every 16 bytes there will be an extra flag byte
-	auto compress_size = length + length / 16;
+	// worst case, for every 8 bytes there will be an extra flag byte
+    auto to_add = max(length / 8, 1);
+	auto compress_size = length + to_add;
 	auto compress_buffer = (unsigned char*)malloc(compress_size);
 	compressor->output_buffer = compress_buffer;
 	compressor->output_size = compress_size;
