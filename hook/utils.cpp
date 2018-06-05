@@ -47,8 +47,11 @@ int string_ends_with(const char * str, const char * suffix) {
 
 void string_replace(std::string &str, const char* from, const char* to) {
 	auto to_len = strlen(to);
-	for (auto pos = str.find(from); pos != std::string::npos; pos = str.find(from)) {
+	auto offset = 0;
+	for (auto pos = str.find(from); pos != std::string::npos; pos = str.find(from, offset)) {
 		str.replace(pos, to_len, to);
+		// avoid recursion if to contains from
+		offset = pos + to_len;
 	}
 }
 
@@ -76,6 +79,13 @@ bool file_exists(const char* name) {
 	auto res = avs_fs_open(name, 1, 420);
 	if (res > 0)
 		avs_fs_close(res);
+	return res > 0;
+}
+
+bool folder_exists(const char* name) {
+	auto res = avs_fs_opendir(name);
+	if (res > 0)
+		avs_fs_closedir(res);
 	return res > 0;
 }
 

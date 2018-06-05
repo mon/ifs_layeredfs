@@ -11,6 +11,7 @@
 // all good code mixes C and C++, right?
 using std::string;
 #include <unordered_map>
+#include <unordered_set>
 
 #include "MinHook.h"
 #pragma comment(lib, "minhook.lib")
@@ -19,9 +20,14 @@ using std::string;
 #include "avs.h"
 #include "lodepng.h"
 #include "stb_dxt.h"
+#include "texture_packer.h"
+#include "modpath_handler.h"
+#include "GuillotineBinPack.h"
 
-#define VERSION "0.3"
-#define MOD_FOLDER "./data_mod"
+#define VERSION "1.1"
+
+// make logs very very verbose
+//#define VERBOSE_LOGS
 
 // debugging
 //#define ALWAYS_CACHE
@@ -46,55 +52,194 @@ typedef struct {
 	string ifs_mod_path;
 	int width;
 	int height;
-	const string cache_folder() { return ifs_mod_path + "/_cache/";  }
-	const string cache_file() { return cache_folder() + name_md5; };
+	const string cache_folder() { return CACHE_FOLDER "/" + ifs_mod_path;  }
+	const string cache_file() { return cache_folder() + "/" + name_md5; };
 } image_t;
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
-std::unordered_map<std::string, image_t> ifs_textures;
+std::unordered_map<string, image_t> ifs_textures;
 
-void parse_texturelist(string const&path, string const&norm_path, string const&mod_path, bool mod_path_valid, int mode, int flags) {
+typedef std::unordered_set<string> string_set;
+
+void list_pngs_onefolder(string_set &names, string const& folder) {
+	auto search_path = folder + "/*.png";
+	const auto extension_len = strlen(".png");
+	WIN32_FIND_DATAA fd;
+	HANDLE hFind = FindFirstFileA(search_path.c_str(), &fd);
+	if (hFind != INVALID_HANDLE_VALUE) {
+		do {
+			// read all (real) files in current folder
+			// , delete '!' read other 2 default folder . and ..
+			if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+				fd.cFileName[strlen(fd.cFileName) - extension_len] = '\0';
+				names.insert(fd.cFileName);
+			}
+		} while (FindNextFileA(hFind, &fd));
+		FindClose(hFind);
+	}
+}
+
+string_set list_pngs(string const&folder) {
+	string_set ret;
+
+	for (auto &mod : available_mods()) {
+		auto path = mod + "/" + folder;
+		list_pngs_onefolder(ret, path);
+		list_pngs_onefolder(ret, path + "/tex");
+	}
+
+	return ret;
+}
+
+bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&ifs_path, string const&ifs_mod_path, compress_type compress) {
+	vector<Bitmap*> textures;
+
+	for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
+#ifdef VERBOSE_LOGS
+		logf("New image: %s", it->c_str());
+#endif
+		string png_tex = *it + ".png";
+		auto png_loc = find_first_modfile(ifs_mod_path + "/" + png_tex);
+		if(!png_loc)
+			png_loc = find_first_modfile(ifs_mod_path + "/tex/" + png_tex);
+		if (!png_loc)
+			continue;
+
+		FILE* f;
+		fopen_s(&f, png_loc->c_str(), "rb");
+		if (!f) // shouldn't happen but check anyway
+			continue;
+
+		unsigned char header[33];
+		// this may read less bytes than expected but lodepng will die later anyway
+		fread(header, 1, 33, f);
+		fclose(f);
+
+		unsigned width, height;
+		LodePNGState state = {};
+		if (lodepng_inspect(&width, &height, &state, header, 33)) {
+			logf("couldn't inspect png");
+			continue;
+		}
+
+		textures.push_back(new Bitmap(*it, width, height));
+	}
+
+	vector<Packer*> packed_textures;
+	if (!pack_textures(textures, packed_textures)) {
+		logf("Couldn't pack textures :(");
+		return false;
+	}
+
+	struct node_size node_size = {};
+	auto old_size = property_node_query_stat(prop, NULL, &node_size);
+	// big numbers really don't hit memory that badly, and smaller ones are too small :(
+	const int per_canvas_size = 1024; //104;
+	const int per_texture_size = 1024; //176;
+	int new_size = old_size + per_canvas_size * packed_textures.size();
+	for (auto canvas = packed_textures.begin(); canvas != packed_textures.end(); canvas++) {
+		new_size += (*canvas)->bitmaps.size() * per_texture_size;
+	}
+
+	auto prop_buffer = malloc(new_size);
+	// bit 16 enables append
+	auto new_prop = property_create(PROP_CREATE_FLAGS, prop_buffer, new_size);
+	if (!prop) {
+		logf("Couldn't create new prop");
+		free(prop_buffer);
+		return false;
+	}
+
+	auto old_root = property_search(prop, NULL, "/");
+	if (!property_node_clone(new_prop, NULL, old_root, 1)) {
+		logf("Couldn't clone %s oldsize: %d, newsize: %d, error: %X %X", ifs_path.c_str(), old_size, new_size, new_prop->error_code, new_prop->has_error);
+		prop_free(new_prop);
+		return false;
+	}
+
+	auto texturelist_node = property_search(new_prop, NULL, "/");
+	for (unsigned int i = 0; i < packed_textures.size(); i++) {
+		Packer *canvas = packed_textures[i];
+		char tex_name[8];
+		snprintf(tex_name, 8, "ctex%03d", i);
+		auto canvas_node = property_node_create(NULL, texturelist_node, PROP_TYPE_node, "texture");
+		property_node_create(NULL, canvas_node, PROP_TYPE_attr, "format@", "argb8888rev");
+		property_node_create(NULL, canvas_node, PROP_TYPE_attr, "mag_filter@", "nearest");
+		property_node_create(NULL, canvas_node, PROP_TYPE_attr, "min_filter@", "nearest");
+		property_node_create(NULL, canvas_node, PROP_TYPE_attr, "name@", tex_name);
+		property_node_create(NULL, canvas_node, PROP_TYPE_attr, "wrap_s@", "clamp");
+		property_node_create(NULL, canvas_node, PROP_TYPE_attr, "wrap_t@", "clamp");
+
+		uint16_t size[2] = { (uint16_t)canvas->width, (uint16_t)canvas->height };
+		property_node_create(NULL, canvas_node, PROP_TYPE_2u16, "size", size);
+
+		for (unsigned int j = 0; j < canvas->bitmaps.size(); j++) {
+			Bitmap *texture = canvas->bitmaps[j];
+			auto tex_node = property_node_create(NULL, canvas_node, PROP_TYPE_node, "image");
+			property_node_create(NULL, tex_node, PROP_TYPE_attr, "name@", (void*)texture->name.c_str());
+
+			uint16_t coords[4];
+			coords[0] = texture->packX * 2;
+			coords[1] = (texture->packX + texture->width) * 2;
+			coords[2] = texture->packY * 2;
+			coords[3] = (texture->packY + texture->height) * 2;
+			property_node_create(NULL, tex_node, PROP_TYPE_4u16, "imgrect", coords);
+			coords[0] += 2;
+			coords[1] -= 2;
+			coords[2] += 2;
+			coords[1] -= 2;
+			property_node_create(NULL, tex_node, PROP_TYPE_4u16, "uvrect", coords);
+
+			image_t image_info;
+			image_info.name = texture->name;
+			image_info.name_md5 = md5_sum(texture->name.c_str());
+			image_info.format = ARGB8888REV;
+			image_info.compression = compress;
+			image_info.ifs_mod_path = ifs_mod_path;
+			image_info.width = texture->width;
+			image_info.height = texture->height;
+
+			auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
+			ifs_textures[md5_path] = image_info;
+		}
+	}
+
+	prop_free(prop);
+	prop = new_prop;
+	return true;
+}
+
+void parse_texturelist(string const&path, string const&norm_path, optional<string> &mod_path) {
 	char tmp[128];
-	void* prop_buffer = NULL;
-	property_t prop = NULL;
-
-	// open the correct file
-	auto path_to_open = mod_path_valid ? mod_path : path;
-
-	auto texlist = avs_fs_open(path_to_open.c_str(), mode, flags);
-	if (texlist < 0)
-		return;
+	bool prop_was_rewritten = false;
 
 	// get a reasonable base path
 	auto ifs_path = norm_path;
 	// truncate
 	ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
 	//logf("Reading ifs %s", ifs_path.c_str());
-	auto ifs_mod_path = MOD_FOLDER "/" + ifs_path;
+	auto ifs_mod_path = ifs_path;
 	string_replace(ifs_mod_path, ".ifs", "_ifs");
 
-	auto memsize = property_read_query_memsize(avs_fs_read, texlist, NULL, NULL);
-	if (memsize < 0) {
-		logf("Couldn't get memsize %08X", memsize);
-		goto CLEANUP;
-	}
-	
-	prop_buffer = malloc(memsize);
-	prop = property_create(17, prop_buffer, memsize);
-	if (!prop) {
-		logf("Couldn't create prop");
-		goto CLEANUP;
+	if (!find_first_modfolder(ifs_mod_path)) {
+#ifdef VERBOSE_LOGS
+		logf("mod folder doesn't exist, skipping");
+#endif
+		return;
 	}
 
-	avs_fs_lseek(texlist, 0, SEEK_SET);
-	property_insert_read(prop, 0, avs_fs_read, texlist);
-	avs_fs_close(texlist);
-	texlist = NULL;
+	// open the correct file
+	auto path_to_open = mod_path ? *mod_path : path;
+	auto prop = prop_from_file(path_to_open);
+	if (!prop)
+		return;
+
+	auto extra_pngs = list_pngs(ifs_mod_path);
 
 	auto compress = NONE;
 	auto compress_node = property_search(prop, NULL, "compress@texturelist");
 	if (compress_node) {
-		property_node_read(compress_node, PROP_TYPE_ATTR, tmp, sizeof(tmp));
+		property_node_read(compress_node, PROP_TYPE_attr, tmp, sizeof(tmp));
 		if (!_stricmp(tmp, "avslz")) {
 			compress = AVSLZ;
 		} else {
@@ -104,15 +249,22 @@ void parse_texturelist(string const&path, string const&norm_path, string const&m
 
 	for (auto texture = property_search(prop, NULL, "texturelist/texture");
 		 texture != NULL;
-		 texture = property_node_traversal(texture, 7)) { // 7 = next node
+		 texture = property_node_traversal(texture, TRAVERSE_NEXT_SEARCH_RESULT)) {
 		auto format = property_search(NULL, texture, "format@");
 		if (!format) {
 			logf("Texture missing format %s", path_to_open.c_str());
 			continue;
 		}
 
+		//<size __type="2u16">128 128</size>
+		auto size = property_search(NULL, texture, "size");
+		if (!size) {
+			logf("Texture missing size %s", path_to_open.c_str());
+			continue;
+		}
+
 		auto format_type = UNSUPPORTED_FORMAT;
-		property_node_read(format, PROP_TYPE_ATTR, tmp, sizeof(tmp));
+		property_node_read(format, PROP_TYPE_attr, tmp, sizeof(tmp));
 		if (!_stricmp(tmp, "argb8888rev")) {
 			format_type = ARGB8888REV;
 		} else if (!_stricmp(tmp, "dxt5")) {
@@ -121,20 +273,22 @@ void parse_texturelist(string const&path, string const&norm_path, string const&m
 
 		for (auto image = property_search(NULL, texture, "image");
 			 image != NULL;
-			 image = property_node_traversal(image, 7)) { // 7 = next node
+			 image = property_node_traversal(image, TRAVERSE_NEXT_SEARCH_RESULT)) {
 			auto name = property_search(NULL, image, "name@");
 			if (!name) {
 				logf("Texture missing name %s", path_to_open.c_str());
 				continue;
 			}
-			property_node_read(name, PROP_TYPE_ATTR, tmp, sizeof(tmp));
+			property_node_read(name, PROP_TYPE_attr, tmp, sizeof(tmp));
 
 			uint16_t dimensions[4];
-			auto imgrect = (property_search(NULL, image, "imgrect"));
-			if (!imgrect) {
+			auto imgrect = property_search(NULL, image, "imgrect");
+			auto uvrect = property_search(NULL, image, "uvrect");
+			if (!imgrect || !uvrect) {
 				logf("Texture missing dimensions %s", path_to_open.c_str());
 				continue;
 			}
+
 			property_node_read(imgrect, PROP_TYPE_4u16, dimensions, sizeof(dimensions));
 
 			//logf("Image '%s' compress %d format %d", tmp, compress, format_type);
@@ -149,21 +303,38 @@ void parse_texturelist(string const&path, string const&norm_path, string const&m
 
 			auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
 			ifs_textures[md5_path] = image_info;
+
+			extra_pngs.erase(image_info.name);
 		}
 	}
 
-CLEANUP:
-	if(texlist)
-		avs_fs_close(texlist);
-	if(prop)
-		property_destroy(prop);
-	if(prop_buffer)
-		free(prop_buffer);
+#ifdef VERBOSE_LOGS
+	logf("%d extra PNGs", extra_pngs.size());
+#endif
+	if (extra_pngs.size() > 0) {
+		if (add_images_to_list(extra_pngs, prop, ifs_path, ifs_mod_path, compress))
+			prop_was_rewritten = true;
+	}
+
+	if (prop_was_rewritten) {
+		string outfolder = CACHE_FOLDER "/" + ifs_mod_path;
+		if (!mkdir_p(outfolder)) {
+			logf("Couldn't create cache folder");
+		}
+		string outfile = outfolder + "/texturelist.xml";
+		if (property_file_write(prop, outfile.c_str()) > 0) {
+			mod_path = outfile;
+		}
+		else {
+			logf("Couldn't write prop file");
+		}
+	}
+	prop_free(prop);
 }
 
 bool cache_texture(string const&png_path, image_t &tex) {
 	string cache_path = tex.cache_folder();
-	if (_mkdir(cache_path.c_str()) && errno != EEXIST) {
+	if (!mkdir_p(cache_path)) {
 		logf("Couldn't create texture cache folder");
 		return false;
 	}
@@ -261,11 +432,9 @@ bool cache_texture(string const&png_path, image_t &tex) {
 	fclose(cache);
 	free(image);
 	return true;
-
-	return false;
 }
 
-void handle_texture(string const&norm_path, string &mod_path) {
+void handle_texture(string const&norm_path, optional<string> &mod_path) {
 	auto tex_search = ifs_textures.find(norm_path);
 	if (tex_search == ifs_textures.end()) {
 		return;
@@ -273,68 +442,215 @@ void handle_texture(string const&norm_path, string &mod_path) {
 
 	//logf("Mapped file %s is found!", norm_path.c_str());
 	auto tex = tex_search->second;
-	auto png_path = tex.ifs_mod_path + "/tex/" + tex.name + ".png";
-	if (!file_exists(png_path.c_str())) {
-		// remove the /tex/, it's nicer to navigate
-		png_path = tex.ifs_mod_path + "/" + tex.name + ".png";
-		if (!file_exists(png_path.c_str())) {
+
+	// remove the /tex/, it's nicer to navigate
+	auto png_path = find_first_modfile(tex.ifs_mod_path + "/" + tex.name + ".png");
+	if (!png_path) {
+		// but maybe they used it anyway
+		png_path = find_first_modfile(tex.ifs_mod_path + "/tex/" + tex.name + ".png");
+		if (!png_path)
 			return;
-		}
 	}
 
 	if (tex.compression == UNSUPPORTED_COMPRESS) {
-		logf("Unsupported compression for %s", png_path.c_str());
+		logf("Unsupported compression for %s", png_path->c_str());
 		return;
 	}
 	if (tex.format == UNSUPPORTED_FORMAT) {
-		logf("Unsupported texture format for %s", png_path.c_str());
+		logf("Unsupported texture format for %s", png_path->c_str());
 		return;
 	}
 
-	logf("Mapped file %s found!", png_path.c_str());
-	if (cache_texture(png_path, tex)) {
+#if defined(VERBOSE_LOGS)
+	logf("Mapped file %s found!", png_path->c_str());
+#endif
+	if (cache_texture(*png_path, tex)) {
 		mod_path = tex.cache_file();
 	}
 	return;
 }
 
-AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
-	if(name == NULL)
-		return avs_fs_open(name, mode, flags);
-#ifdef _DEBUG
-	//logf("opening %s mode %d flags %d", name, mode, flags);
+void merge_xmls(string const& path, string const&norm_path, optional<string> &mod_path) {
+	// initialize since we're GOTO-ing like naughty people
+	string out;
+	string out_folder;
+	void* merged_prop_buff = NULL;
+	property_t merged_prop = NULL;
+	vector<property_t> props_to_merge;
+
+	auto merge_path = norm_path;
+	string_replace(merge_path, ".xml", ".merged.xml");
+	auto to_merge = find_all_modfile(merge_path);
+	// nothing to do...
+	if (to_merge.size() == 0)
+		return;
+
+	auto starting = mod_path ? *mod_path : path;
+	auto starting_f = avs_fs_open(starting.c_str(), 1, 420);
+	if (starting_f < 0)
+		return;
+
+	int size = property_read_query_memsize(avs_fs_read, starting_f, NULL, NULL);
+	avs_fs_lseek(starting_f, 0, SEEK_SET);
+	if (size < 0)
+		goto CLEANUP;
+
+	node_size size_dummy;
+	for (auto &path : to_merge) {
+		logf("Merging %s", path.c_str());
+		auto prop = prop_from_file(path);
+		if (prop == NULL) {
+			logf("Couldn't merge (can't load xml) %s", path.c_str());
+			goto CLEANUP;
+		}
+		props_to_merge.push_back(prop);
+		size += property_node_query_stat(prop, NULL, &size_dummy);
+	}
+	logf("...into %s", starting.c_str());
+
+	merged_prop_buff = malloc(size);
+	merged_prop = property_create(PROP_CREATE_FLAGS, merged_prop_buff, size);
+	property_insert_read(merged_prop, NULL, avs_fs_read, starting_f);
+	//auto top = property_search(merged_prop, NULL, "/");
+	for (auto prop : props_to_merge) {
+		//auto root = property_search(prop, NULL, "/");
+		if (!prop_merge_into(merged_prop, prop)) {
+			logf("Couldn't merge");
+			goto CLEANUP;
+		}
+		/*for(auto child = property_node_traversal(root, TRAVERSE_FIRST_CHILD);
+				child;
+				child = property_node_traversal(child, TRAVERSE_NEXT_SIBLING))
+			if (!property_node_clone(NULL, top, child, 1)) {
+				logf("Couldn't merge (can't clone) %X %X", merged_prop->error_code, merged_prop->has_error);
+				goto CLEANUP;
+			}*/
+	}
+
+	out = CACHE_FOLDER "/" + norm_path;
+	auto folder_terminator = out.rfind("/");
+	out_folder = out.substr(0, folder_terminator);
+	if (!mkdir_p(out_folder)) {
+		logf("Couldn't create merged cache folder");
+		goto CLEANUP;
+	}
+
+	property_file_write(merged_prop, out.c_str());
+	mod_path = out;
+
+CLEANUP:
+	if (merged_prop)
+		property_destroy(merged_prop);
+	if (merged_prop_buff)
+		free(merged_prop_buff);
+	avs_fs_close(starting_f);
+	for (auto prop : props_to_merge)
+		prop_free(prop);
+}
+
+int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
+	if (name == NULL)
+		return avs_fs_lstat(name, st);
+#ifdef VERBOSE_LOGS
+	logf("statting %s", name);
 #endif
 	string path = name;
 
 	// can it be modded?
-	auto data_pos = path.find("data/");
-	if (data_pos == string::npos)
-		return avs_fs_open(name, mode, flags);
-	auto norm_path = path.substr(data_pos + strlen("data/"));
+	auto norm_path = normalise_path(path);
+	if(!norm_path)
+		return avs_fs_lstat(name, st);
 
-	string mod_path = MOD_FOLDER "/" + norm_path;
-	// mod ifs paths use _ifs
-	string_replace(mod_path, ".ifs", "_ifs");
-	
-	auto mod_path_valid = file_exists(mod_path.c_str());
+	auto mod_path = find_first_modfile(*norm_path);
+
+	if (mod_path) {
+#ifdef VERBOSE_LOGS
+		logf("Overwriting lstat");
+#endif
+		return avs_fs_lstat(mod_path->c_str(), st);
+	}
+	return avs_fs_lstat(name, st);
+}
+
+AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
+	if(name == NULL)
+		return avs_fs_open(name, mode, flags);
+#ifdef VERBOSE_LOGS
+	logf("opening %s mode %d flags %d", name, mode, flags);
+#endif
+	// only touch reads
+	if (mode != 1) {
+		return avs_fs_open(name, mode, flags);
+	}
+	string path = name;
+
+	// can it be modded ie is it under /data ?
+	auto _norm_path = normalise_path(path);
+	if (!_norm_path)
+		return avs_fs_open(name, mode, flags);
+	// unpack success
+	auto norm_path = *_norm_path;
+
+	auto mod_path = find_first_modfile(norm_path);
+	if (!mod_path) {
+		// mod ifs paths use _ifs
+		string_replace(norm_path, ".ifs", "_ifs");
+		mod_path = find_first_modfile(norm_path);
+	}
+
+	if(string_ends_with(path.c_str(), ".xml")) {
+		merge_xmls(path, norm_path, mod_path);
+	}
 
 	if (string_ends_with(path.c_str(), "texturelist.xml")) {
-		parse_texturelist(path, norm_path, mod_path, mod_path_valid, mode, flags);
+		parse_texturelist(path, norm_path, mod_path);
+	}
+	else {
+		handle_texture(norm_path, mod_path);
 	}
 
-	handle_texture(norm_path, mod_path);
-
-	// since texture handling can update this
-	// TODO: this is a bit messy
-	mod_path_valid = file_exists(mod_path.c_str());
-	if (mod_path_valid) {
-		logf("Using %s", mod_path.c_str());
+	if (mod_path) {
+		logf("Using %s", mod_path->c_str());
 	}
 
-	auto to_open = mod_path_valid ? mod_path : path;
+	auto to_open = mod_path ? *mod_path : path;
 	auto ret = avs_fs_open(to_open.c_str(), mode, flags);
 	// logf("returned %d", ret);
 	return ret;
+}
+
+void avs_playpen() {
+	/*auto d = avs_fs_opendir(MOD_FOLDER);
+	if (!d) {
+		logf("couldn't d");
+		return;
+	}
+	for (char* n = avs_fs_readdir(d); n; n = avs_fs_readdir(d))
+		logf("dir %s", n);
+	avs_fs_closedir(d);*/
+	//char name[64];
+	//auto playpen = prop_from_file("playpen.xml");
+	//auto node = property_search(playpen, NULL, "/");
+	//auto start = property_node_traversal(node, TRAVERSE_FIRST_CHILD);
+	//auto end = property_node_traversal(start, TRAVERSE_LAST_SIBLING);
+	//print_node(node);
+	//print_node(start);
+	//print_node(end);
+	/*for (int i = 0; i <= 8; i++) {
+		if (i == 6 || i == 3) continue;
+		logf("Traverse: %d", i);
+		auto node = property_search(playpen, NULL, "/root/t2");
+		auto nnn = property_node_traversal(node, 8);
+		auto nna = property_node_traversal(nnn, TRAVERSE_FIRST_ATTR);
+		property_node_name(nna, name, 64);
+		logf("bloop %s", name);
+		for (;node;node = property_node_traversal(node, i)) {
+			if (!property_node_name(node, name, 64)) {
+				logf("    %s", name);
+			}
+		}
+	}*/
+	//prop_free(playpen);
 }
 
 extern "C" {
@@ -360,6 +676,16 @@ extern "C" {
 			return 2;
 		}
 		logf("Hook DLL init success");
+
+		avs_playpen();
+
+/*#ifdef VERBOSE_LOGS
+		logf("Detected mod folders:");
+		for (auto &p : available_mods()) {
+			logf("%s", p.c_str());
+		}
+#endif*/
+
 		return 0;
 	}
 }
