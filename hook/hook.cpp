@@ -24,10 +24,24 @@ using std::string;
 #include "modpath_handler.h"
 #include "GuillotineBinPack.h"
 
-#define VERSION "1.1"
-
 // make logs very very verbose
 //#define VERBOSE_LOGS
+
+#define VER_STRING "1.1"
+
+#ifdef _DEBUG
+#define DBG_VER_STRING "_DEBUG"
+#else
+#define DBG_VER_STRING
+#endif
+
+#ifdef VERBOSE_LOGS
+#define VERBOSE_VER_STRING "_VERBOSE"
+#else
+#define VERBOSE_VER_STRING
+#endif
+
+#define VERSION VER_STRING DBG_VER_STRING VERBOSE_VER_STRING
 
 // debugging
 //#define ALWAYS_CACHE
