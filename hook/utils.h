@@ -20,3 +20,4 @@ wchar_t *str_widen(const char *src);
 bool file_exists(const char* name);
 bool folder_exists(const char* name);
 time_t file_time(const char* path);
+LONG time(void);

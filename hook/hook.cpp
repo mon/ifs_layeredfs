@@ -12,6 +12,7 @@
 using std::string;
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 #include "MinHook.h"
 #pragma comment(lib, "minhook.lib")
@@ -27,7 +28,7 @@ using std::string;
 // make logs very very verbose
 //#define VERBOSE_LOGS
 
-#define VER_STRING "1.1"
+#define VER_STRING "1.2"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -106,6 +107,7 @@ string_set list_pngs(string const&folder) {
 }
 
 bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&ifs_path, string const&ifs_mod_path, compress_type compress) {
+	auto start = time();
 	vector<Bitmap*> textures;
 
 	for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
@@ -139,11 +141,13 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 		textures.push_back(new Bitmap(*it, width, height));
 	}
 
+	auto pack_start = time();
 	vector<Packer*> packed_textures;
 	if (!pack_textures(textures, packed_textures)) {
 		logf("Couldn't pack textures :(");
 		return false;
 	}
+	logf("Texture packing %d ms", time() - pack_start);
 
 	struct node_size node_size = {};
 	auto old_size = property_node_query_stat(prop, NULL, &node_size);
@@ -220,6 +224,7 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 
 	prop_free(prop);
 	prop = new_prop;
+	logf("Texture extend total time %d ms", time() - start);
 	return true;
 }
 
@@ -485,6 +490,7 @@ void handle_texture(string const&norm_path, optional<string> &mod_path) {
 }
 
 void merge_xmls(string const& path, string const&norm_path, optional<string> &mod_path) {
+	auto start = time();
 	// initialize since we're GOTO-ing like naughty people
 	string out;
 	string out_folder;
@@ -498,6 +504,17 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 	// nothing to do...
 	if (to_merge.size() == 0)
 		return;
+
+	out = CACHE_FOLDER "/" + norm_path;
+	auto time_out = file_time(out.c_str());
+	time_t newest = 0;
+	for (auto &path : to_merge)
+		newest = std::max(newest, file_time(path.c_str()));
+	// no need to merge
+	if(time_out >= newest) {
+		mod_path = out;
+		return;
+	}
 
 	auto starting = mod_path ? *mod_path : path;
 	auto starting_f = avs_fs_open(starting.c_str(), 1, 420);
@@ -541,7 +558,6 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 			}*/
 	}
 
-	out = CACHE_FOLDER "/" + norm_path;
 	auto folder_terminator = out.rfind("/");
 	out_folder = out.substr(0, folder_terminator);
 	if (!mkdir_p(out_folder)) {
@@ -551,6 +567,8 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 
 	property_file_write(merged_prop, out.c_str());
 	mod_path = out;
+
+	logf("Merge took %d ms", time() - start);
 
 CLEANUP:
 	if (merged_prop)
@@ -669,10 +687,6 @@ void avs_playpen() {
 
 extern "C" {
 	__declspec(dllexport) int init(void) {
-		// reset contents for fresh run
-		fopen_s(&logfile, "ifs_hook.log", "w");
-		if(logfile)
-			fclose(logfile);
 		logf("IFS layeredFS v" VERSION " DLL init...");
 		if (MH_Initialize() != MH_OK) {
 			logf("Couldn't initialize MinHook");

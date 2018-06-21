@@ -2,11 +2,11 @@
 #include "utils.h"
 #include "avs.h"
 
-FILE* logfile;
-
 #define SUPPRESS_PRINTF
 
 void logf(char* fmt, ...) {
+	static FILE* logfile = NULL;
+	static bool tried_to_open = false;
 	va_list args;
 #ifndef SUPPRESS_PRINTF
 	va_start(args, fmt);
@@ -14,14 +14,16 @@ void logf(char* fmt, ...) {
 	va_end(args);
 	printf("\n");
 #endif
-	// reopened every time since logging is sparse and I want to see live updates
-	fopen_s(&logfile, "ifs_hook.log", "a");
+	// don't reopen every time: slow as shit
+	if (!logfile && !tried_to_open) {
+		fopen_s(&logfile, "ifs_hook.log", "w");
+		tried_to_open = true;
+	}
 	if (logfile) {
 		va_start(args, fmt);
 		vfprintf(logfile, fmt, args);
 		va_end(args);
 		fprintf(logfile, "\n");
-		fclose(logfile);
 	}
 }
 
@@ -120,4 +122,10 @@ time_t file_time(const char* path) {
 	result.LowPart = mtime.dwLowDateTime;
 	result.HighPart = mtime.dwHighDateTime;
 	return result.QuadPart;
+}
+
+LONG time(void) {
+	SYSTEMTIME time;
+	GetSystemTime(&time);
+	return (time.wSecond * 1000) + time.wMilliseconds;
 }
