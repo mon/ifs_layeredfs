@@ -11,7 +11,6 @@
 
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
-extern FILE* logfile;
 void logf(char* fmt, ...);
 char* snprintf_auto(const char* fmt, ...);
 int string_ends_with(const char * str, const char * suffix);

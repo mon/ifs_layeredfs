@@ -106,14 +106,18 @@ enum prop_traverse_option {
 };
 
 enum prop_create_flag {
-	PROP_READ =   1,
-	PROP_WRITE =  2,
-	PROP_CREATE = 4,
-	PROP_BINARY = 8,
-	PROP_APPEND = 16,
+	PROP_XML                  = 0x000,
+	PROP_READ                 = 0x001,
+	PROP_WRITE                = 0x002,
+	PROP_CREATE               = 0x004,
+	PROP_BINARY               = 0x008,
+	PROP_APPEND               = 0x010,
+	PROP_DEBUG_VERBOSE        = 0x400,
+	PROP_JSON                 = 0x800,
+	PROP_BIN_PLAIN_NODE_NAMES = 0x1000,
 };
 
-const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND);
+const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND | PROP_BINARY);
 
 // for cstream_*
 enum compression_type {

@@ -28,7 +28,7 @@ using std::string;
 // make logs very very verbose
 //#define VERBOSE_LOGS
 
-#define VER_STRING "1.2"
+#define VER_STRING "1.3"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
