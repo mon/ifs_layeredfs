@@ -17,6 +17,7 @@ using std::string;
 #include "MinHook.h"
 #pragma comment(lib, "minhook.lib")
 
+#include "config.h"
 #include "utils.h"
 #include "avs.h"
 #include "lodepng.h"
@@ -25,10 +26,7 @@ using std::string;
 #include "modpath_handler.h"
 #include "GuillotineBinPack.h"
 
-// make logs very very verbose
-//#define VERBOSE_LOGS
-
-#define VER_STRING "1.3"
+#define VER_STRING "1.4"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -36,13 +34,7 @@ using std::string;
 #define DBG_VER_STRING
 #endif
 
-#ifdef VERBOSE_LOGS
-#define VERBOSE_VER_STRING "_VERBOSE"
-#else
-#define VERBOSE_VER_STRING
-#endif
-
-#define VERSION VER_STRING DBG_VER_STRING VERBOSE_VER_STRING
+#define VERSION VER_STRING DBG_VER_STRING
 
 // debugging
 //#define ALWAYS_CACHE
@@ -111,9 +103,8 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 	vector<Bitmap*> textures;
 
 	for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
-#ifdef VERBOSE_LOGS
-		logf("New image: %s", it->c_str());
-#endif
+		logf_verbose("New image: %s", it->c_str());
+
 		string png_tex = *it + ".png";
 		auto png_loc = find_first_modfile(ifs_mod_path + "/" + png_tex);
 		if(!png_loc)
@@ -154,9 +145,9 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 	// big numbers really don't hit memory that badly, and smaller ones are too small :(
 	const int per_canvas_size = 1024; //104;
 	const int per_texture_size = 1024; //176;
-	int new_size = old_size + per_canvas_size * packed_textures.size();
+	int new_size = old_size + per_canvas_size * (int)packed_textures.size();
 	for (auto canvas = packed_textures.begin(); canvas != packed_textures.end(); canvas++) {
-		new_size += (*canvas)->bitmaps.size() * per_texture_size;
+		new_size += (int)(*canvas)->bitmaps.size() * per_texture_size;
 	}
 
 	auto prop_buffer = malloc(new_size);
@@ -241,9 +232,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
 	string_replace(ifs_mod_path, ".ifs", "_ifs");
 
 	if (!find_first_modfolder(ifs_mod_path)) {
-#ifdef VERBOSE_LOGS
-		logf("mod folder doesn't exist, skipping");
-#endif
+		logf_verbose("mod folder doesn't exist, skipping");
 		return;
 	}
 
@@ -327,9 +316,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
 		}
 	}
 
-#ifdef VERBOSE_LOGS
-	logf("%d extra PNGs", extra_pngs.size());
-#endif
+	logf_verbose("%d added PNGs", extra_pngs.size());
 	if (extra_pngs.size() > 0) {
 		if (add_images_to_list(extra_pngs, prop, ifs_path, ifs_mod_path, compress))
 			prop_was_rewritten = true;
@@ -442,8 +429,8 @@ bool cache_texture(string const&png_path, image_t &tex) {
 		return false;
 	}
 	if (tex.compression == AVSLZ) {
-		auto uncomp_sz = _byteswap_ulong(uncompressed_size);
-		auto comp_sz = _byteswap_ulong(image_size);
+		uint32_t uncomp_sz = _byteswap_ulong((uint32_t)uncompressed_size);
+		uint32_t comp_sz = _byteswap_ulong((uint32_t)image_size);
 		fwrite(&uncomp_sz, 4, 1, cache);
 		fwrite(&comp_sz, 4, 1, cache);
 	}
@@ -480,9 +467,7 @@ void handle_texture(string const&norm_path, optional<string> &mod_path) {
 		return;
 	}
 
-#if defined(VERBOSE_LOGS)
-	logf("Mapped file %s found!", png_path->c_str());
-#endif
+	logf_verbose("Mapped file %s found!", png_path->c_str());
 	if (cache_texture(*png_path, tex)) {
 		mod_path = tex.cache_file();
 	}
@@ -583,9 +568,8 @@ CLEANUP:
 int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
 	if (name == NULL)
 		return avs_fs_lstat(name, st);
-#ifdef VERBOSE_LOGS
-	logf("statting %s", name);
-#endif
+
+	logf_verbose("statting %s", name);
 	string path = name;
 
 	// can it be modded?
@@ -596,9 +580,7 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
 	auto mod_path = find_first_modfile(*norm_path);
 
 	if (mod_path) {
-#ifdef VERBOSE_LOGS
-		logf("Overwriting lstat");
-#endif
+		logf_verbose("Overwriting lstat");
 		return avs_fs_lstat(mod_path->c_str(), st);
 	}
 	return avs_fs_lstat(name, st);
@@ -607,9 +589,7 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 	if(name == NULL)
 		return avs_fs_open(name, mode, flags);
-#ifdef VERBOSE_LOGS
-	logf("opening %s mode %d flags %d", name, mode, flags);
-#endif
+	logf_verbose("opening %s mode %d flags %d", name, mode, flags);
 	// only touch reads
 	if (mode != 1) {
 		return avs_fs_open(name, mode, flags);
@@ -652,6 +632,44 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 }
 
 void avs_playpen() {
+	/*string path = "testcases.xml";
+	void* prop_buffer = NULL;
+	property_t prop = NULL;
+
+	auto f = avs_fs_open(path.c_str(), 1, 420);
+	if (f < 0)
+		return;
+
+	auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
+	if (memsize < 0) {
+		logf("Couldn't get memsize %08X", memsize);
+		goto FAIL;
+	}
+
+	// who knows
+	memsize *= 10;
+
+	prop_buffer = malloc(memsize);
+	prop = property_create(PROP_READ|PROP_WRITE|PROP_APPEND|PROP_CREATE|PROP_JSON, prop_buffer, memsize);
+	if (!prop) {
+		logf("Couldn't create prop");
+		goto FAIL;
+	}
+
+	avs_fs_lseek(f, 0, SEEK_SET);
+	property_insert_read(prop, 0, avs_fs_read, f);
+	avs_fs_close(f);
+
+	property_file_write(prop, "testcases.json");
+
+FAIL:
+	if (f)
+		avs_fs_close(f);
+	if (prop)
+		property_destroy(prop);
+	if (prop_buffer)
+		free(prop_buffer);*/
+
 	/*auto d = avs_fs_opendir(MOD_FOLDER);
 	if (!d) {
 		logf("couldn't d");
@@ -693,6 +711,9 @@ extern "C" {
 			return 1;
 		}
 
+		load_config();
+		cache_mods();
+
 		logf("Hooking ifs operations");
 		if (!init_avs()) {
 			logf("Couldn't find ifs operations in dll. Send avs dll to mon.");
@@ -705,14 +726,10 @@ extern "C" {
 		}
 		logf("Hook DLL init success");
 
-		avs_playpen();
-
-/*#ifdef VERBOSE_LOGS
 		logf("Detected mod folders:");
 		for (auto &p : available_mods()) {
 			logf("%s", p.c_str());
 		}
-#endif*/
 
 		return 0;
 	}

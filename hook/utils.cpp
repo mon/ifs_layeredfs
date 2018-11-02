@@ -24,6 +24,9 @@ void logf(char* fmt, ...) {
 		vfprintf(logfile, fmt, args);
 		va_end(args);
 		fprintf(logfile, "\n");
+
+		if(config.developer_mode)
+			fflush(logfile);
 	}
 }
 
@@ -39,8 +42,8 @@ char* snprintf_auto(const char* fmt, ...) {
 }
 
 int string_ends_with(const char * str, const char * suffix) {
-	int str_len = strlen(str);
-	int suffix_len = strlen(suffix);
+	size_t str_len = strlen(str);
+	size_t suffix_len = strlen(suffix);
 
 	return
 		(str_len >= suffix_len) &&
@@ -49,7 +52,7 @@ int string_ends_with(const char * str, const char * suffix) {
 
 void string_replace(std::string &str, const char* from, const char* to) {
 	auto to_len = strlen(to);
-	auto offset = 0;
+	size_t offset = 0;
 	for (auto pos = str.find(from); pos != std::string::npos; pos = str.find(from, offset)) {
 		str.replace(pos, to_len, to);
 		// avoid recursion if to contains from
@@ -85,10 +88,14 @@ bool file_exists(const char* name) {
 }
 
 bool folder_exists(const char* name) {
-	auto res = avs_fs_opendir(name);
-	if (res > 0)
-		avs_fs_closedir(res);
-	return res > 0;
+	WIN32_FIND_DATAA ffd;
+	HANDLE hFind = FindFirstFileA(name, &ffd);
+	
+	if (hFind == INVALID_HANDLE_VALUE || !(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+		return false;
+	}
+	FindClose(hFind);
+	return true;
 }
 
 time_t file_time(const char* path) {

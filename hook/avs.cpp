@@ -27,9 +27,9 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_read =					"avs_fs_read";
 	x.avs_fs_lseek =				"avs_fs_lseek";
 	x.avs_fs_lstat =				"avs_fs_lstat";
-	x.avs_fs_opendir =				"avs_fs_opendir";
-	x.avs_fs_closedir =				"avs_fs_closedir";
-	x.avs_fs_readdir =				"avs_fs_readdir";
+	//x.avs_fs_opendir =				"avs_fs_opendir";
+	//x.avs_fs_closedir =				"avs_fs_closedir";
+	//x.avs_fs_readdir =				"avs_fs_readdir";
 	x.mdigest_create =				"mdigest_create";
 	x.mdigest_update =				"mdigest_update";
 	x.mdigest_finish =				"mdigest_finish";
@@ -65,9 +65,9 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_read =					"XCd229cc00010d";
 	x.avs_fs_lseek =				"XCd229cc00004d";
 	x.avs_fs_lstat =				"XCd229cc0000c0";
-	x.avs_fs_opendir =				"XCd229cc0000f0";
-	x.avs_fs_closedir =				"XCd229cc0000b8";
-	x.avs_fs_readdir =				"XCd229cc0000bb";
+	//x.avs_fs_opendir =				"XCd229cc0000f0";
+	//x.avs_fs_closedir =				"XCd229cc0000b8";
+	//x.avs_fs_readdir =				"XCd229cc0000bb";
 	x.mdigest_create =				"XCd229cc00003d";
 	x.mdigest_update =				"XCd229cc000157";
 	x.mdigest_finish =				"XCd229cc000015";
@@ -103,9 +103,9 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_read =					"XCnbrep7000051";
 	x.avs_fs_lseek =				"XCnbrep700004f";
 	x.avs_fs_lstat =				"XCnbrep7000063";
-	x.avs_fs_opendir =				"XCnbrep700005c";
-	x.avs_fs_closedir =				"XCnbrep700005e";
-	x.avs_fs_readdir =				"XCnbrep700005d";
+	//x.avs_fs_opendir =				"XCnbrep700005c";
+	//x.avs_fs_closedir =				"XCnbrep700005e";
+	//x.avs_fs_readdir =				"XCnbrep700005d";
 	x.mdigest_create =				"XCnbrep700013f";
 	x.mdigest_update =				"XCnbrep7000141";
 	x.mdigest_finish =				"XCnbrep7000142";
@@ -141,9 +141,9 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_read =					"XCnbrep700003c";
 	x.avs_fs_lseek =				"XCnbrep700003a";
 	x.avs_fs_lstat =				"XCnbrep700004e";
-	x.avs_fs_opendir =				"XCnbrep7000047";
-	x.avs_fs_closedir =				"XCnbrep7000049";
-	x.avs_fs_readdir =				"XCnbrep7000048";
+	//x.avs_fs_opendir =				"XCnbrep7000047";
+	//x.avs_fs_closedir =				"XCnbrep7000049";
+	//x.avs_fs_readdir =				"XCnbrep7000048";
 	x.mdigest_create =				"XCnbrep7000133";
 	x.mdigest_update =				"XCnbrep7000135";
 	x.mdigest_finish =				"XCnbrep7000136";
@@ -168,6 +168,44 @@ const avs_exports_t avs_exports[] = {
 	x.cstream_operate =				"XCnbrep7000126";
 	x.cstream_finish =				"XCnbrep7000127";
 	x.cstream_destroy =				"XCnbrep7000128";
+	return x;
+	}(),
+	[&] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much
+	x.version_name =				"museca/IIDX 25+";
+	x.dll_name =					L"avs2-core.dll";
+	x.unique_check =				"XCgsqzn000013c";
+	x.avs_fs_open =					"XCgsqzn000004e";
+	x.avs_fs_close =				"XCgsqzn0000055";
+	x.avs_fs_read =					"XCgsqzn0000051";
+	x.avs_fs_lseek =				"XCgsqzn000004f";
+	x.avs_fs_lstat =				"XCgsqzn0000063";
+	//x.avs_fs_opendir =				"XCgsqzn000005c";
+	//x.avs_fs_closedir =				"XCgsqzn000005e";
+	//x.avs_fs_readdir =				"XCgsqzn000005d";
+	x.mdigest_create =				"XCgsqzn000013f";
+	x.mdigest_update =				"XCgsqzn0000141";
+	x.mdigest_finish =				"XCgsqzn0000142";
+	x.mdigest_destroy =				"XCgsqzn0000143";
+	x.property_read_query_memsize = "XCgsqzn00000b0";
+	x.property_create =				"XCgsqzn0000090";
+	x.property_insert_read =		"XCgsqzn0000094";
+	x.property_search =				"XCgsqzn00000a1";
+	x.property_node_clone =			"XCgsqzn00000a4";
+	x.property_node_create =		"XCgsqzn00000a2";
+	x.property_desc_to_buffer =		"XCgsqzn0000092";
+	x.property_node_read =			"XCgsqzn00000ab";
+	x.property_node_write =			"XCgsqzn00000ac";
+	x.property_node_type =			"XCgsqzn00000a8";
+	x.property_node_name =			"XCgsqzn00000a7";
+	x.property_node_datasize =		"XCgsqzn00000aa";
+	x.property_file_write =			"XCgsqzn00000b6";
+	x.property_destroy =			"XCgsqzn0000091";
+	x.property_node_traversal =		"XCgsqzn00000a6";
+	x.property_node_query_stat =	"XCgsqzn00000c5";
+	x.cstream_create =				"XCgsqzn0000130";
+	x.cstream_operate =				"XCgsqzn0000132";
+	x.cstream_finish =				"XCgsqzn0000133";
+	x.cstream_destroy =				"XCgsqzn0000134";
 	return x;
 	}(),
 };
@@ -199,45 +237,17 @@ bool init_avs(void) {
 
 	for (int i = 0; i < lenof(avs_exports); i++) {
 		auto mod_handle = GetModuleHandle(avs_exports[i].dll_name);
+		// make sure this is the right DLL
 		CHECK_UNIQUE(unique_check);
+
+		// load all our imports, fail if any cannot be found
+#undef X
+#define X(ret_type, name, ...) LOAD_FUNC(name);
+		AVS_FUNC_LIST
+
+		// apply hooks
 		TEST_HOOK_AND_APPLY(avs_fs_open);
 		TEST_HOOK_AND_APPLY(avs_fs_lstat);
-		//TEST_HOOK_AND_APPLY(avs_fs_mount);
-		LOAD_FUNC(avs_fs_close);
-		LOAD_FUNC(avs_fs_read);
-		LOAD_FUNC(avs_fs_lseek);
-
-		LOAD_FUNC(avs_fs_opendir);
-		LOAD_FUNC(avs_fs_readdir);
-		LOAD_FUNC(avs_fs_closedir);
-
-		LOAD_FUNC(mdigest_create);
-		LOAD_FUNC(mdigest_update);
-		LOAD_FUNC(mdigest_finish);
-		LOAD_FUNC(mdigest_destroy);
-
-		LOAD_FUNC(property_read_query_memsize);
-		LOAD_FUNC(property_create);
-		LOAD_FUNC(property_desc_to_buffer);
-		LOAD_FUNC(property_insert_read);
-		LOAD_FUNC(property_search);
-		LOAD_FUNC(property_node_clone);
-		LOAD_FUNC(property_node_create);
-		LOAD_FUNC(property_node_read);
-		LOAD_FUNC(property_node_write);
-		LOAD_FUNC(property_file_write);
-		LOAD_FUNC(property_destroy);
-		LOAD_FUNC(property_node_traversal);
-		LOAD_FUNC(property_node_query_stat);
-		LOAD_FUNC(property_node_type);
-
-		LOAD_FUNC(property_node_name);
-		LOAD_FUNC(property_node_datasize);
-
-		LOAD_FUNC(cstream_create);
-		LOAD_FUNC(cstream_operate);
-		LOAD_FUNC(cstream_finish);
-		LOAD_FUNC(cstream_destroy);
 
 		success = true;
 		logf("Detected dll: %s", avs_exports[i].version_name);
@@ -249,10 +259,13 @@ bool init_avs(void) {
 property_t prop_from_file(string const&path) {
 	void* prop_buffer = NULL;
 	property_t prop = NULL;
+    AVS_FILE f = 0;
 
-	auto f = avs_fs_open(path.c_str(), 1, 420);
-	if (f < 0)
-		return NULL;
+	f = avs_fs_open(path.c_str(), 1, 420);
+	if (f < 0) {
+        logf("Couldn't open prop");
+		goto FAIL;
+    }
 
 	auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
 	if (memsize < 0) {
@@ -379,7 +392,7 @@ string md5_sum(const char* str) {
 	uint8_t sum[16];
 	char sum_str[33];
 	auto digest = mdigest_create(MD5);
-	mdigest_update(digest, str, strlen(str));
+	mdigest_update(digest, str, (int)strlen(str));
 	mdigest_finish(digest, sum, 16);
 	mdigest_destroy(digest);
 	for (int i = 0; i < 16; i++) {

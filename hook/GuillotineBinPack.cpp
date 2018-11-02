@@ -16,6 +16,8 @@
 
 #include "GuillotineBinPack.h"
 
+#pragma warning( disable : 4267 ) 
+
 namespace rbp {
 
 using namespace std;

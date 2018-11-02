@@ -168,7 +168,7 @@ typedef property_info* property_t;
 typedef node_info* node_t;
 typedef int32_t AVS_FILE;
 
-typedef int(*avs_reader_t)(uint32_t* context, void *bytes, size_t nbytes);
+typedef size_t(*avs_reader_t)(AVS_FILE context, void *bytes, size_t nbytes);
 
 #define ELLIPSIS ...
 // because the functions are repeated in 3 places, we format them with an X macro
@@ -180,10 +180,10 @@ X(void,       avs_fs_close, AVS_FILE f) \
 /*X(int,        avs_fs_fstat, AVS_FILE f, struct avs_stat *st)*/ \
 X(int,        avs_fs_lstat, const char* path, struct avs_stat *st) \
 X(int,        avs_fs_lseek, AVS_FILE f, long int offset, int origin) \
-X(int,        avs_fs_read, uint32_t* context, void *bytes, size_t nbytes) \
-X(AVS_FILE,   avs_fs_opendir, const char* name) \
-X(int,        avs_fs_closedir, AVS_FILE f) \
-X(char*,      avs_fs_readdir, AVS_FILE f) \
+X(size_t,     avs_fs_read, AVS_FILE context, void *bytes, size_t nbytes) \
+/*X(AVS_FILE,   avs_fs_opendir, const char* name)*/ \
+/*X(int,        avs_fs_closedir, AVS_FILE f)*/ \
+/*X(char*,      avs_fs_readdir, AVS_FILE f) */\
 /* property handling */ \
 X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1) \
 X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
