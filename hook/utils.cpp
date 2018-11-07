@@ -52,9 +52,10 @@ int string_ends_with(const char * str, const char * suffix) {
 
 void string_replace(std::string &str, const char* from, const char* to) {
 	auto to_len = strlen(to);
+	auto from_len = strlen(from);
 	size_t offset = 0;
 	for (auto pos = str.find(from); pos != std::string::npos; pos = str.find(from, offset)) {
-		str.replace(pos, to_len, to);
+		str.replace(pos, from_len, to);
 		// avoid recursion if to contains from
 		offset = pos + to_len;
 	}

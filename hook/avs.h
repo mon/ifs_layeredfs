@@ -29,8 +29,8 @@ struct avs_stat {
 typedef struct {
 	unsigned char* output_buffer;
 	unsigned char* input_buffer;
-	size_t output_size;
-	size_t input_size;
+	uint32_t output_size;
+	uint32_t input_size;
 } cstream_t;
 
 // want to add more? use kbinxml repo
@@ -224,3 +224,4 @@ bool init_avs(void);
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);
 
 bool prop_merge_into(property_t dest_prop, property_t src_prop);
+const char* get_prop_error_str(int32_t code);

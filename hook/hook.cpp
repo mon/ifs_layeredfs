@@ -26,7 +26,7 @@ using std::string;
 #include "modpath_handler.h"
 #include "GuillotineBinPack.h"
 
-#define VER_STRING "1.4"
+#define VER_STRING "1.5"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -161,7 +161,8 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 
 	auto old_root = property_search(prop, NULL, "/");
 	if (!property_node_clone(new_prop, NULL, old_root, 1)) {
-		logf("Couldn't clone %s oldsize: %d, newsize: %d, error: %X %X", ifs_path.c_str(), old_size, new_size, new_prop->error_code, new_prop->has_error);
+		logf("Couldn't clone %s oldsize: %d, newsize: %d, error: %X (%s) %X",
+			ifs_path.c_str(), old_size, new_size, new_prop->error_code, get_prop_error_str(new_prop->error_code), new_prop->has_error);
 		prop_free(new_prop);
 		return false;
 	}
