@@ -26,7 +26,7 @@ using std::string;
 #include "modpath_handler.h"
 #include "GuillotineBinPack.h"
 
-#define VER_STRING "1.5"
+#define VER_STRING "1.6"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -491,9 +491,12 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 	if (to_merge.size() == 0)
 		return;
 
+	auto starting = mod_path ? *mod_path : path;
 	out = CACHE_FOLDER "/" + norm_path;
+
 	auto time_out = file_time(out.c_str());
-	time_t newest = 0;
+	// don't forget to take the input into account
+	time_t newest = file_time(starting.c_str());
 	for (auto &path : to_merge)
 		newest = std::max(newest, file_time(path.c_str()));
 	// no need to merge
@@ -502,7 +505,6 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 		return;
 	}
 
-	auto starting = mod_path ? *mod_path : path;
 	auto starting_f = avs_fs_open(starting.c_str(), 1, 420);
 	if (starting_f < 0)
 		return;
