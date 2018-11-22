@@ -3,7 +3,7 @@ The DLLs go next to the other game DLLs
 Pick the right DLL for your game - if 32 bit fails to load, try 64 bit
 The data_mods folder goes next to the data folder
 
-For 32 bit -
+For 32 bit ONLY -
   you do not need to modify your gamestart.bat - the hook is loaded automatically
   using D3d9.dll
 

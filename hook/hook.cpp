@@ -717,7 +717,7 @@ extern "C" {
 
 		logf("Hooking ifs operations");
 		if (!init_avs()) {
-			logf("Couldn't find ifs operations in dll. Send avs dll to mon.");
+			logf("Couldn't find ifs operations in dll. Send avs dll (libavs-winxx.dll or avs2-core.dll) to mon.");
 			return 2;
 		}
 

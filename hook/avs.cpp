@@ -7,7 +7,6 @@
 #include "utils.h"
 
 typedef struct {
-	LPCWSTR dll_name;
 	char
 		*version_name,
 		*unique_check // for IIDX vs SDVX cloud, almost all funcs are identical
@@ -17,10 +16,15 @@ typedef struct {
 	;
 } avs_exports_t;
 
+const LPCWSTR dll_names[] = {
+	L"libavs-win32.dll",
+	L"libavs-win64.dll",
+	L"avs2-core.dll",
+};
+
 const avs_exports_t avs_exports[] = {
 	[&] { avs_exports_t x = { 0 };
 	x.version_name =				"normal";
-	x.dll_name =					L"libavs-win32.dll";
 	x.unique_check =				NULL;
 	x.avs_fs_open =					"avs_fs_open";
 	x.avs_fs_close =				"avs_fs_close";
@@ -57,8 +61,7 @@ const avs_exports_t avs_exports[] = {
 	return x;
 	}(),
 	[&] { avs_exports_t x = { 0 };
-	x.version_name =				"sdvx";
-	x.dll_name =					L"libavs-win32.dll";
+	x.version_name =				"SDVX";
 	x.unique_check =				NULL;
 	x.avs_fs_open =					"XCd229cc000090";
 	x.avs_fs_close =				"XCd229cc00011f";
@@ -95,8 +98,7 @@ const avs_exports_t avs_exports[] = {
 	return x;
 	}(),
 	[&] { avs_exports_t x = { 0 }; // sdvx cloud
-	x.version_name =				"sdvx_cloud";
-	x.dll_name =					L"libavs-win32.dll";
+	x.version_name =				"SDVX cloud";
 	x.unique_check =				"XCnbrep700013c";
 	x.avs_fs_open =					"XCnbrep700004e";
 	x.avs_fs_close =				"XCnbrep7000055";
@@ -133,8 +135,7 @@ const avs_exports_t avs_exports[] = {
 	return x;
 	}(),
 	[&] { avs_exports_t x = { 0 }; // IIDX
-	x.version_name =				"iidx";
-	x.dll_name =					L"libavs-win32.dll";
+	x.version_name =				"IIDX before 25";
 	x.unique_check =				NULL;
 	x.avs_fs_open =					"XCnbrep7000039";
 	x.avs_fs_close =				"XCnbrep7000040";
@@ -172,7 +173,6 @@ const avs_exports_t avs_exports[] = {
 	}(),
 	[&] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much
 	x.version_name =				"museca/IIDX 25+";
-	x.dll_name =					L"avs2-core.dll";
 	x.unique_check =				"XCgsqzn000013c";
 	x.avs_fs_open =					"XCgsqzn000004e";
 	x.avs_fs_close =				"XCgsqzn0000055";
@@ -220,7 +220,7 @@ void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
 	return avs_fs_mount(mountpoint, fsroot, fstype, a5);
 }*/
 
-#define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(avs_exports[i].dll_name, avs_exports[i]. ## func, hook_ ## func, (LPVOID*) &func) != MH_OK || func == NULL) continue
+#define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, avs_exports[i]. ## func, hook_ ## func, (LPVOID*) &func) != MH_OK || func == NULL) continue
 #define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i]. ## func)) == NULL) continue
 #define CHECK_UNIQUE(func) if( avs_exports[i]. ## func != NULL && GetProcAddress(mod_handle, avs_exports[i]. ## func) == NULL) continue
 
@@ -235,8 +235,24 @@ bool init_avs(void) {
 	}
 #endif
 
+	// presumably we don't load more than 1 unique avs dll.
+	// Please don't be proven wrong
+	LPCWSTR dll_name = NULL;
+	HMODULE mod_handle = NULL;
+	for (int i = 0; i < lenof(dll_names); i++) {
+		mod_handle = GetModuleHandle(dll_names[i]);
+		if (mod_handle != NULL) {
+			dll_name = dll_names[i];
+			break;
+		}
+	}
+	
+	if (mod_handle == NULL) {
+		logf("Couldn't find AVS dll");
+		return false;
+	}
+
 	for (int i = 0; i < lenof(avs_exports); i++) {
-		auto mod_handle = GetModuleHandle(avs_exports[i].dll_name);
 		// make sure this is the right DLL
 		CHECK_UNIQUE(unique_check);
 
