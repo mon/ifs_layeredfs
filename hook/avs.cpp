@@ -6,6 +6,8 @@
 #include "MinHook.h"
 #include "utils.h"
 
+char* prop_data_to_str(int type, void* data);
+
 typedef struct {
 	char
 		*version_name,
@@ -38,7 +40,8 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"mdigest_update";
 	x.mdigest_finish =				"mdigest_finish";
 	x.mdigest_destroy =				"mdigest_destroy";
-	x.property_read_query_memsize = "property_read_query_memsize";
+	//x.property_read_query_memsize = "property_read_query_memsize";
+	x.property_read_query_memsize_long = "property_read_query_memsize_long";
 	x.property_create =				"property_create";
 	x.property_desc_to_buffer =		"property_desc_to_buffer";
 	x.property_insert_read =		"property_insert_read";
@@ -75,7 +78,8 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCd229cc000157";
 	x.mdigest_finish =				"XCd229cc000015";
 	x.mdigest_destroy =				"XCd229cc000050";
-	x.property_read_query_memsize = "XCd229cc0000ff";
+	//x.property_read_query_memsize = "XCd229cc0000ff";
+	x.property_read_query_memsize_long = "XCd229cc00002b";
 	x.property_create =				"XCd229cc000126";
 	x.property_desc_to_buffer =		"XCd229cc0000fd";
 	x.property_insert_read =		"XCd229cc00009a";
@@ -112,7 +116,8 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCnbrep7000141";
 	x.mdigest_finish =				"XCnbrep7000142";
 	x.mdigest_destroy =				"XCnbrep7000143";
-	x.property_read_query_memsize = "XCnbrep70000b0";
+	//x.property_read_query_memsize = "XCnbrep70000b0";
+	x.property_read_query_memsize_long = "XCnbrep70000b1";
 	x.property_create =				"XCnbrep7000090";
 	x.property_insert_read =		"XCnbrep7000094";
 	x.property_search =				"XCnbrep70000a1";
@@ -134,7 +139,7 @@ const avs_exports_t avs_exports[] = {
 	x.cstream_destroy =				"XCnbrep7000134";
 	return x;
 	}(),
-	[&] { avs_exports_t x = { 0 }; // IIDX
+	[&] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
 	x.version_name =				"IIDX before 25";
 	x.unique_check =				NULL;
 	x.avs_fs_open =					"XCnbrep7000039";
@@ -149,7 +154,8 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCnbrep7000135";
 	x.mdigest_finish =				"XCnbrep7000136";
 	x.mdigest_destroy =				"XCnbrep7000137";
-	x.property_read_query_memsize = "XCnbrep700009b";
+	//x.property_read_query_memsize = "XCnbrep700009b";
+	x.property_read_query_memsize_long = "XCnbrep700009c";
 	x.property_create =				"XCnbrep700007b";
 	x.property_insert_read =		"XCnbrep700007f";
 	x.property_search =				"XCnbrep700008c";
@@ -186,7 +192,8 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCgsqzn0000141";
 	x.mdigest_finish =				"XCgsqzn0000142";
 	x.mdigest_destroy =				"XCgsqzn0000143";
-	x.property_read_query_memsize = "XCgsqzn00000b0";
+	//x.property_read_query_memsize = "XCgsqzn00000b0";
+	x.property_read_query_memsize_long = "XCgsqzn00000b1";
 	x.property_create =				"XCgsqzn0000090";
 	x.property_insert_read =		"XCgsqzn0000094";
 	x.property_search =				"XCgsqzn00000a1";
@@ -283,7 +290,7 @@ property_t prop_from_file(string const&path) {
 		goto FAIL;
     }
 
-	auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
+	auto memsize = property_read_query_memsize_long(avs_fs_read, f, NULL, NULL, NULL);
 	if (memsize < 0) {
 		logf("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
 		goto FAIL;
@@ -291,14 +298,19 @@ property_t prop_from_file(string const&path) {
 
 	prop_buffer = malloc(memsize);
 	prop = property_create(31, prop_buffer, memsize);
-	if (!prop) {
-		logf("Couldn't create prop");
+	if (prop < 0) {
+		logf("Couldn't create prop (%s)", get_prop_error_str((int)prop));
 		goto FAIL;
 	}
 
 	avs_fs_lseek(f, 0, SEEK_SET);
-	property_insert_read(prop, 0, avs_fs_read, f);
+	int ret = property_insert_read(prop, 0, avs_fs_read, f);
 	avs_fs_close(f);
+
+	if (ret < 0) {
+		logf("Couldn't read prop (%s)", get_prop_error_str(ret));
+		goto FAIL;
+	}
 
 	return prop;
 
@@ -356,7 +368,7 @@ bool prop_node_merge_into(node_t dest, node_t src) {
 			dst_copy = property_node_create(NULL, dest, type, name, scratch);
 	}
 	if (!dst_copy) {
-		logf("Can't copy %s node", name);
+		logf("Can't copy %s node (data: %s)", name, prop_data_to_str(type, scratch));
 		ret = false;
 	}
 
@@ -374,7 +386,7 @@ bool prop_node_merge_into(node_t dest, node_t src) {
 		property_node_read(attr, PROP_TYPE_attr, scratch, scratch_len);
 		auto r = property_node_create(NULL, dst_copy, PROP_TYPE_attr, name, scratch);
 		if (!r) {
-			logf("Can't copy %s node", name);
+			logf("Can't copy %s node (data: %s)", name, prop_data_to_str(PROP_TYPE_attr, scratch));
 			ret = false;
 		}
 	}
@@ -395,6 +407,8 @@ bool prop_node_merge_into(node_t dest, node_t src) {
 }
 
 bool prop_merge_into(property_t dest_prop, property_t src_prop) {
+	logf_verbose("%s: dest_prop %x src_prop %x", __FUNCTION__, dest_prop, src_prop);
+
 	auto dest_root = property_search(dest_prop, NULL, "/");
 	auto src_root = property_search(src_prop, NULL, "/");
 
@@ -534,9 +548,83 @@ const prop_error_info_t prop_error_list[73] = {
 };
 
 const char* get_prop_error_str(int32_t code) {
+	static char ret[64];
 	for (int i = 0; i < lenof(prop_error_list); i++) {
 		if (prop_error_list[i].code == code)
 			return prop_error_list[i].msg;
 	}
-	return "unknown";
+	snprintf(ret, sizeof(ret), "unknown (%d)", code);
+	return ret;
+}
+
+char* prop_data_to_str(int type, void* data) {
+	static char ret[64];
+
+	type &= 63;
+
+	switch (type) {
+		case PROP_TYPE_node:
+			return "none - node element";
+		case PROP_TYPE_str:
+		case PROP_TYPE_attr:
+			snprintf(ret, sizeof(ret), "%s", (char*)data);
+			return ret;
+		case PROP_TYPE_s8:
+		case PROP_TYPE_u8:
+		case PROP_TYPE_s16:
+		case PROP_TYPE_u16:
+		case PROP_TYPE_s32:
+		case PROP_TYPE_u32:
+		case PROP_TYPE_s64:
+		case PROP_TYPE_u64:
+		case PROP_TYPE_bin:
+		case PROP_TYPE_ip4:
+		case PROP_TYPE_time:
+		case PROP_TYPE_float:
+		case PROP_TYPE_double:
+		case PROP_TYPE_2s8:
+		case PROP_TYPE_2u8:
+		case PROP_TYPE_2s16:
+		case PROP_TYPE_2u16:
+		case PROP_TYPE_2s32:
+		case PROP_TYPE_2u32:
+		case PROP_TYPE_2s64:
+		case PROP_TYPE_2u64:
+		case PROP_TYPE_2f:
+		case PROP_TYPE_2d:
+		case PROP_TYPE_3s8:
+		case PROP_TYPE_3u8:
+		case PROP_TYPE_3s16:
+		case PROP_TYPE_3u16:
+		case PROP_TYPE_3s32:
+		case PROP_TYPE_3u32:
+		case PROP_TYPE_3s64:
+		case PROP_TYPE_3u64:
+		case PROP_TYPE_3f:
+		case PROP_TYPE_3d:
+		case PROP_TYPE_4s8:
+		case PROP_TYPE_4u8:
+		case PROP_TYPE_4s16:
+		case PROP_TYPE_4u16:
+		case PROP_TYPE_4s32:
+		case PROP_TYPE_4u32:
+		case PROP_TYPE_4s64:
+		case PROP_TYPE_4u64:
+		case PROP_TYPE_4f:
+		case PROP_TYPE_4d:
+		case PROP_TYPE_attr_and_node:
+		case PROP_TYPE_vs8:
+		case PROP_TYPE_vu8:
+		case PROP_TYPE_vs16:
+		case PROP_TYPE_vu16:
+		case PROP_TYPE_bool:
+		case PROP_TYPE_2b:
+		case PROP_TYPE_3b:
+		case PROP_TYPE_4b:
+		case PROP_TYPE_vb:
+			snprintf(ret, sizeof(ret), "STR REP NOT IMPLEMENTED (%d)", type);
+			return ret;
+		default:
+			return "UNKNOWN";
+	}
 }

@@ -117,7 +117,10 @@ enum prop_create_flag {
 	PROP_BIN_PLAIN_NODE_NAMES = 0x1000,
 };
 
-const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND | PROP_BINARY);
+// READ/WRITE/CREATE/APPEND : obvious
+// BINARY: smaller file size in cache
+// PLAIN_NODE_NAMES: lets us exceed 65535 node limit (SDVX breaches this)
+const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND | PROP_BINARY | PROP_BIN_PLAIN_NODE_NAMES);
 
 // for cstream_*
 enum compression_type {
@@ -185,7 +188,9 @@ X(size_t,     avs_fs_read, AVS_FILE context, void *bytes, size_t nbytes) \
 /*X(int,        avs_fs_closedir, AVS_FILE f)*/ \
 /*X(char*,      avs_fs_readdir, AVS_FILE f) */\
 /* property handling */ \
-X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1) \
+/* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use the plain names (which requires memsize_long) */ \
+/*X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1)*/ \
+X(int32_t,    property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1, int* unk2) \
 X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
 X(void*,      property_desc_to_buffer, property_t prop) \
 X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t reader, AVS_FILE f) \

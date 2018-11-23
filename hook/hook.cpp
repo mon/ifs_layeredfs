@@ -509,7 +509,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 	if (starting_f < 0)
 		return;
 
-	int size = property_read_query_memsize(avs_fs_read, starting_f, NULL, NULL);
+	int size = property_read_query_memsize_long(avs_fs_read, starting_f, NULL, NULL, NULL);
 	avs_fs_lseek(starting_f, 0, SEEK_SET);
 	if (size < 0)
 		goto CLEANUP;
@@ -529,7 +529,15 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 
 	merged_prop_buff = malloc(size);
 	merged_prop = property_create(PROP_CREATE_FLAGS, merged_prop_buff, size);
-	property_insert_read(merged_prop, NULL, avs_fs_read, starting_f);
+	if (merged_prop <= 0) {
+		logf("Couldn't merge (can't create result prop, %s)", get_prop_error_str((int)merged_prop));
+		goto CLEANUP;
+	}
+	int first_insert = property_insert_read(merged_prop, NULL, avs_fs_read, starting_f);
+	if (first_insert < 0) {
+		logf("Couldn't merge (can't load first xml, %s)", get_prop_error_str(first_insert));
+		goto CLEANUP;
+	}
 	//auto top = property_search(merged_prop, NULL, "/");
 	for (auto prop : props_to_merge) {
 		//auto root = property_search(prop, NULL, "/");
