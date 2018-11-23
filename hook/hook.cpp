@@ -197,7 +197,7 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 			coords[0] += 2;
 			coords[1] -= 2;
 			coords[2] += 2;
-			coords[1] -= 2;
+			coords[3] -= 2;
 			property_node_create(NULL, tex_node, PROP_TYPE_4u16, "uvrect", coords);
 
 			image_t image_info;
