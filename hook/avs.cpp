@@ -299,7 +299,7 @@ property_t prop_from_file(string const&path) {
 	prop_buffer = malloc(memsize);
 	prop = property_create(31, prop_buffer, memsize);
 	if (prop < 0) {
-		logf("Couldn't create prop (%s)", get_prop_error_str((int)prop));
+		logf("Couldn't create prop (%s)", get_prop_error_str((int32_t)prop));
 		goto FAIL;
 	}
 

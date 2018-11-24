@@ -530,7 +530,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 	merged_prop_buff = malloc(size);
 	merged_prop = property_create(PROP_CREATE_FLAGS, merged_prop_buff, size);
 	if (merged_prop <= 0) {
-		logf("Couldn't merge (can't create result prop, %s)", get_prop_error_str((int)merged_prop));
+		logf("Couldn't merge (can't create result prop, %s)", get_prop_error_str((int32_t)merged_prop));
 		goto CLEANUP;
 	}
 	int first_insert = property_insert_read(merged_prop, NULL, avs_fs_read, starting_f);
