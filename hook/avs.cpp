@@ -40,7 +40,7 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"mdigest_update";
 	x.mdigest_finish =				"mdigest_finish";
 	x.mdigest_destroy =				"mdigest_destroy";
-	//x.property_read_query_memsize = "property_read_query_memsize";
+	x.property_read_query_memsize = "property_read_query_memsize";
 	x.property_read_query_memsize_long = "property_read_query_memsize_long";
 	x.property_create =				"property_create";
 	x.property_desc_to_buffer =		"property_desc_to_buffer";
@@ -78,7 +78,7 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCd229cc000157";
 	x.mdigest_finish =				"XCd229cc000015";
 	x.mdigest_destroy =				"XCd229cc000050";
-	//x.property_read_query_memsize = "XCd229cc0000ff";
+	x.property_read_query_memsize = "XCd229cc0000ff";
 	x.property_read_query_memsize_long = "XCd229cc00002b";
 	x.property_create =				"XCd229cc000126";
 	x.property_desc_to_buffer =		"XCd229cc0000fd";
@@ -102,7 +102,7 @@ const avs_exports_t avs_exports[] = {
 	return x;
 	}(),
 	[&] { avs_exports_t x = { 0 }; // sdvx cloud
-	x.version_name =				"SDVX cloud";
+	x.version_name =				"SDVX Cloud/Beatstream";
 	x.unique_check =				"XCnbrep700013c";
 	x.avs_fs_open =					"XCnbrep700004e";
 	x.avs_fs_close =				"XCnbrep7000055";
@@ -116,7 +116,7 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCnbrep7000141";
 	x.mdigest_finish =				"XCnbrep7000142";
 	x.mdigest_destroy =				"XCnbrep7000143";
-	//x.property_read_query_memsize = "XCnbrep70000b0";
+	x.property_read_query_memsize = "XCnbrep70000b0";
 	x.property_read_query_memsize_long = "XCnbrep70000b1";
 	x.property_create =				"XCnbrep7000090";
 	x.property_insert_read =		"XCnbrep7000094";
@@ -154,7 +154,7 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCnbrep7000135";
 	x.mdigest_finish =				"XCnbrep7000136";
 	x.mdigest_destroy =				"XCnbrep7000137";
-	//x.property_read_query_memsize = "XCnbrep700009b";
+	x.property_read_query_memsize = "XCnbrep700009b";
 	x.property_read_query_memsize_long = "XCnbrep700009c";
 	x.property_create =				"XCnbrep700007b";
 	x.property_insert_read =		"XCnbrep700007f";
@@ -192,7 +192,7 @@ const avs_exports_t avs_exports[] = {
 	x.mdigest_update =				"XCgsqzn0000141";
 	x.mdigest_finish =				"XCgsqzn0000142";
 	x.mdigest_destroy =				"XCgsqzn0000143";
-	//x.property_read_query_memsize = "XCgsqzn00000b0";
+	x.property_read_query_memsize = "XCgsqzn00000b0";
 	x.property_read_query_memsize_long = "XCgsqzn00000b1";
 	x.property_create =				"XCgsqzn0000090";
 	x.property_insert_read =		"XCgsqzn0000094";
@@ -290,7 +290,7 @@ property_t prop_from_file(string const&path) {
 		goto FAIL;
     }
 
-	auto memsize = property_read_query_memsize_long(avs_fs_read, f, NULL, NULL, NULL);
+	auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
 	if (memsize < 0) {
 		logf("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
 		goto FAIL;

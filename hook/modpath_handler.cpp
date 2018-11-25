@@ -69,9 +69,18 @@ void cache_mods(void) {
 
 optional<string> normalise_path(const string &path) {
 	auto data_pos = path.find("data/");
-	if (data_pos == string::npos)
-		return nullopt;
-	auto data_str = path.substr(data_pos + strlen("data/"));
+	auto data2_pos = string::npos;
+
+	if (data_pos == string::npos) {
+		data2_pos = path.find("data2/");
+
+		if(data2_pos == string::npos)
+			return nullopt;
+	}
+	auto actual_pos = (data_pos != string::npos) ? data_pos : data2_pos;
+	// if data2 was found, use root data2/.../... instead of just .../...
+	auto offset = (data2_pos != string::npos) ? 0 : strlen("data/");
+	auto data_str = path.substr(actual_pos + offset);
 	// nuke backslash
 	string_replace(data_str, "\\", "/");
 	// nuke double slash

@@ -26,7 +26,7 @@ using std::string;
 #include "modpath_handler.h"
 #include "GuillotineBinPack.h"
 
-#define VER_STRING "1.6"
+#define VER_STRING "1.7"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -143,8 +143,8 @@ bool add_images_to_list(string_set &extra_pngs, property_t &prop, string const&i
 	struct node_size node_size = {};
 	auto old_size = property_node_query_stat(prop, NULL, &node_size);
 	// big numbers really don't hit memory that badly, and smaller ones are too small :(
-	const int per_canvas_size = 1024; //104;
-	const int per_texture_size = 1024; //176;
+	const int per_canvas_size = 4024; //104;
+	const int per_texture_size = 4024; //176;
 	int new_size = old_size + per_canvas_size * (int)packed_textures.size();
 	for (auto canvas = packed_textures.begin(); canvas != packed_textures.end(); canvas++) {
 		new_size += (int)(*canvas)->bitmaps.size() * per_texture_size;
