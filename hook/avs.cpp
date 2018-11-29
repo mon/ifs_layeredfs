@@ -6,8 +6,6 @@
 #include "MinHook.h"
 #include "utils.h"
 
-char* prop_data_to_str(int type, void* data);
-
 typedef struct {
 	char
 		*version_name,
@@ -32,6 +30,7 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_close =				"avs_fs_close";
 	x.avs_fs_read =					"avs_fs_read";
 	x.avs_fs_lseek =				"avs_fs_lseek";
+	x.avs_fs_fstat =				"avs_fs_fstat";
 	x.avs_fs_lstat =				"avs_fs_lstat";
 	//x.avs_fs_opendir =				"avs_fs_opendir";
 	//x.avs_fs_closedir =				"avs_fs_closedir";
@@ -46,6 +45,7 @@ const avs_exports_t avs_exports[] = {
 	x.property_desc_to_buffer =		"property_desc_to_buffer";
 	x.property_insert_read =		"property_insert_read";
 	x.property_search =				"property_search";
+	x.property_mem_write =			"property_mem_write";
 	x.property_node_clone =			"property_node_clone";
 	x.property_node_create =		"property_node_create";
 	x.property_node_read =			"property_node_read";
@@ -70,6 +70,7 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_close =				"XCd229cc00011f";
 	x.avs_fs_read =					"XCd229cc00010d";
 	x.avs_fs_lseek =				"XCd229cc00004d";
+	x.avs_fs_fstat =				"XCd229cc0000c3";
 	x.avs_fs_lstat =				"XCd229cc0000c0";
 	//x.avs_fs_opendir =				"XCd229cc0000f0";
 	//x.avs_fs_closedir =				"XCd229cc0000b8";
@@ -83,6 +84,7 @@ const avs_exports_t avs_exports[] = {
 	x.property_create =				"XCd229cc000126";
 	x.property_desc_to_buffer =		"XCd229cc0000fd";
 	x.property_insert_read =		"XCd229cc00009a";
+	x.property_mem_write =			"XCd229cc000033";
 	x.property_search =				"XCd229cc00012e";
 	x.property_node_clone =			"XCd229cc00010a";
 	x.property_node_create =		"XCd229cc00002c";
@@ -108,6 +110,7 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_close =				"XCnbrep7000055";
 	x.avs_fs_read =					"XCnbrep7000051";
 	x.avs_fs_lseek =				"XCnbrep700004f";
+	x.avs_fs_fstat =				"XCnbrep7000062";
 	x.avs_fs_lstat =				"XCnbrep7000063";
 	//x.avs_fs_opendir =				"XCnbrep700005c";
 	//x.avs_fs_closedir =				"XCnbrep700005e";
@@ -121,6 +124,7 @@ const avs_exports_t avs_exports[] = {
 	x.property_create =				"XCnbrep7000090";
 	x.property_insert_read =		"XCnbrep7000094";
 	x.property_search =				"XCnbrep70000a1";
+	x.property_mem_write =			"XCnbrep70000b8";
 	x.property_node_clone =			"XCnbrep70000a4";
 	x.property_node_create =		"XCnbrep70000a2";
 	x.property_desc_to_buffer =		"XCnbrep7000092";
@@ -146,6 +150,7 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_close =				"XCnbrep7000040";
 	x.avs_fs_read =					"XCnbrep700003c";
 	x.avs_fs_lseek =				"XCnbrep700003a";
+	x.avs_fs_fstat =				"XCnbrep700004d";
 	x.avs_fs_lstat =				"XCnbrep700004e";
 	//x.avs_fs_opendir =				"XCnbrep7000047";
 	//x.avs_fs_closedir =				"XCnbrep7000049";
@@ -159,6 +164,7 @@ const avs_exports_t avs_exports[] = {
 	x.property_create =				"XCnbrep700007b";
 	x.property_insert_read =		"XCnbrep700007f";
 	x.property_search =				"XCnbrep700008c";
+	x.property_mem_write =			"XCnbrep70000a3";
 	x.property_node_clone =			"XCnbrep700008f";
 	x.property_node_create =		"XCnbrep700008d";
 	x.property_desc_to_buffer =		"XCnbrep700007d";
@@ -184,6 +190,7 @@ const avs_exports_t avs_exports[] = {
 	x.avs_fs_close =				"XCgsqzn0000055";
 	x.avs_fs_read =					"XCgsqzn0000051";
 	x.avs_fs_lseek =				"XCgsqzn000004f";
+	x.avs_fs_fstat =				"XCgsqzn0000062";
 	x.avs_fs_lstat =				"XCgsqzn0000063";
 	//x.avs_fs_opendir =				"XCgsqzn000005c";
 	//x.avs_fs_closedir =				"XCgsqzn000005e";
@@ -197,6 +204,7 @@ const avs_exports_t avs_exports[] = {
 	x.property_create =				"XCgsqzn0000090";
 	x.property_insert_read =		"XCgsqzn0000094";
 	x.property_search =				"XCgsqzn00000a1";
+	x.property_mem_write =			"XCgsqzn00000b8";
 	x.property_node_clone =			"XCgsqzn00000a4";
 	x.property_node_create =		"XCgsqzn00000a2";
 	x.property_desc_to_buffer =		"XCgsqzn0000092";
@@ -279,25 +287,26 @@ bool init_avs(void) {
 	return success;
 }
 
-property_t prop_from_file(string const&path) {
+property_t prop_from_file_handle(AVS_FILE f) {
 	void* prop_buffer = NULL;
 	property_t prop = NULL;
-    AVS_FILE f = 0;
 
-	f = avs_fs_open(path.c_str(), 1, 420);
-	if (f < 0) {
-        logf("Couldn't open prop");
-		goto FAIL;
-    }
-
-	auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
+	int flags = PROP_CREATE_FLAGS;
+	auto memsize = property_read_query_memsize_long(avs_fs_read, f, NULL, NULL, NULL);
 	if (memsize < 0) {
-		logf("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
-		goto FAIL;
+		// normal prop
+		flags &= ~PROP_BIN_PLAIN_NODE_NAMES;
+
+		avs_fs_lseek(f, 0, SEEK_SET);
+		memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
+		if (memsize < 0) {
+			logf("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
+			goto FAIL;
+		}
 	}
 
 	prop_buffer = malloc(memsize);
-	prop = property_create(31, prop_buffer, memsize);
+	prop = property_create(flags, prop_buffer, memsize);
 	if (prop < 0) {
 		logf("Couldn't create prop (%s)", get_prop_error_str((int32_t)prop));
 		goto FAIL;
@@ -315,8 +324,7 @@ property_t prop_from_file(string const&path) {
 	return prop;
 
 FAIL:
-	if (f)
-		avs_fs_close(f);
+	avs_fs_close(f);
 	if (prop)
 		property_destroy(prop);
 	if (prop_buffer)
@@ -324,98 +332,118 @@ FAIL:
 	return NULL;
 }
 
+property_t prop_from_file_path(string const&path) {
+	AVS_FILE f = avs_fs_open(path.c_str(), 1, 420);
+	if (f < 0) {
+        logf("Couldn't open prop");
+		return NULL;
+    }
+
+	return prop_from_file_handle(f);
+}
+
+char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
+	node_size dummy = { 0 };
+
+	auto prop_size = property_node_query_stat(prop, NULL, &dummy);
+	char* xml = allocator.allocate_string(NULL, prop_size);
+
+	auto written = property_mem_write(prop, xml, prop_size);
+	if (written > 0) {
+		xml[written] = '\0';
+	}
+	else {
+		xml[0] = '\0';
+		logf("property_mem_write failed (%s)", get_prop_error_str(written));
+	}
+
+	return xml;
+}
+
+char* avs_file_to_string(AVS_FILE f, rapidxml::xml_document<>& allocator) {
+	avs_stat stat = {0};
+	avs_fs_fstat(f, &stat);
+	char* ret = allocator.allocate_string(NULL, stat.filesize + 1);
+	avs_fs_read(f, ret, stat.filesize);
+	ret[stat.filesize] = '\0';
+	return ret;
+}
+
+bool is_binary_prop(AVS_FILE f) {
+	avs_fs_lseek(f, 0, SEEK_SET);
+	unsigned char head;
+	auto read = avs_fs_read(f, &head, 1);
+	bool ret = (read == 1) && head == 0xA0;
+	avs_fs_lseek(f, 0, SEEK_SET);
+	//logf("detected binary: %s (read %d byte %02x)", ret ? "true": "false", read, head&0xff);
+	return ret;
+}
+
+bool rapidxml_from_avs_filepath(
+	string const& path,
+	rapidxml::xml_document<>& doc,
+	rapidxml::xml_document<>& doc_to_allocate_with
+) {
+	AVS_FILE f = avs_fs_open(path.c_str(), 1, 420);
+	if (f < 0) {
+		logf("Couldn't open prop");
+		return false;
+	}
+
+	// if it's not binary, don't even bother parsing with avs
+	char* xml = NULL;
+	if (is_binary_prop(f)) {		
+		auto prop = prop_from_file_handle(f);
+		if (!prop)
+			return false;
+
+		xml = prop_to_xml_string(prop, doc_to_allocate_with);
+		prop_free(prop);
+	}
+	else {
+		xml = avs_file_to_string(f, doc_to_allocate_with);
+	}
+	avs_fs_close(f);
+
+	/*FILE* fff;
+	fopen_s(&fff, "hmmm.xml", "wb");
+	fwrite(xml_owned, 1, strlen(xml_owned), fff);
+	fclose(fff);*/
+
+	try {
+		// parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
+		doc.parse<rapidxml::parse_declaration_node>(xml);
+	} catch (const rapidxml::parse_error& e) {
+		logf("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
+		return false;
+	}
+
+	return true;
+}
+
+/*char* prop_xml_string_from_prop(property_t prop) {
+	auto prop_size = property_node_query_stat(prop, NULL, NULL);
+	char* xml = (char*)calloc(0, prop_size);
+	property_mem_write(prop, xml, prop_size);
+	return xml;
+}
+
+char* prop_xml_string_from_file(string const&path) {
+	auto prop = prop_from_file(path);
+	if (!prop)
+		return NULL;
+
+	auto xml = prop_xml_string_from_prop(prop);
+	prop_free(prop);
+	return xml;
+}*/
+
 void prop_free(property_t prop) {
 	if (!prop)
 		return;
 	auto buffer = property_desc_to_buffer(prop);
 	property_destroy(prop);
 	free(buffer);
-}
-
-void inline scratch_embiggen(int **scratch, int *scratch_len, node_t node) {
-	auto size = property_node_datasize(node);
-	if (size > *scratch_len) {
-		*scratch = (int*)realloc(*scratch, size);
-		*scratch_len = size;
-	}
-}
-
-bool prop_node_merge_into(node_t dest, node_t src) {
-	bool ret = true;
-	int *scratch = NULL;
-	int scratch_len = 0;
-	char name[64];
-
-	auto type = property_node_type(src);
-	auto masked_type = type & 63;
-	bool is_array = type & 64;
-
-	property_node_name(src, name, sizeof(name));
-	node_t dst_copy;
-
-	if ((type & 63) == PROP_TYPE_node) {
-		dst_copy = property_node_create(NULL, dest, type, name);
-	} else {
-		scratch_embiggen(&scratch, &scratch_len, src);
-		property_node_read(src, type, scratch, scratch_len);
-		if(property_node_datasize(src) <= 4 &&
-			!is_array &&
-			(masked_type < 10
-			 || masked_type == PROP_TYPE_float
-			 || masked_type == PROP_TYPE_bool))
-			dst_copy = property_node_create(NULL, dest, type, name, *scratch);
-		else
-			dst_copy = property_node_create(NULL, dest, type, name, scratch);
-	}
-	if (!dst_copy) {
-		logf("Can't copy %s node (data: %s)", name, prop_data_to_str(type, scratch));
-		ret = false;
-	}
-
-	// attributes
-	for (auto attr = property_node_traversal(src, TRAVERSE_FIRST_ATTR);
-		attr;
-		attr = property_node_traversal(attr, TRAVERSE_NEXT_SIBLING)) {
-		property_node_name(attr, name, sizeof(name));
-		auto end = strlen(name);
-		name[end] = '@';
-		name[end + 1] = '\0';
-		
-		//type = property_node_type(attr);
-		scratch_embiggen(&scratch, &scratch_len, attr);
-		property_node_read(attr, PROP_TYPE_attr, scratch, scratch_len);
-		auto r = property_node_create(NULL, dst_copy, PROP_TYPE_attr, name, scratch);
-		if (!r) {
-			logf("Can't copy %s node (data: %s)", name, prop_data_to_str(PROP_TYPE_attr, scratch));
-			ret = false;
-		}
-	}
-
-	// child, he will do his own siblings
-	auto child = property_node_traversal(src, TRAVERSE_FIRST_CHILD);
-	if (child)
-		ret = ret && prop_node_merge_into(dst_copy, child);
-
-	// sibling
-	auto sibling = property_node_traversal(src, TRAVERSE_NEXT_SIBLING);
-	if (sibling)
-		ret = ret && prop_node_merge_into(dest, sibling);
-
-	if (scratch)
-		free(scratch);
-	return ret;
-}
-
-bool prop_merge_into(property_t dest_prop, property_t src_prop) {
-	logf_verbose("%s: dest_prop %x src_prop %x", __FUNCTION__, dest_prop, src_prop);
-
-	auto dest_root = property_search(dest_prop, NULL, "/");
-	auto src_root = property_search(src_prop, NULL, "/");
-
-	auto node = property_node_traversal(src_root, TRAVERSE_FIRST_CHILD);
-	if(node)
-		return prop_node_merge_into(dest_root, node);
-	return false;
 }
 
 string md5_sum(const char* str) {

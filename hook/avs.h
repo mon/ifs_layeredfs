@@ -5,6 +5,8 @@
 #include <string>
 using std::string;
 
+#include "rapidxml.hpp"
+
 /*
 For a random texture xml
 property_read_query_memsize: 3856
@@ -22,6 +24,8 @@ struct avs_stat {
 	time_t st_atime;
 	time_t st_mtime;
 	time_t st_ctime;
+	int32_t unk1;
+	uint32_t filesize;
 	// not actually sure how big theirs is
 	struct stat padding;
 };
@@ -112,6 +116,7 @@ enum prop_create_flag {
 	PROP_CREATE               = 0x004,
 	PROP_BINARY               = 0x008,
 	PROP_APPEND               = 0x010,
+	PROP_XML_HEADER			  = 0x100,
 	PROP_DEBUG_VERBOSE        = 0x400,
 	PROP_JSON                 = 0x800,
 	PROP_BIN_PLAIN_NODE_NAMES = 0x1000,
@@ -120,7 +125,7 @@ enum prop_create_flag {
 // READ/WRITE/CREATE/APPEND : obvious
 // BINARY: smaller file size in cache
 // PLAIN_NODE_NAMES: lets us exceed 65535 node limit (SDVX breaches this)
-const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND | PROP_BINARY | PROP_BIN_PLAIN_NODE_NAMES);
+const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND | PROP_BIN_PLAIN_NODE_NAMES);
 
 // for cstream_*
 enum compression_type {
@@ -132,6 +137,7 @@ struct node_size {
 	int nodes;
 	int data;
 	int unk1, unk2, unk3;
+	int extra_space[16];
 };
 
 struct property_info {
@@ -180,7 +186,7 @@ typedef size_t(*avs_reader_t)(AVS_FILE context, void *bytes, size_t nbytes);
 /* file functions */ \
 X(AVS_FILE,   avs_fs_open, const char* name, uint16_t mode, int flags) \
 X(void,       avs_fs_close, AVS_FILE f) \
-/*X(int,        avs_fs_fstat, AVS_FILE f, struct avs_stat *st)*/ \
+X(int,        avs_fs_fstat, AVS_FILE f, struct avs_stat *st) \
 X(int,        avs_fs_lstat, const char* path, struct avs_stat *st) \
 X(int,        avs_fs_lseek, AVS_FILE f, long int offset, int origin) \
 X(size_t,     avs_fs_read, AVS_FILE context, void *bytes, size_t nbytes) \
@@ -195,6 +201,7 @@ X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
 X(void*,      property_desc_to_buffer, property_t prop) \
 X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t reader, AVS_FILE f) \
 X(node_t,     property_search, property_t prop, node_t node, const char *path) \
+X(int,		  property_mem_write, property_t prop, char* output, int output_size) \
 X(bool,       property_node_clone, property_t dest_prop, node_t dest_node, node_t src_node, bool deep) \
 X(node_t,     property_node_create, property_t prop, node_t node, property_type type, char* path, ELLIPSIS) \
 X(int,        property_node_name, node_t node, char* buff, int buff_len) \
@@ -223,10 +230,15 @@ X(bool,       cstream_destroy, cstream_t* compressor) \
 AVS_FUNC_LIST
 
 void prop_free(property_t prop);
-property_t prop_from_file(string const&path);
+property_t prop_from_file_path(string const&path);
+property_t prop_from_file_handle(AVS_FILE f);
+bool rapidxml_from_avs_filepath(
+	string const& path,
+	rapidxml::xml_document<>& doc,
+	rapidxml::xml_document<>& doc_to_allocate_with
+);
 string md5_sum(const char* str);
 bool init_avs(void);
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);
 
-bool prop_merge_into(property_t dest_prop, property_t src_prop);
 const char* get_prop_error_str(int32_t code);
