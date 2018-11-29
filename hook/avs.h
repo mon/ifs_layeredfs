@@ -190,9 +190,6 @@ X(int,        avs_fs_fstat, AVS_FILE f, struct avs_stat *st) \
 X(int,        avs_fs_lstat, const char* path, struct avs_stat *st) \
 X(int,        avs_fs_lseek, AVS_FILE f, long int offset, int origin) \
 X(size_t,     avs_fs_read, AVS_FILE context, void *bytes, size_t nbytes) \
-/*X(AVS_FILE,   avs_fs_opendir, const char* name)*/ \
-/*X(int,        avs_fs_closedir, AVS_FILE f)*/ \
-/*X(char*,      avs_fs_readdir, AVS_FILE f) */\
 /* property handling */ \
 X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1) \
 /* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use the plain names (which requires memsize_long) */ \
@@ -200,20 +197,9 @@ X(int32_t,    property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f,
 X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
 X(void*,      property_desc_to_buffer, property_t prop) \
 X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t reader, AVS_FILE f) \
-X(node_t,     property_search, property_t prop, node_t node, const char *path) \
 X(int,		  property_mem_write, property_t prop, char* output, int output_size) \
-X(bool,       property_node_clone, property_t dest_prop, node_t dest_node, node_t src_node, bool deep) \
-X(node_t,     property_node_create, property_t prop, node_t node, property_type type, char* path, ELLIPSIS) \
-X(int,        property_node_name, node_t node, char* buff, int buff_len) \
-X(int,        property_node_datasize, node_t node) \
-X(void,       property_node_read, node_t node, property_type type, void* out, uint32_t out_size) \
-X(uint32_t,   property_node_write, node_t node, property_type type, void* in) \
-X(property_type, property_node_type, node_t node) \
-X(int,        property_file_write, property_t prop, const char* out_path) \
 X(void,       property_destroy, property_t prop) \
-X(node_t,     property_node_traversal, node_t node, int flags) \
 X(int,        property_node_query_stat, property_t prop, node_t node, struct node_size *size) \
-/*X(int,      property_query_size, property_t prop) unused */ \
 /* md5sum *sha1 if needed) */ \
 X(mdigest_p,  mdigest_create, mdigest_algs_t algorithm) \
 X(void,       mdigest_update, mdigest_p digest, const char* data, int size) \
