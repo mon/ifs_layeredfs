@@ -30,7 +30,7 @@ using std::string;
 #include "GuillotineBinPack.h"
 #include "rapidxml_print.hpp"
 
-#define VER_STRING "1.7"
+#define VER_STRING "1.8"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -369,7 +369,7 @@ bool cache_texture(string const&png_path, image_t &tex) {
 
 	// the cache is fresh, don't do the same work twice
 #ifndef ALWAYS_CACHE
-	if (cache_time > 0 && cache_time >= png_time) {
+	if (cache_time > 0 && cache_time >= dll_time && cache_time >= png_time) {
 		return true;
 	}
 #endif
@@ -515,7 +515,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 	for (auto &path : to_merge)
 		newest = std::max(newest, file_time(path.c_str()));
 	// no need to merge
-	if(time_out >= newest) {
+	if(time_out >= newest && time_out >= dll_time) {
 		mod_path = out;
 		return;
 	}
