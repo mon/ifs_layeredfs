@@ -382,13 +382,13 @@ void prop_free(property_t prop) {
 }
 
 string md5_sum(const char* str) {
-	uint8_t sum[16];
-	char sum_str[33];
+	uint8_t sum[MD5_LEN];
+	char sum_str[MD5_LEN*2 + 1];
 	auto digest = mdigest_create(MD5);
 	mdigest_update(digest, str, (int)strlen(str));
-	mdigest_finish(digest, sum, 16);
+	mdigest_finish(digest, sum, MD5_LEN);
 	mdigest_destroy(digest);
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < MD5_LEN; i++) {
 		snprintf(sum_str + 2 * i, 3, "%02x", sum[i]);
 	}
 	return sum_str;

@@ -19,6 +19,7 @@ typedef void* mdigest_p;
 enum mdigest_algs_t {
 	MD5 = 0,
 };
+#define MD5_LEN 16
 
 struct avs_stat {
 	time_t st_atime;

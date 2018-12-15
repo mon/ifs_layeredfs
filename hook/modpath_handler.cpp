@@ -218,5 +218,7 @@ vector<string> find_all_modfile(const string &norm_path) {
 			ret.push_back(dir.name + "/" + *file_search);
 		}
 	}
+	// needed for consistency when hashing names
+	std::sort(ret.begin(), ret.end());
 	return ret;
 }

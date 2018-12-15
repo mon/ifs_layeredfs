@@ -30,7 +30,7 @@ using std::string;
 #include "GuillotineBinPack.h"
 #include "rapidxml_print.hpp"
 
-#define VER_STRING "1.8"
+#define VER_STRING "1.9"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -492,6 +492,17 @@ void handle_texture(string const&norm_path, optional<string> &mod_path) {
 	return;
 }
 
+void hash_filenames(vector<string> &filenames, uint8_t hash[MD5_LEN]) {
+	auto digest = mdigest_create(MD5);
+
+	for (auto &path : filenames) {
+		mdigest_update(digest, path.c_str(), path.length());
+	}
+
+	mdigest_finish(digest, hash, MD5_LEN);
+	mdigest_destroy(digest);
+}
+
 void merge_xmls(string const& path, string const&norm_path, optional<string> &mod_path) {
 	auto start = time();
 	// initialize since we're GOTO-ing like naughty people
@@ -508,14 +519,26 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 
 	auto starting = mod_path ? *mod_path : path;
 	out = CACHE_FOLDER "/" + norm_path;
+	auto out_hashed = out + ".hashed";
+
+	uint8_t hash[MD5_LEN];
+	hash_filenames(to_merge, hash);
+
+	uint8_t cache_hash[MD5_LEN] = {0};
+	FILE* cache_hashfile;
+	fopen_s(&cache_hashfile, out_hashed.c_str(), "rb");
+	if (cache_hashfile) {
+		fread(cache_hash, 1, sizeof(cache_hash), cache_hashfile);
+		fclose(cache_hashfile);
+	}
 
 	auto time_out = file_time(out.c_str());
 	// don't forget to take the input into account
 	time_t newest = file_time(starting.c_str());
 	for (auto &path : to_merge)
 		newest = std::max(newest, file_time(path.c_str()));
-	// no need to merge
-	if(time_out >= newest && time_out >= dll_time) {
+	// no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
+	if(time_out >= newest && time_out >= dll_time && memcmp(hash, cache_hash, sizeof(hash) == 0)) {
 		mod_path = out;
 		return;
 	}
@@ -551,6 +574,11 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 	}
 
 	rapidxml_dump_to_file(out, merged_xml);
+	fopen_s(&cache_hashfile, out_hashed.c_str(), "wb");
+	if (cache_hashfile) {
+		fwrite(hash, 1, sizeof(hash), cache_hashfile);
+		fclose(cache_hashfile);
+	}
 	mod_path = out;
 
 	logf("Merge took %d ms", time() - start);
