@@ -183,7 +183,7 @@ typedef size_t(*avs_reader_t)(AVS_FILE context, void *bytes, size_t nbytes);
 #define ELLIPSIS ...
 // because the functions are repeated in 3 places, we format them with an X macro
 // return value, name, va args...
-#define AVS_FUNC_LIST \
+#define FOREACH_AVS_FUNC(X) \
 /* file functions */ \
 X(AVS_FILE,   avs_fs_open, const char* name, uint16_t mode, int flags) \
 X(void,       avs_fs_close, AVS_FILE f) \
@@ -212,9 +212,8 @@ X(bool,       cstream_operate, cstream_t* compressor) \
 X(bool,       cstream_finish, cstream_t* compressor) \
 X(bool,       cstream_destroy, cstream_t* compressor) \
 
-#undef X
-#define X(ret_type, name, ...) extern ret_type (* name )( __VA_ARGS__ );
-AVS_FUNC_LIST
+#define AVS_FUNC_PROTOTYPE(ret_type, name, ...) extern ret_type (* name )( __VA_ARGS__ );
+FOREACH_AVS_FUNC(AVS_FUNC_PROTOTYPE)
 
 void prop_free(property_t prop);
 property_t prop_from_file_path(string const&path);

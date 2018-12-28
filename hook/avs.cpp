@@ -6,14 +6,13 @@
 #include "MinHook.h"
 #include "utils.h"
 
+#define AVS_STRUCT_DEF(ret_type, name, ...) char* name;
+
 typedef struct {
-	char
-		*version_name,
-		*unique_check // for IIDX vs SDVX cloud, almost all funcs are identical
-#undef X
-#define X(ret_type, name, ...) , * name
-		AVS_FUNC_LIST
-	;
+	char *version_name;
+	char *unique_check; // for IIDX vs SDVX cloud, almost all funcs are identical
+
+	FOREACH_AVS_FUNC(AVS_STRUCT_DEF)
 } avs_exports_t;
 
 const LPCWSTR dll_names[] = {
@@ -160,9 +159,8 @@ const avs_exports_t avs_exports[] = {
 	}(),
 };
 
-#undef X
-#define X(ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
-AVS_FUNC_LIST
+#define AVS_FUNC_PTR(ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
+FOREACH_AVS_FUNC(AVS_FUNC_PTR)
 
 /*void* (*avs_fs_mount)(char* mountpoint, char* fsroot, char* fstype, int a5);
 void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
@@ -173,6 +171,8 @@ void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
 #define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, avs_exports[i]. ## func, hook_ ## func, (LPVOID*) &func) != MH_OK || func == NULL) continue
 #define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i]. ## func)) == NULL) continue
 #define CHECK_UNIQUE(func) if( avs_exports[i]. ## func != NULL && GetProcAddress(mod_handle, avs_exports[i]. ## func) == NULL) continue
+
+#define AVS_FUNC_LOAD(ret_type, name, ...) LOAD_FUNC(name);
 
 bool init_avs(void) {
 	bool success = false;
@@ -207,9 +207,7 @@ bool init_avs(void) {
 		CHECK_UNIQUE(unique_check);
 
 		// load all our imports, fail if any cannot be found
-#undef X
-#define X(ret_type, name, ...) LOAD_FUNC(name);
-		AVS_FUNC_LIST
+		FOREACH_AVS_FUNC(AVS_FUNC_LOAD)
 
 		// apply hooks
 		TEST_HOOK_AND_APPLY(avs_fs_open);

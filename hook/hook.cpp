@@ -496,7 +496,7 @@ void hash_filenames(vector<string> &filenames, uint8_t hash[MD5_LEN]) {
 	auto digest = mdigest_create(MD5);
 
 	for (auto &path : filenames) {
-		mdigest_update(digest, path.c_str(), path.length());
+		mdigest_update(digest, path.c_str(), (int)path.length());
 	}
 
 	mdigest_finish(digest, hash, MD5_LEN);
