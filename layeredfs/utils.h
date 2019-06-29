@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "MinHook.h"
+#include "3rd_party/MinHook.h"
 
 #include "config.h"
 

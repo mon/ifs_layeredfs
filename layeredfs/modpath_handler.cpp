@@ -1,12 +1,13 @@
+#include <windows.h>
+#include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
+
 #include "modpath_handler.h"
 
 #include "config.h"
 #include "utils.h"
 #include "avs.h"
-
-#include <algorithm>
-#include <unordered_map>
-#include <unordered_set>
 
 using std::nullopt;
 

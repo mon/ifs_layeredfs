@@ -3,7 +3,7 @@
 
 #include "avs.h"
 #include "hook.h"
-#include "MinHook.h"
+#include "3rd_party/MinHook.h"
 #include "utils.h"
 
 #define AVS_STRUCT_DEF(ret_type, name, ...) char* name;
@@ -345,7 +345,7 @@ bool rapidxml_from_avs_filepath(
 
 	try {
 		// parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
-		doc.parse<rapidxml::parse_declaration_node>(xml);
+		doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_utf8>(xml);
 	} catch (const rapidxml::parse_error& e) {
 		logf("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
 		return false;

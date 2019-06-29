@@ -1,5 +1,6 @@
 #pragma once
 
+#include <windows.h>
 #include "avs.h"
 
 extern time_t dll_time;

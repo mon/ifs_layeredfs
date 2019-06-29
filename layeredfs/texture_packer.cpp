@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "GuillotineBinPack.h"
+#include "3rd_party/GuillotineBinPack.h"
 
 using namespace rbp;
 

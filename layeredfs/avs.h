@@ -5,7 +5,7 @@
 #include <string>
 using std::string;
 
-#include "rapidxml.hpp"
+#include "3rd_party/rapidxml.hpp"
 
 /*
 For a random texture xml
