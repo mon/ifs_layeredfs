@@ -544,7 +544,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
     for (auto &path : to_merge)
         newest = std::max(newest, file_time(path.c_str()));
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
-    if(time_out >= newest && time_out >= dll_time && memcmp(hash, cache_hash, sizeof(hash) == 0)) {
+    if(time_out >= newest && time_out >= dll_time && memcmp(hash, cache_hash, sizeof(hash)) == 0) {
         mod_path = out;
         return;
     }
