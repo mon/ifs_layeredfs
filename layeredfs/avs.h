@@ -17,110 +17,110 @@ property_node_datasize(root node)  0
 
 typedef void* mdigest_p;
 enum mdigest_algs_t {
-	MD5 = 0,
+    MD5 = 0,
 };
 #define MD5_LEN 16
 
 struct avs_stat {
-	time_t st_atime;
-	time_t st_mtime;
-	time_t st_ctime;
-	int32_t unk1;
-	uint32_t filesize;
-	// not actually sure how big theirs is
-	struct stat padding;
+    time_t st_atime;
+    time_t st_mtime;
+    time_t st_ctime;
+    int32_t unk1;
+    uint32_t filesize;
+    // not actually sure how big theirs is
+    struct stat padding;
 };
 
 typedef struct {
-	unsigned char* output_buffer;
-	unsigned char* input_buffer;
-	uint32_t output_size;
-	uint32_t input_size;
+    unsigned char* output_buffer;
+    unsigned char* input_buffer;
+    uint32_t output_size;
+    uint32_t input_size;
 } cstream_t;
 
 // want to add more? use kbinxml repo
 enum property_type {
-	PROP_TYPE_node = 1,
-	PROP_TYPE_s8 = 2,
-	PROP_TYPE_u8 = 3,
-	PROP_TYPE_s16 = 4,
-	PROP_TYPE_u16 = 5,
-	PROP_TYPE_s32 = 6,
-	PROP_TYPE_u32 = 7,
-	PROP_TYPE_s64 = 8,
-	PROP_TYPE_u64 = 9,
-	PROP_TYPE_bin = 10,
-	PROP_TYPE_str = 11,
-	PROP_TYPE_ip4 = 12,
-	PROP_TYPE_time = 13,
-	PROP_TYPE_float = 14,
-	PROP_TYPE_double = 15,
-	PROP_TYPE_2s8 = 16,
-	PROP_TYPE_2u8 = 17,
-	PROP_TYPE_2s16 = 18,
-	PROP_TYPE_2u16 = 19,
-	PROP_TYPE_2s32 = 20,
-	PROP_TYPE_2u32 = 21,
-	PROP_TYPE_2s64 = 22,
-	PROP_TYPE_2u64 = 23,
-	PROP_TYPE_2f = 24,
-	PROP_TYPE_2d = 25,
-	PROP_TYPE_3s8 = 26,
-	PROP_TYPE_3u8 = 27,
-	PROP_TYPE_3s16 = 28,
-	PROP_TYPE_3u16 = 29,
-	PROP_TYPE_3s32 = 30,
-	PROP_TYPE_3u32 = 31,
-	PROP_TYPE_3s64 = 32,
-	PROP_TYPE_3u64 = 33,
-	PROP_TYPE_3f = 34,
-	PROP_TYPE_3d = 35,
-	PROP_TYPE_4s8 = 36,
-	PROP_TYPE_4u8 = 37,
-	PROP_TYPE_4s16 = 38,
-	PROP_TYPE_4u16 = 39,
-	PROP_TYPE_4s32 = 40,
-	PROP_TYPE_4u32 = 41,
-	PROP_TYPE_4s64 = 42,
-	PROP_TYPE_4u64 = 43,
-	PROP_TYPE_4f = 44,
-	PROP_TYPE_4d = 45,
-	PROP_TYPE_attr = 46,
-	PROP_TYPE_attr_and_node = 47,
-	PROP_TYPE_vs8 = 48,
-	PROP_TYPE_vu8 = 49,
-	PROP_TYPE_vs16 = 50,
-	PROP_TYPE_vu16 = 51,
-	PROP_TYPE_bool = 52,
-	PROP_TYPE_2b = 53,
-	PROP_TYPE_3b = 54,
-	PROP_TYPE_4b = 55,
-	PROP_TYPE_vb = 56,
+    PROP_TYPE_node = 1,
+    PROP_TYPE_s8 = 2,
+    PROP_TYPE_u8 = 3,
+    PROP_TYPE_s16 = 4,
+    PROP_TYPE_u16 = 5,
+    PROP_TYPE_s32 = 6,
+    PROP_TYPE_u32 = 7,
+    PROP_TYPE_s64 = 8,
+    PROP_TYPE_u64 = 9,
+    PROP_TYPE_bin = 10,
+    PROP_TYPE_str = 11,
+    PROP_TYPE_ip4 = 12,
+    PROP_TYPE_time = 13,
+    PROP_TYPE_float = 14,
+    PROP_TYPE_double = 15,
+    PROP_TYPE_2s8 = 16,
+    PROP_TYPE_2u8 = 17,
+    PROP_TYPE_2s16 = 18,
+    PROP_TYPE_2u16 = 19,
+    PROP_TYPE_2s32 = 20,
+    PROP_TYPE_2u32 = 21,
+    PROP_TYPE_2s64 = 22,
+    PROP_TYPE_2u64 = 23,
+    PROP_TYPE_2f = 24,
+    PROP_TYPE_2d = 25,
+    PROP_TYPE_3s8 = 26,
+    PROP_TYPE_3u8 = 27,
+    PROP_TYPE_3s16 = 28,
+    PROP_TYPE_3u16 = 29,
+    PROP_TYPE_3s32 = 30,
+    PROP_TYPE_3u32 = 31,
+    PROP_TYPE_3s64 = 32,
+    PROP_TYPE_3u64 = 33,
+    PROP_TYPE_3f = 34,
+    PROP_TYPE_3d = 35,
+    PROP_TYPE_4s8 = 36,
+    PROP_TYPE_4u8 = 37,
+    PROP_TYPE_4s16 = 38,
+    PROP_TYPE_4u16 = 39,
+    PROP_TYPE_4s32 = 40,
+    PROP_TYPE_4u32 = 41,
+    PROP_TYPE_4s64 = 42,
+    PROP_TYPE_4u64 = 43,
+    PROP_TYPE_4f = 44,
+    PROP_TYPE_4d = 45,
+    PROP_TYPE_attr = 46,
+    PROP_TYPE_attr_and_node = 47,
+    PROP_TYPE_vs8 = 48,
+    PROP_TYPE_vu8 = 49,
+    PROP_TYPE_vs16 = 50,
+    PROP_TYPE_vu16 = 51,
+    PROP_TYPE_bool = 52,
+    PROP_TYPE_2b = 53,
+    PROP_TYPE_3b = 54,
+    PROP_TYPE_4b = 55,
+    PROP_TYPE_vb = 56,
 };
 
 enum prop_traverse_option {
-	TRAVERSE_PARENT = 0,
-	TRAVERSE_FIRST_CHILD = 1,
-	TRAVERSE_FIRST_ATTR = 2,
-	TRAVERSE_FIRST_SIBLING = 3,
-	TRAVERSE_NEXT_SIBLING = 4,
-	TRAVERSE_PREVIOUS_SIBLING = 5,
-	TRAVERSE_LAST_SIBLING = 6,
-	TRAVERSE_NEXT_SEARCH_RESULT = 7,
-	TRAVERSE_PREV_SEARCH_RESULT = 8
+    TRAVERSE_PARENT = 0,
+    TRAVERSE_FIRST_CHILD = 1,
+    TRAVERSE_FIRST_ATTR = 2,
+    TRAVERSE_FIRST_SIBLING = 3,
+    TRAVERSE_NEXT_SIBLING = 4,
+    TRAVERSE_PREVIOUS_SIBLING = 5,
+    TRAVERSE_LAST_SIBLING = 6,
+    TRAVERSE_NEXT_SEARCH_RESULT = 7,
+    TRAVERSE_PREV_SEARCH_RESULT = 8
 };
 
 enum prop_create_flag {
-	PROP_XML                  = 0x000,
-	PROP_READ                 = 0x001,
-	PROP_WRITE                = 0x002,
-	PROP_CREATE               = 0x004,
-	PROP_BINARY               = 0x008,
-	PROP_APPEND               = 0x010,
-	PROP_XML_HEADER			  = 0x100,
-	PROP_DEBUG_VERBOSE        = 0x400,
-	PROP_JSON                 = 0x800,
-	PROP_BIN_PLAIN_NODE_NAMES = 0x1000,
+    PROP_XML                  = 0x000,
+    PROP_READ                 = 0x001,
+    PROP_WRITE                = 0x002,
+    PROP_CREATE               = 0x004,
+    PROP_BINARY               = 0x008,
+    PROP_APPEND               = 0x010,
+    PROP_XML_HEADER           = 0x100,
+    PROP_DEBUG_VERBOSE        = 0x400,
+    PROP_JSON                 = 0x800,
+    PROP_BIN_PLAIN_NODE_NAMES = 0x1000,
 };
 
 // READ/WRITE/CREATE/APPEND : obvious
@@ -130,48 +130,48 @@ const int PROP_CREATE_FLAGS = (PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEN
 
 // for cstream_*
 enum compression_type {
-	AVS_DECOMPRESS_AVSLZ = 0,
-	AVS_COMPRESS_AVSLZ = 1,
+    AVS_DECOMPRESS_AVSLZ = 0,
+    AVS_COMPRESS_AVSLZ = 1,
 };
 
 struct node_size {
-	int nodes;
-	int data;
-	int unk1, unk2, unk3;
-	int extra_space[16];
+    int nodes;
+    int data;
+    int unk1, unk2, unk3;
+    int extra_space[16];
 };
 
 struct property_info {
-	uint8_t blah[560];
-	uint32_t error_code;
-	uint32_t has_error;
-	uint32_t unk;
-	int8_t buffer_offset;
+    uint8_t blah[560];
+    uint32_t error_code;
+    uint32_t has_error;
+    uint32_t unk;
+    int8_t buffer_offset;
 };
 
-/*struct node_info { 
-	DWORD dword0;
-	BYTE gap4[8];
-	unsigned __int16 unsignedC;
-	unsigned __int16 unsignedE;
-	unsigned __int16 unsigned10;
-	unsigned __int16 unsigned12;
-	unsigned __int16 unsigned14;
-	unsigned __int16 unsigned16;
-	DWORD dword18;
-	__declspec(align(8)) unsigned __int16 unsigned20;
-	unsigned __int16 unsigned22;
-	unsigned __int16 unsigned24;
-	unsigned __int16 unsigned26;
-	unsigned __int16 unsigned28;
-	unsigned __int16 unsigned2A;
-	BYTE gap2C[3];
-	BYTE byte2F;
+/*struct node_info {
+    DWORD dword0;
+    BYTE gap4[8];
+    unsigned __int16 unsignedC;
+    unsigned __int16 unsignedE;
+    unsigned __int16 unsigned10;
+    unsigned __int16 unsigned12;
+    unsigned __int16 unsigned14;
+    unsigned __int16 unsigned16;
+    DWORD dword18;
+    __declspec(align(8)) unsigned __int16 unsigned20;
+    unsigned __int16 unsigned22;
+    unsigned __int16 unsigned24;
+    unsigned __int16 unsigned26;
+    unsigned __int16 unsigned28;
+    unsigned __int16 unsigned2A;
+    BYTE gap2C[3];
+    BYTE byte2F;
 };*/
 
 struct node_info {
-	uint8_t blah[47];
-	property_type type;
+    uint8_t blah[47];
+    property_type type;
 };
 
 typedef property_info* property_t;
@@ -198,7 +198,7 @@ X(int32_t,    property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f,
 X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
 X(void*,      property_desc_to_buffer, property_t prop) \
 X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t reader, AVS_FILE f) \
-X(int,		  property_mem_write, property_t prop, char* output, int output_size) \
+X(int,        property_mem_write, property_t prop, char* output, int output_size) \
 X(void,       property_destroy, property_t prop) \
 X(int,        property_node_query_stat, property_t prop, node_t node, struct node_size *size) \
 /* md5sum *sha1 if needed) */ \
@@ -219,9 +219,9 @@ void prop_free(property_t prop);
 property_t prop_from_file_path(string const&path);
 property_t prop_from_file_handle(AVS_FILE f);
 bool rapidxml_from_avs_filepath(
-	string const& path,
-	rapidxml::xml_document<>& doc,
-	rapidxml::xml_document<>& doc_to_allocate_with
+    string const& path,
+    rapidxml::xml_document<>& doc,
+    rapidxml::xml_document<>& doc_to_allocate_with
 );
 string md5_sum(const char* str);
 bool init_avs(void);

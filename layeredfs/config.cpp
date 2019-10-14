@@ -11,29 +11,29 @@
 config_t config;
 
 void load_config(void) {
-	memset(&config, 0, sizeof(config));
+    memset(&config, 0, sizeof(config));
 
-	LPWSTR *szArglist;
-	int nArgs;
-	int i;
+    LPWSTR *szArglist;
+    int nArgs;
+    int i;
 
-	szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
-	if (NULL == szArglist)
-	{
-		return;
-	}
-	
-	for (i = 0; i < nArgs; i++) {
-		if (lstrcmp(szArglist[i], VERBOSE_FLAG) == 0) {
-			config.verbose_logs = true;
-		}
-		else if (lstrcmp(szArglist[i], DEVMODE_FLAG) == 0) {
-			config.developer_mode = true;
-		}
-	}
+    szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
+    if (NULL == szArglist)
+    {
+        return;
+    }
 
-	// Free memory allocated for CommandLineToArgvW arguments.
-	LocalFree(szArglist);
+    for (i = 0; i < nArgs; i++) {
+        if (lstrcmp(szArglist[i], VERBOSE_FLAG) == 0) {
+            config.verbose_logs = true;
+        }
+        else if (lstrcmp(szArglist[i], DEVMODE_FLAG) == 0) {
+            config.developer_mode = true;
+        }
+    }
 
-	logf("Options: %ls=%d %ls=%d", VERBOSE_FLAG, config.verbose_logs, DEVMODE_FLAG, config.developer_mode);
+    // Free memory allocated for CommandLineToArgvW arguments.
+    LocalFree(szArglist);
+
+    logf("Options: %ls=%d %ls=%d", VERBOSE_FLAG, config.verbose_logs, DEVMODE_FLAG, config.developer_mode);
 }

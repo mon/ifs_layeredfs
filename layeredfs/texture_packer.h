@@ -10,23 +10,23 @@ using std::vector;
 
 struct Bitmap
 {
-	string name;
-	int width;
-	int height;
-	int packX;
-	int packY;
-	Bitmap(const string& name, int width, int height);
+    string name;
+    int width;
+    int height;
+    int packX;
+    int packY;
+    Bitmap(const string& name, int width, int height);
 };
 
 struct Packer
 {
-	int width;
-	int height;
+    int width;
+    int height;
 
-	vector<Bitmap*> bitmaps;
+    vector<Bitmap*> bitmaps;
 
-	Packer(int max_size);
-	void Pack(vector<Bitmap*> &bitmaps);
+    Packer(int max_size);
+    void Pack(vector<Bitmap*> &bitmaps);
 };
 
 bool pack_textures(vector<Bitmap*> &textures, vector<Packer*> &packed_textures);
