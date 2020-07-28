@@ -11,9 +11,16 @@ For 64 bit, or more control with 32 bit -
 Load ifs_hook.dll using your launcher/injector of choice (eg: -k ifs_hook.dll)
 
 Flags:
+--layered-disable Disable layeredfs
 --layered-verbose Print *tons* of info. Useful to find why your mods aren't loaded
 --layered-devmode Instead of caching, check the data_mods folder for every file.
-                   A little slower, but lets you modify mods on-the-fly
+                    A little slower, but lets you modify mods on-the-fly
+--layered-allowlist=a,b,c,d
+--layered-blocklist=a,b,c,d
+                  If an allowlist is present, ONLY those folders in the allowlist
+                    are included in the loaded mods list.
+                  If a blocklist is present, folders in the blocklist are excluded
+                    from the loaded mods list.
 
 Info is logged to ifs_hook.log
 If something breaks, send the log to mon

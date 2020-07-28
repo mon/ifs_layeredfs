@@ -26,6 +26,19 @@ void comma_separated_to_set(std::unordered_set<std::string> &dest, const char* a
     free(str);
 }
 
+const char* parse_list(const char* prefix, const char* arg, std::unordered_set<std::string> &dest) {
+    size_t prefix_len = strlen(prefix) + strlen("=");
+    if (strlen(arg) < prefix_len) {
+        return NULL;
+    }
+
+    const char* list_start = &arg[prefix_len];
+
+    comma_separated_to_set(dest, list_start);
+
+    return list_start;
+}
+
 void load_config(void) {
     config.allowlist.clear();
     config.blocklist.clear();
@@ -36,23 +49,10 @@ void load_config(void) {
     int i;
 
     // so close to just pulling in a third party argparsing lib...
-    bool next_is_allowlist = false;
-    bool next_is_blocklist = false;
     const char *allowlist = NULL;
     const char *blocklist = NULL;
 
     for (i = 0; i < __argc; i++) {
-        if (next_is_allowlist) {
-            next_is_allowlist = false;
-            allowlist = __argv[i];
-            comma_separated_to_set(config.allowlist, allowlist);
-        }
-        else if (next_is_blocklist) {
-            next_is_blocklist = false;
-            blocklist = __argv[i];
-            comma_separated_to_set(config.blocklist, blocklist);
-        }
-
         if (strcmp(__argv[i], VERBOSE_FLAG) == 0) {
             config.verbose_logs = true;
         }
@@ -62,11 +62,11 @@ void load_config(void) {
         else if (strcmp(__argv[i], DISABLE_FLAG) == 0) {
             config.disable = true;
         }
-        else if (strcmp(__argv[i], ALLOWLIST_FLAG) == 0) {
-            next_is_allowlist = true;
+        else if (strncmp(__argv[i], ALLOWLIST_FLAG, strlen(ALLOWLIST_FLAG)) == 0) {
+            allowlist = parse_list(ALLOWLIST_FLAG, __argv[i], config.allowlist);
         }
-        else if (strcmp(__argv[i], BLOCKLIST_FLAG) == 0) {
-            next_is_blocklist = true;
+        else if (strncmp(__argv[i], BLOCKLIST_FLAG, strlen(BLOCKLIST_FLAG)) == 0) {
+            blocklist = parse_list(BLOCKLIST_FLAG, __argv[i], config.blocklist);
         }
     }
 
