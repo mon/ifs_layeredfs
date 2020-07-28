@@ -25,7 +25,7 @@ using std::string;
 #include "3rd_party/GuillotineBinPack.h"
 #include "3rd_party/rapidxml_print.hpp"
 
-#include "config.h"
+#include "config.hpp"
 #include "utils.h"
 #include "avs.h"
 //#include "jubeat.h"

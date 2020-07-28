@@ -5,7 +5,7 @@
 
 #include "modpath_handler.h"
 
-#include "config.h"
+#include "config.hpp"
 #include "utils.h"
 #include "avs.h"
 
@@ -94,7 +94,13 @@ vector<string> available_mods() {
     vector<string> ret;
     string mod_root = MOD_FOLDER "/";
 
+    // just pretend we have no mods at all
+    if (config.disable) {
+        return ret;
+    }
+
     if (config.developer_mode) {
+        static bool first_search = true;
         WIN32_FIND_DATAA ffd;
         auto mods = FindFirstFileA(MOD_FOLDER "/*", &ffd);
 
@@ -106,10 +112,28 @@ vector<string> available_mods() {
                     !strcmp(ffd.cFileName, "_cache")) {
                     continue;
                 }
+
+                // if there is an allowlist, is this mod on it?
+                if (!config.allowlist.empty() && config.allowlist.find(ffd.cFileName) == config.allowlist.end()) {
+                    if(first_search)
+                        logf("Ignoring non-allowlisted mod %s", ffd.cFileName);
+
+                    continue;
+                }
+
+                // is this mod in the blocklist?
+                if (config.blocklist.find(ffd.cFileName) != config.blocklist.end()) {
+                    if(first_search)
+                        logf("Ignoring blocklisted mod %s", ffd.cFileName);
+
+                    continue;
+                }
+
                 ret.push_back(mod_root + ffd.cFileName);
             } while (FindNextFileA(mods, &ffd) != 0);
 
             FindClose(mods);
+            first_search = false;
         }
     }
     else {

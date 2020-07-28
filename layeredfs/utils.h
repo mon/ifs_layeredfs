@@ -9,7 +9,7 @@
 
 #include "3rd_party/MinHook.h"
 
-#include "config.h"
+#include "config.hpp"
 
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
