@@ -611,6 +611,27 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     return avs_fs_lstat(name, st);
 }
 
+int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
+    if (name == NULL)
+        return avs_fs_convert_path(dest_name, name);
+
+    logf_verbose("convert_path %s", name);
+    string path = name;
+
+    // can it be modded?
+    auto norm_path = normalise_path(path);
+    if (!norm_path)
+        return avs_fs_convert_path(dest_name, name);
+
+    auto mod_path = find_first_modfile(*norm_path);
+
+    if (mod_path) {
+        logf_verbose("Overwriting convert_path");
+        return avs_fs_convert_path(dest_name, mod_path->c_str());
+    }
+    return avs_fs_convert_path(dest_name, name);
+}
+
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if(name == NULL)
         return avs_fs_open(name, mode, flags);

@@ -187,6 +187,7 @@ typedef size_t(*avs_reader_t)(AVS_FILE context, void *bytes, size_t nbytes);
 /* file functions */ \
 X(AVS_FILE,   avs_fs_open, const char* name, uint16_t mode, int flags) \
 X(void,       avs_fs_close, AVS_FILE f) \
+X(int,        avs_fs_convert_path, char dest_path[256], const char* path) \
 X(int,        avs_fs_fstat, AVS_FILE f, struct avs_stat *st) \
 X(int,        avs_fs_lstat, const char* path, struct avs_stat *st) \
 X(int,        avs_fs_lseek, AVS_FILE f, long int offset, int origin) \

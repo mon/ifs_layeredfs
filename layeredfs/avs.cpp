@@ -27,6 +27,7 @@ const avs_exports_t avs_exports[] = {
     x.unique_check                        = NULL;
     x.avs_fs_open                         = "avs_fs_open";
     x.avs_fs_close                        = "avs_fs_close";
+    x.avs_fs_convert_path                 = "avs_fs_convert_path";
     x.avs_fs_read                         = "avs_fs_read";
     x.avs_fs_lseek                        = "avs_fs_lseek";
     x.avs_fs_fstat                        = "avs_fs_fstat";
@@ -54,6 +55,7 @@ const avs_exports_t avs_exports[] = {
     x.unique_check                        = NULL;
     x.avs_fs_open                         = "XCd229cc000090";
     x.avs_fs_close                        = "XCd229cc00011f";
+    x.avs_fs_convert_path                 = "XCd229cc00001e";
     x.avs_fs_read                         = "XCd229cc00010d";
     x.avs_fs_lseek                        = "XCd229cc00004d";
     x.avs_fs_fstat                        = "XCd229cc0000c3";
@@ -81,6 +83,7 @@ const avs_exports_t avs_exports[] = {
     x.unique_check                        = "XCnbrep700013c";
     x.avs_fs_open                         = "XCnbrep700004e";
     x.avs_fs_close                        = "XCnbrep7000055";
+    x.avs_fs_convert_path                 = "XCnbrep7000046";
     x.avs_fs_read                         = "XCnbrep7000051";
     x.avs_fs_lseek                        = "XCnbrep700004f";
     x.avs_fs_fstat                        = "XCnbrep7000062";
@@ -108,6 +111,7 @@ const avs_exports_t avs_exports[] = {
     x.unique_check                        = NULL;
     x.avs_fs_open                         = "XCnbrep7000039";
     x.avs_fs_close                        = "XCnbrep7000040";
+    x.avs_fs_convert_path                 = "XCnbrep7000031";
     x.avs_fs_read                         = "XCnbrep700003c";
     x.avs_fs_lseek                        = "XCnbrep700003a";
     x.avs_fs_fstat                        = "XCnbrep700004d";
@@ -135,6 +139,7 @@ const avs_exports_t avs_exports[] = {
     x.unique_check                        = "XCgsqzn000013c";
     x.avs_fs_open                         = "XCgsqzn000004e";
     x.avs_fs_close                        = "XCgsqzn0000055";
+    x.avs_fs_convert_path                 = "XCgsqzn0000046";
     x.avs_fs_read                         = "XCgsqzn0000051";
     x.avs_fs_lseek                        = "XCgsqzn000004f";
     x.avs_fs_fstat                        = "XCgsqzn0000062";
@@ -212,6 +217,7 @@ bool init_avs(void) {
         // apply hooks
         TEST_HOOK_AND_APPLY(avs_fs_open);
         TEST_HOOK_AND_APPLY(avs_fs_lstat);
+        TEST_HOOK_AND_APPLY(avs_fs_convert_path);
 
         success = true;
         logf("Detected dll: %s", avs_exports[i].version_name);
