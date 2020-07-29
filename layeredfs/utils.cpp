@@ -98,6 +98,32 @@ bool folder_exists(const char* name) {
     return true;
 }
 
+std::vector<std::string> folders_in_folder(const char* root) {
+    std::vector<std::string> results;
+    WIN32_FIND_DATAA ffd;
+    std::string wildcard = root;
+    wildcard += "/*";
+
+    auto contents = FindFirstFileA(wildcard.c_str(), &ffd);
+    if (contents == INVALID_HANDLE_VALUE) {
+        return results;
+    }
+
+    do {
+        if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
+            !strcmp(ffd.cFileName, ".") ||
+            !strcmp(ffd.cFileName, "..")) {
+            continue;
+        }
+
+        results.push_back(ffd.cFileName);
+    } while (FindNextFileA(contents, &ffd) != 0);
+
+    FindClose(contents);
+
+    return results;
+}
+
 time_t file_time(const char* path) {
     auto wide = str_widen(path);
     auto hFile = CreateFile(wide,  // file to open

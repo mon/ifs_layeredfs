@@ -6,6 +6,7 @@
 #include <inttypes.h>
 
 #include <string>
+#include <vector>
 
 #include "3rd_party/MinHook.h"
 
@@ -22,5 +23,6 @@ void string_replace(std::string &str, const char* from, const char* to);
 wchar_t *str_widen(const char *src);
 bool file_exists(const char* name);
 bool folder_exists(const char* name);
+std::vector<std::string> folders_in_folder(const char* root);
 time_t file_time(const char* path);
 LONG time(void);

@@ -68,19 +68,42 @@ void cache_mods(void) {
     }
 }
 
+// data, data2, data_op2 etc
+// data is "flat", all others must have their own special subfolders
+static vector<string> game_folders;
+
 optional<string> normalise_path(const string &path) {
+    // one-off init
+    if (game_folders.empty()) {
+        for (auto folder : folders_in_folder(".")) {
+            // data is the normal case we transparently handle
+            if (!strcmp(folder.c_str(), "data")) {
+                continue;
+            }
+
+            game_folders.push_back(folder + "/");
+        }
+    }
+
     auto data_pos = path.find("data/");
-    auto data2_pos = string::npos;
+    auto other_pos = string::npos;
 
     if (data_pos == string::npos) {
-        data2_pos = path.find("data2/");
+        // search all our other folders for anything that matches
+        for (auto folder : game_folders) {
+            other_pos = path.find(folder);
+            if (other_pos != string::npos) {
+                break;
+            }
+        }
 
-        if(data2_pos == string::npos)
+        if (other_pos == string::npos) {
             return nullopt;
+        }
     }
-    auto actual_pos = (data_pos != string::npos) ? data_pos : data2_pos;
-    // if data2 was found, use root data2/.../... instead of just .../...
-    auto offset = (data2_pos != string::npos) ? 0 : strlen("data/");
+    auto actual_pos = (data_pos != string::npos) ? data_pos : other_pos;
+    // if data2 was found, for example, use root mod/data2/.../... instead of just mod/.../...
+    auto offset = (other_pos != string::npos) ? 0 : strlen("data/");
     auto data_str = path.substr(actual_pos + offset);
     // nuke backslash
     string_replace(data_str, "\\", "/");
@@ -101,40 +124,31 @@ vector<string> available_mods() {
 
     if (config.developer_mode) {
         static bool first_search = true;
-        WIN32_FIND_DATAA ffd;
-        auto mods = FindFirstFileA(MOD_FOLDER "/*", &ffd);
+        for (auto folder : folders_in_folder(MOD_FOLDER)) {
+            if (!strcmp(folder.c_str(), "_cache")) {
+                continue;
+            }
 
-        if (mods != INVALID_HANDLE_VALUE) {
-            do {
-                if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
-                    !strcmp(ffd.cFileName, ".") ||
-                    !strcmp(ffd.cFileName, "..") ||
-                    !strcmp(ffd.cFileName, "_cache")) {
-                    continue;
-                }
+            // if there is an allowlist, is this mod on it?
+            if (!config.allowlist.empty() && config.allowlist.find(folder) == config.allowlist.end()) {
+                if (first_search)
+                    logf("Ignoring non-allowlisted mod %s", folder.c_str());
 
-                // if there is an allowlist, is this mod on it?
-                if (!config.allowlist.empty() && config.allowlist.find(ffd.cFileName) == config.allowlist.end()) {
-                    if(first_search)
-                        logf("Ignoring non-allowlisted mod %s", ffd.cFileName);
+                continue;
+            }
 
-                    continue;
-                }
+            // is this mod in the blocklist?
+            if (config.blocklist.find(folder) != config.blocklist.end()) {
+                if (first_search)
+                    logf("Ignoring blocklisted mod %s", folder.c_str());
 
-                // is this mod in the blocklist?
-                if (config.blocklist.find(ffd.cFileName) != config.blocklist.end()) {
-                    if(first_search)
-                        logf("Ignoring blocklisted mod %s", ffd.cFileName);
+                continue;
+            }
 
-                    continue;
-                }
-
-                ret.push_back(mod_root + ffd.cFileName);
-            } while (FindNextFileA(mods, &ffd) != 0);
-
-            FindClose(mods);
-            first_search = false;
+            ret.push_back(mod_root + folder);
         }
+
+        first_search = false;
     }
     else {
         for (auto &dir : cached_mods) {
