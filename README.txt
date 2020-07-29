@@ -21,6 +21,7 @@ Flags:
                     are included in the loaded mods list.
                   If a blocklist is present, folders in the blocklist are excluded
                     from the loaded mods list.
+                  Folders cannot have "," in their name if using allow/blocklist
 
 Info is logged to ifs_hook.log
 If something breaks, send the log to mon
