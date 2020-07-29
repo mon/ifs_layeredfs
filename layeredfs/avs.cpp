@@ -184,9 +184,8 @@ bool init_avs(void) {
 
 #ifdef _DEBUG
     for (int i = 0; i < lenof(avs_exports); i++) {
-#undef X
-#define X(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) logf("MISSING EXPORT %d: %s", i, #name);
-        AVS_FUNC_LIST
+#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) logf("MISSING EXPORT %d: %s", i, #name);
+        FOREACH_AVS_FUNC(VERBOSE_EXPORT_CHECK)
     }
 #endif
 
