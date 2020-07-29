@@ -44,16 +44,14 @@ The _cache folder
   Textures are compressed as they are loaded for the first time
     First launch compression of textures may slow down first launch a little
 
-Beatstream is annoying
-  There is a data2 folder alongside data
-  For now, if you want to mod data2, use this folder structure
-  data_mods/
-    my_bst_mod/
-      graphic/
-        some_mod_for_data
-      data2/
+Mods that don't live in data/
+  Some games (Beatstream, Nostalgia) have extra data folders (data2, data_op2)
+  These subfolders must exist in the mod folder if you want to mod them.
+  For example, for a Beatstream mod using data2:
+    data_mods/
+      my_cool_mod/
         graphic/
-          some_mod_for_data2
-
-  I am aware this is not ideal.
-  If you really hate it, get in touch and I might upgrade the code
+          some_mod_for_data
+        data2/
+          graphic/
+            some_mod_for_data2
