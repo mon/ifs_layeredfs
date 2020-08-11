@@ -641,6 +641,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
         return avs_fs_open(name, mode, flags);
     }
     string path = name;
+    string orig_path = name;
 
     // can it be modded ie is it under /data ?
     auto _norm_path = normalise_path(path);
@@ -657,11 +658,11 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     }
 
     if(string_ends_with(path.c_str(), ".xml")) {
-        merge_xmls(path, norm_path, mod_path);
+        merge_xmls(orig_path, norm_path, mod_path);
     }
 
     if (string_ends_with(path.c_str(), "texturelist.xml")) {
-        parse_texturelist(path, norm_path, mod_path);
+        parse_texturelist(orig_path, norm_path, mod_path);
     }
     else {
         handle_texture(norm_path, mod_path);
@@ -671,7 +672,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
         logf("Using %s", mod_path->c_str());
     }
 
-    auto to_open = mod_path ? *mod_path : path;
+    auto to_open = mod_path ? *mod_path : orig_path;
     auto ret = avs_fs_open(to_open.c_str(), mode, flags);
     // logf("returned %d", ret);
     return ret;
