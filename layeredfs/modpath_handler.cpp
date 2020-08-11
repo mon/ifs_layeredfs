@@ -30,6 +30,8 @@ std::unordered_set<string> walk_dir(const string &path, const string &root) {
                 !strcmp(ffd.cFileName, "..")) {
                 continue;
             }
+            str_tolower_inline(ffd.cFileName);
+
             string result_path;
             if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
                 result_path = root + ffd.cFileName + "/";
@@ -72,7 +74,7 @@ void cache_mods(void) {
 // data is "flat", all others must have their own special subfolders
 static vector<string> game_folders;
 
-optional<string> normalise_path(const string &path) {
+optional<string> normalise_path(string &path) {
     // one-off init
     if (game_folders.empty()) {
         for (auto folder : folders_in_folder(".")) {
@@ -84,6 +86,8 @@ optional<string> normalise_path(const string &path) {
             game_folders.push_back(folder + "/");
         }
     }
+
+    str_tolower_inline(path);
 
     auto data_pos = path.find("data/");
     auto other_pos = string::npos;

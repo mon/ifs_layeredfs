@@ -46,7 +46,7 @@ int string_ends_with(const char * str, const char * suffix) {
 
     return
         (str_len >= suffix_len) &&
-        (0 == strcmp(str + (str_len - suffix_len), suffix));
+        (0 == _stricmp(str + (str_len - suffix_len), suffix));
 }
 
 void string_replace(std::string &str, const char* from, const char* to) {
@@ -98,6 +98,18 @@ bool folder_exists(const char* name) {
     return true;
 }
 
+void str_tolower_inline(char* str) {
+    while (*str) {
+        *str++ = tolower(*str);
+    }
+}
+
+void str_tolower_inline(std::string& str) {
+    for (size_t i = 0; i < str.length(); i++) {
+        str[i] = tolower(str[i]);
+    }
+}
+
 std::vector<std::string> folders_in_folder(const char* root) {
     std::vector<std::string> results;
     WIN32_FIND_DATAA ffd;
@@ -115,6 +127,9 @@ std::vector<std::string> folders_in_folder(const char* root) {
             !strcmp(ffd.cFileName, "..")) {
             continue;
         }
+
+        // all lowercase
+        str_tolower_inline(ffd.cFileName);
 
         results.push_back(ffd.cFileName);
     } while (FindNextFileA(contents, &ffd) != 0);

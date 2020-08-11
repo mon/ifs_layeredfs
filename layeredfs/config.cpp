@@ -15,6 +15,7 @@ config_t config;
 
 void comma_separated_to_set(std::unordered_set<std::string> &dest, const char* arg) {
     char *str = _strdup(arg);
+    str_tolower_inline(str); // ignore case for filenames
     char *state = NULL;
     char* token = strtok_s(str, ",", &state);
 
