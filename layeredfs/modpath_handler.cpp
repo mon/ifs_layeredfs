@@ -34,6 +34,10 @@ std::unordered_set<string> walk_dir(const string &path, const string &root) {
 
             string result_path;
             if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                // sanity check a common mistake
+                if (root == "" && !strcmp(ffd.cFileName, "data")) {
+                    logf("WARNING: \"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
+                }
                 result_path = root + ffd.cFileName + "/";
                 logf_verbose("  %s", result_path.c_str());
                 auto subdir_walk = walk_dir(path + "/" + ffd.cFileName, result_path);
@@ -53,20 +57,21 @@ std::unordered_set<string> walk_dir(const string &path, const string &root) {
 }
 
 void cache_mods(void) {
-    if (config.developer_mode)
-        return;
-
     // this is a bit hacky
+    bool devmode = config.developer_mode;
     config.developer_mode = true;
     auto avail_mods = available_mods();
-    config.developer_mode = false;
+    config.developer_mode = devmode;
 
     for (auto &dir : avail_mods) {
         logf_verbose("Walking %s", dir.c_str());
         mod_contents_t mod;
         mod.name = dir;
+        // even in developer mode we want to walk the mods directory for effective logging
         mod.contents = walk_dir(dir, "");
-        cached_mods.push_back(mod);
+        if (!config.developer_mode) {
+            cached_mods.push_back(mod);
+        }
     }
 }
 
