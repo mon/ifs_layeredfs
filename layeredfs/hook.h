@@ -8,6 +8,7 @@ extern time_t dll_time;
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags);
 int hook_avs_fs_lstat(const char* name, struct avs_stat *st);
 int hook_avs_fs_convert_path(char dest_name[256], const char* name);
+int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* flags);
 
 extern "C" {
     __declspec(dllexport) int init(void);

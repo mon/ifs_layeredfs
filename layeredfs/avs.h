@@ -191,6 +191,7 @@ X(int,        avs_fs_convert_path, char dest_path[256], const char* path) \
 X(int,        avs_fs_fstat, AVS_FILE f, struct avs_stat *st) \
 X(int,        avs_fs_lstat, const char* path, struct avs_stat *st) \
 X(int,        avs_fs_lseek, AVS_FILE f, long int offset, int origin) \
+X(int,        avs_fs_mount, const char* mountpoint, const char* fsroot, const char* fstype, const char* flags) \
 X(size_t,     avs_fs_read, AVS_FILE context, void *bytes, size_t nbytes) \
 /* property handling */ \
 X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1) \

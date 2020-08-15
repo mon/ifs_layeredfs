@@ -36,7 +36,7 @@ using std::string;
 #undef max
 #undef min
 
-#define VER_STRING "2.0_BETA"
+#define VER_STRING "2.0_BETA4"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -630,6 +630,12 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
         return avs_fs_convert_path(dest_name, mod_path->c_str());
     }
     return avs_fs_convert_path(dest_name, name);
+}
+
+int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* args) {
+    logf_verbose("mounting %s to %s with type %s and args %s", fsroot, mountpoint, fstype, args);
+
+    return avs_fs_mount(mountpoint, fsroot, fstype, args);
 }
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {

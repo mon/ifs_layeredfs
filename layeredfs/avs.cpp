@@ -32,6 +32,7 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_lseek                        = "avs_fs_lseek";
     x.avs_fs_fstat                        = "avs_fs_fstat";
     x.avs_fs_lstat                        = "avs_fs_lstat";
+    x.avs_fs_mount                        = "avs_fs_mount";
     x.mdigest_create                      = "mdigest_create";
     x.mdigest_update                      = "mdigest_update";
     x.mdigest_finish                      = "mdigest_finish";
@@ -60,6 +61,7 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_lseek                        = "XCd229cc00004d";
     x.avs_fs_fstat                        = "XCd229cc0000c3";
     x.avs_fs_lstat                        = "XCd229cc0000c0";
+    x.avs_fs_mount                        = "XCd229cc0000ce";
     x.mdigest_create                      = "XCd229cc00003d";
     x.mdigest_update                      = "XCd229cc000157";
     x.mdigest_finish                      = "XCd229cc000015";
@@ -88,6 +90,7 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_lseek                        = "XCnbrep700004f";
     x.avs_fs_fstat                        = "XCnbrep7000062";
     x.avs_fs_lstat                        = "XCnbrep7000063";
+    x.avs_fs_mount                        = "XCnbrep700004b";
     x.mdigest_create                      = "XCnbrep700013f";
     x.mdigest_update                      = "XCnbrep7000141";
     x.mdigest_finish                      = "XCnbrep7000142";
@@ -116,6 +119,7 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_lseek                        = "XCnbrep700003a";
     x.avs_fs_fstat                        = "XCnbrep700004d";
     x.avs_fs_lstat                        = "XCnbrep700004e";
+    x.avs_fs_mount                        = "XCnbrep7000036";
     x.mdigest_create                      = "XCnbrep7000133";
     x.mdigest_update                      = "XCnbrep7000135";
     x.mdigest_finish                      = "XCnbrep7000136";
@@ -144,6 +148,7 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_lseek                        = "XCgsqzn000004f";
     x.avs_fs_fstat                        = "XCgsqzn0000062";
     x.avs_fs_lstat                        = "XCgsqzn0000063";
+    x.avs_fs_mount                        = "XCgsqzn000004b";
     x.mdigest_create                      = "XCgsqzn000013f";
     x.mdigest_update                      = "XCgsqzn0000141";
     x.mdigest_finish                      = "XCgsqzn0000142";
@@ -216,6 +221,7 @@ bool init_avs(void) {
         // apply hooks
         TEST_HOOK_AND_APPLY(avs_fs_open);
         TEST_HOOK_AND_APPLY(avs_fs_lstat);
+        TEST_HOOK_AND_APPLY(avs_fs_mount);
         TEST_HOOK_AND_APPLY(avs_fs_convert_path);
 
         success = true;
