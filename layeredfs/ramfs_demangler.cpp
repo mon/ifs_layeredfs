@@ -56,7 +56,7 @@ tsl::htrie_map<char, string> ramfs_map;
 tsl::htrie_map<char, string> mangling_map;
 
 void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_result) {
-	if (open_result < 0) {
+	if (open_result < 0 || !string_ends_with(norm_path.c_str(), ".ifs")) {
 		return;
 	}
 
@@ -115,7 +115,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			return;
 		}
 
-		buffer = (void*)strtoul(baseptr + strlen("base="), NULL, 0);
+		buffer = (void*)strtoull(baseptr + strlen("base="), NULL, 0);
 		
 		auto find = ram_load_map.find(buffer);
 		if (find != ram_load_map.end()) {

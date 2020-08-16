@@ -253,7 +253,8 @@ property_t prop_from_file_handle(AVS_FILE f) {
     prop_buffer = malloc(memsize);
     prop = property_create(flags, prop_buffer, memsize);
     if (prop < 0) {
-        logf("Couldn't create prop (%s)", get_prop_error_str((int32_t)prop));
+        // double cast to squash truncation warning
+        logf("Couldn't create prop (%s)", get_prop_error_str((int32_t)(size_t)prop));
         goto FAIL;
     }
 

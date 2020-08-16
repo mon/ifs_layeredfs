@@ -62,7 +62,7 @@ enum compress_type {
     UNSUPPORTED_COMPRESS,
 };
 
-typedef struct {
+typedef struct image {
     string name;
     string name_md5;
     img_format format;
@@ -640,7 +640,7 @@ int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fs
     return avs_fs_mount(mountpoint, fsroot, fstype, args);
 }
 
-int hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
+size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
     ramfs_demangler_on_fs_read(context, bytes);
     return avs_fs_read(context, bytes, nbytes);
 }
