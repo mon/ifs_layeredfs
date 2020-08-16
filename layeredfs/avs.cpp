@@ -223,6 +223,7 @@ bool init_avs(void) {
         TEST_HOOK_AND_APPLY(avs_fs_lstat);
         TEST_HOOK_AND_APPLY(avs_fs_mount);
         TEST_HOOK_AND_APPLY(avs_fs_convert_path);
+        TEST_HOOK_AND_APPLY(avs_fs_read);
 
         success = true;
         logf("Detected dll: %s", avs_exports[i].version_name);

@@ -25,6 +25,7 @@ using std::string;
 #include "3rd_party/GuillotineBinPack.h"
 #include "3rd_party/rapidxml_print.hpp"
 
+#include "ramfs_demangler.h"
 #include "config.hpp"
 #include "utils.h"
 #include "avs.h"
@@ -634,8 +635,14 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
 
 int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* args) {
     logf_verbose("mounting %s to %s with type %s and args %s", fsroot, mountpoint, fstype, args);
+    ramfs_demangler_on_fs_mount(mountpoint, fsroot, fstype, args);
 
     return avs_fs_mount(mountpoint, fsroot, fstype, args);
+}
+
+int hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
+    ramfs_demangler_on_fs_read(context, bytes);
+    return avs_fs_read(context, bytes, nbytes);
 }
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
@@ -680,6 +687,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 
     auto to_open = mod_path ? *mod_path : orig_path;
     auto ret = avs_fs_open(to_open.c_str(), mode, flags);
+    ramfs_demangler_on_fs_open(to_open, ret);
     // logf("returned %d", ret);
     return ret;
 }

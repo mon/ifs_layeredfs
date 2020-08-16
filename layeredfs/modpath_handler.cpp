@@ -3,8 +3,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "modpath_handler.h"
+#include "ramfs_demangler.h"
 
+#include "modpath_handler.h"
 #include "config.hpp"
 #include "utils.h"
 #include "avs.h"
@@ -92,6 +93,7 @@ optional<string> normalise_path(string &path) {
         }
     }
 
+    ramfs_demangler_demangle_if_possible(path);
     str_tolower_inline(path);
 
     auto data_pos = path.find("data/");
