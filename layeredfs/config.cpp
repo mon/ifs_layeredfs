@@ -29,7 +29,7 @@ void comma_separated_to_set(std::unordered_set<std::string> &dest, const char* a
 
 const char* parse_list(const char* prefix, const char* arg, std::unordered_set<std::string> &dest) {
     size_t prefix_len = strlen(prefix) + strlen("=");
-    if (strlen(arg) < prefix_len) {
+    if (strlen(arg) <= prefix_len) {
         return NULL;
     }
 
