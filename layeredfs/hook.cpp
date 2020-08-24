@@ -37,7 +37,7 @@ using std::string;
 #undef max
 #undef min
 
-#define VER_STRING "2.0_BETA4"
+#define VER_STRING "2.0_BETA5"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
