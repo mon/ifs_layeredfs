@@ -1,9 +1,8 @@
 *.db
 *.zip
 .vs
-*.vcxproj
+*.vcxproj.user
 Debug/
 ipch/
-minhook/
 Release/
 *.filters
