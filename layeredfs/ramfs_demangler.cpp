@@ -82,8 +82,8 @@ void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_resu
 		nullopt,
 		nullopt
 	};
-	cleanup_map.insert({ norm_path, cleanup });
-	open_file_map.insert({ open_result, norm_path });
+	cleanup_map[norm_path] = cleanup;
+	open_file_map[open_result] = norm_path;
 }
 
 void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
@@ -92,7 +92,7 @@ void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
 		auto path = find->second;
 		// even this is too verbose
 		//logf_verbose("Mapped %p to %s", dest, path.c_str());
-		ram_load_map.insert({ dest, path });
+		ram_load_map[dest] = path;
 
 		auto cleanup = cleanup_map.find(path);
 		if (cleanup != cleanup_map.end()) {
@@ -122,7 +122,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			auto orig_path = find->second;
 			logf_verbose("ramfs mount mapped to %s", orig_path.c_str());
 			string mount_path = (string)mountpoint + "/" + fsroot;
-			ramfs_map.insert(mount_path.c_str(), orig_path);
+			ramfs_map[mount_path.c_str()] =  orig_path;
 
 			auto cleanup = cleanup_map.find(orig_path);
 			if (cleanup != cleanup_map.end()) {
@@ -135,7 +135,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 		if (find != ramfs_map.end()) {
 			auto orig_path = *find;
 			logf_verbose("imagefs mount mapped to %s", orig_path.c_str());
-			mangling_map.insert(mountpoint, orig_path);
+			mangling_map[mountpoint] = orig_path;
 
 			auto cleanup = cleanup_map.find(orig_path);
 			if (cleanup != cleanup_map.end()) {
@@ -144,7 +144,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 		}
 		else if(string_ends_with(fsroot, ".ifs")) {
 			//logf_verbose("imagefs mount mapped to %s", fsroot);
-			mangling_map.insert(mountpoint, (string)fsroot);
+			mangling_map[mountpoint] =  (string)fsroot;
 		}
 	}
 }
