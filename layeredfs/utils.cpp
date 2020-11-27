@@ -52,11 +52,23 @@ int string_ends_with(const char * str, const char * suffix) {
 void string_replace(std::string &str, const char* from, const char* to) {
     auto to_len = strlen(to);
     auto from_len = strlen(from);
+
+    // two cases:
+    // recursively nuke all double slashes until we are left with one
+    //   '//' does not exist in '/', so we just move through the string
+    // replace '.xml' with '.merged.xml'
+    //   .xml exists in .merged.xml, if we start at the previous match we will
+    //   replace forever. In this case, we skip the replaced string
+    size_t increment = to_len;
+    if(strstr(to, from) == NULL) {
+        increment = 0;
+    }
+
     size_t offset = 0;
     for (auto pos = str.find(from); pos != std::string::npos; pos = str.find(from, offset)) {
         str.replace(pos, from_len, to);
         // avoid recursion if to contains from
-        offset = pos + to_len;
+        offset = pos + increment;
     }
 }
 
