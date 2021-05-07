@@ -16,6 +16,7 @@ using std::string;
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <mutex>
 
 #include "3rd_party/MinHook.h"
 #pragma comment(lib, "minhook.lib")
@@ -37,7 +38,7 @@ using std::string;
 #undef max
 #undef min
 
-#define VER_STRING "2.0"
+#define VER_STRING "2.1"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -75,7 +76,8 @@ typedef struct image {
 } image_t;
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
-std::unordered_map<string, image_t> ifs_textures;
+static std::unordered_map<string, image_t> ifs_textures;
+static std::mutex ifs_textures_mtx;
 
 typedef std::unordered_set<string> string_set;
 
@@ -234,7 +236,9 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
             image_info.height = texture->height;
 
             auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
+            ifs_textures_mtx.lock();
             ifs_textures[md5_path] = image_info;
+            ifs_textures_mtx.unlock();
         }
     }
 
@@ -340,7 +344,9 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
             image_info.height = (dimensions[3] - dimensions[2]) / 2;
 
             auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
+            ifs_textures_mtx.lock();
             ifs_textures[md5_path] = image_info;
+            ifs_textures_mtx.unlock();
 
             extra_pngs.erase(image_info.name);
         }
@@ -466,13 +472,16 @@ bool cache_texture(string const&png_path, image_t &tex) {
 }
 
 void handle_texture(string const&norm_path, optional<string> &mod_path) {
+    ifs_textures_mtx.lock();
     auto tex_search = ifs_textures.find(norm_path);
     if (tex_search == ifs_textures.end()) {
+        ifs_textures_mtx.unlock();
         return;
     }
 
     //logf("Mapped file %s is found!", norm_path.c_str());
     auto tex = tex_search->second;
+    ifs_textures_mtx.unlock(); // is it safe to unlock this early? Time will tell...
 
     // remove the /tex/, it's nicer to navigate
     auto png_path = find_first_modfile(tex.ifs_mod_path + "/" + tex.name + ".png");

@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <unordered_map>
+#include <mutex>
 #include <optional>
 
 #include "3rd_party/hat-trie/htrie_map.h"
@@ -48,17 +49,21 @@ typedef struct {
 	optional<string> mounted_path;
 } file_cleanup_info_t;
 
-unordered_map<string, file_cleanup_info_t> cleanup_map;
-unordered_map<AVS_FILE, string> open_file_map;
-unordered_map<void*, string> ram_load_map;
+static unordered_map<string, file_cleanup_info_t> cleanup_map;
+static unordered_map<AVS_FILE, string> open_file_map;
+static unordered_map<void*, string> ram_load_map;
 // using tries for fast prefix matches on our mangled names
-tsl::htrie_map<char, string> ramfs_map;
-tsl::htrie_map<char, string> mangling_map;
+static tsl::htrie_map<char, string> ramfs_map;
+static tsl::htrie_map<char, string> mangling_map;
+
+static std::mutex mangling_mtx;
 
 void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_result) {
 	if (open_result < 0 || !string_ends_with(norm_path.c_str(), ".ifs")) {
 		return;
 	}
+
+	const std::lock_guard<std::mutex> lock(mangling_mtx);
 
 	auto existing_info = cleanup_map.find(norm_path);
 	if (existing_info != cleanup_map.end()) {
@@ -87,6 +92,8 @@ void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_resu
 }
 
 void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
+	const std::lock_guard<std::mutex> lock(mangling_mtx);
+
 	auto find = open_file_map.find(context);
 	if (find != open_file_map.end()) {
 		auto path = find->second;
@@ -102,6 +109,8 @@ void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
 }
 
 void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* flags) {
+	const std::lock_guard<std::mutex> lock(mangling_mtx);
+
 	if (!strcmp(fstype, "ramfs")) {
 		void* buffer;
 
@@ -150,6 +159,8 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 }
 
 void ramfs_demangler_demangle_if_possible(std::string& raw_path) {
+	const std::lock_guard<std::mutex> lock(mangling_mtx);
+
 	auto search = mangling_map.longest_prefix(raw_path);
 	if (search != mangling_map.end()) {
 		//logf_verbose("can demangle %s to %s", search.key().c_str(), search->c_str());

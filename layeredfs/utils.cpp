@@ -1,9 +1,12 @@
 #include "utils.h"
 #include "avs.h"
 
+#include <mutex>
+
 #define SUPPRESS_PRINTF
 
 void logf(char* fmt, ...) {
+    static std::mutex log_mutex;
     static FILE* logfile = NULL;
     static bool tried_to_open = false;
     va_list args;
@@ -14,11 +17,17 @@ void logf(char* fmt, ...) {
     printf("\n");
 #endif
     // don't reopen every time: slow as shit
-    if (!logfile && !tried_to_open) {
-        fopen_s(&logfile, "ifs_hook.log", "w");
+    if (!tried_to_open) {
+        const std::lock_guard<std::mutex> lock(log_mutex);
+
+        if (!logfile) {
+            fopen_s(&logfile, "ifs_hook.log", "w");
+        }
         tried_to_open = true;
     }
     if (logfile) {
+        const std::lock_guard<std::mutex> lock(log_mutex);
+
         va_start(args, fmt);
         vfprintf(logfile, fmt, args);
         va_end(args);

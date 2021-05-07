@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+#include <mutex>
 
 #include "ramfs_demangler.h"
 
@@ -79,18 +80,26 @@ void cache_mods(void) {
 // data, data2, data_op2 etc
 // data is "flat", all others must have their own special subfolders
 static vector<string> game_folders;
+static std::mutex game_folders_mtx;
 
 optional<string> normalise_path(string &path) {
     // one-off init
     if (game_folders.empty()) {
-        for (auto folder : folders_in_folder(".")) {
-            // data is the normal case we transparently handle
-            if (!strcmp(folder.c_str(), "data")) {
-                continue;
-            }
+        game_folders_mtx.lock();
 
-            game_folders.push_back(folder + "/");
+        // check again in case init was raced
+        if (game_folders.empty()) {
+            for (auto folder : folders_in_folder(".")) {
+                // data is the normal case we transparently handle
+                if (!strcmp(folder.c_str(), "data")) {
+                    continue;
+                }
+
+                game_folders.push_back(folder + "/");
+            }
         }
+        game_folders_mtx.unlock();
+        // all access past here is read-only, don't use the mutex any more
     }
 
     ramfs_demangler_demangle_if_possible(path);
