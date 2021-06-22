@@ -16,7 +16,6 @@ using std::string;
 #include <algorithm>
 #include <iostream>
 #include <fstream>
-#include <mutex>
 
 #include "3rd_party/MinHook.h"
 #pragma comment(lib, "minhook.lib")
@@ -33,12 +32,13 @@ using std::string;
 //#include "jubeat.h"
 #include "texture_packer.h"
 #include "modpath_handler.h"
+#include "winxp_mutex.hpp"
 
 // let me use the std:: version, damnit
 #undef max
 #undef min
 
-#define VER_STRING "2.1"
+#define VER_STRING "2.2"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -77,7 +77,7 @@ typedef struct image {
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
 static std::unordered_map<string, image_t> ifs_textures;
-static std::mutex ifs_textures_mtx;
+static CriticalSectionLock ifs_textures_mtx;
 
 typedef std::unordered_set<string> string_set;
 
@@ -673,9 +673,8 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     auto norm_path = *_norm_path;
 
     auto mod_path = find_first_modfile(norm_path);
-    if (!mod_path) {
-        // mod ifs paths use _ifs
-        string_replace(norm_path, ".ifs", "_ifs");
+    // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
+    while (!mod_path && string_replace_first(norm_path, ".ifs", "_ifs")) {
         mod_path = find_first_modfile(norm_path);
     }
 

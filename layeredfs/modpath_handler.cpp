@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
-#include <mutex>
 
 #include "ramfs_demangler.h"
 
@@ -10,6 +9,7 @@
 #include "config.hpp"
 #include "utils.h"
 #include "avs.h"
+#include "winxp_mutex.hpp"
 
 using std::nullopt;
 
@@ -80,7 +80,7 @@ void cache_mods(void) {
 // data, data2, data_op2 etc
 // data is "flat", all others must have their own special subfolders
 static vector<string> game_folders;
-static std::mutex game_folders_mtx;
+static CriticalSectionLock game_folders_mtx;
 
 optional<string> normalise_path(string &path) {
     // one-off init
@@ -228,6 +228,7 @@ optional<string> find_first_cached_item(const string &norm_path) {
 }
 
 optional<string> find_first_modfile(const string &norm_path) {
+    //logf_verbose("%s(%s)", __FUNCTION__, norm_path.c_str());
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;

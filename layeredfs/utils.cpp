@@ -1,12 +1,11 @@
 #include "utils.h"
 #include "avs.h"
-
-#include <mutex>
+#include "winxp_mutex.hpp"
 
 #define SUPPRESS_PRINTF
 
 void logf(char* fmt, ...) {
-    static std::mutex log_mutex;
+    static CriticalSectionLock log_mutex;
     static FILE* logfile = NULL;
     static bool tried_to_open = false;
     va_list args;
@@ -18,15 +17,16 @@ void logf(char* fmt, ...) {
 #endif
     // don't reopen every time: slow as shit
     if (!tried_to_open) {
-        const std::lock_guard<std::mutex> lock(log_mutex);
+        log_mutex.lock();
 
         if (!logfile) {
             fopen_s(&logfile, "ifs_hook.log", "w");
         }
         tried_to_open = true;
+        log_mutex.unlock();
     }
     if (logfile) {
-        const std::lock_guard<std::mutex> lock(log_mutex);
+        log_mutex.lock();
 
         va_start(args, fmt);
         vfprintf(logfile, fmt, args);
@@ -35,6 +35,8 @@ void logf(char* fmt, ...) {
 
         if(config.developer_mode)
             fflush(logfile);
+
+        log_mutex.unlock();
     }
 }
 
@@ -79,6 +81,17 @@ void string_replace(std::string &str, const char* from, const char* to) {
         // avoid recursion if to contains from
         offset = pos + increment;
     }
+}
+
+bool string_replace_first(std::string& str, const char* from, const char* to) {
+    auto pos = str.find(from);
+    if (pos == std::string::npos) {
+        return false;
+    }
+
+    str.replace(pos, strlen(from), to);
+
+    return true;
 }
 
 wchar_t *str_widen(const char *src)
