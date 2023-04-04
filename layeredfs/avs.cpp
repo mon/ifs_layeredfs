@@ -109,6 +109,34 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XCnbrep7000134";
     return x;
     }(),
+    [&] { avs_exports_t x = { 0 };
+    x.version_name                        = "IIDX 19";
+    x.avs_fs_open                         = "XC058ba50000b6";
+    x.avs_fs_close                        = "XC058ba500011b";
+    x.avs_fs_convert_path                 = "XC058ba50000d5";
+    x.avs_fs_read                         = "XC058ba5000139";
+    x.avs_fs_lseek                        = "XC058ba500000f";
+    x.avs_fs_fstat                        = "XC058ba50000d0";
+    x.avs_fs_lstat                        = "XC058ba5000063";
+    x.avs_fs_mount                        = "XC058ba500009c";
+    x.mdigest_create                      = "XC058ba50000db";
+    x.mdigest_update                      = "XC058ba5000096";
+    x.mdigest_finish                      = "XC058ba500002f";
+    x.mdigest_destroy                     = "XC058ba5000004";
+    x.property_read_query_memsize         = "XC058ba5000066";
+    x.property_read_query_memsize_long    = "XC058ba5000091";
+    x.property_create                     = "XC058ba5000107";
+    x.property_insert_read                = "XC058ba5000016";
+    x.property_mem_write                  = "XC058ba5000162";
+    x.property_desc_to_buffer             = "XC058ba50000cd";
+    x.property_destroy                    = "XC058ba500010f";
+    x.property_node_query_stat            = "XC058ba500015e";
+    x.cstream_create                      = "XC058ba5000118";
+    x.cstream_operate                     = "XC058ba5000078";
+    x.cstream_finish                      = "XC058ba5000130";
+    x.cstream_destroy                     = "XC058ba500012b";
+    return x;
+    }(),
     [&] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
     x.version_name                        = "IIDX before 25";
     x.unique_check                        = NULL;
