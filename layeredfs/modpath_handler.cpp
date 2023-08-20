@@ -7,6 +7,7 @@
 
 #include "modpath_handler.h"
 #include "config.hpp"
+#include "log.hpp"
 #include "utils.h"
 #include "avs.h"
 #include "winxp_mutex.hpp"
@@ -38,16 +39,16 @@ std::unordered_set<string> walk_dir(const string &path, const string &root) {
             if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
                 // sanity check a common mistake
                 if (root == "" && !strcmp(ffd.cFileName, "data")) {
-                    logf("WARNING: \"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
+                    log_warning("\"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
                 }
                 result_path = root + ffd.cFileName + "/";
-                logf_verbose("  %s", result_path.c_str());
+                log_verbose("  %s", result_path.c_str());
                 auto subdir_walk = walk_dir(path + "/" + ffd.cFileName, result_path);
                 result.insert(subdir_walk.begin(), subdir_walk.end());
             }
             else {
                 result_path = root + ffd.cFileName;
-                logf_verbose("  %s", result_path.c_str());
+                log_verbose("  %s", result_path.c_str());
             }
             result.insert(result_path);
         } while (FindNextFileA(contents, &ffd) != 0);
@@ -66,7 +67,7 @@ void cache_mods(void) {
     config.developer_mode = devmode;
 
     for (auto &dir : avail_mods) {
-        logf_verbose("Walking %s", dir.c_str());
+        log_verbose("Walking %s", dir.c_str());
         mod_contents_t mod;
         mod.name = dir;
         // even in developer mode we want to walk the mods directory for effective logging
@@ -152,7 +153,7 @@ vector<string> available_mods() {
             // if there is an allowlist, is this mod on it?
             if (!config.allowlist.empty() && config.allowlist.find(folder) == config.allowlist.end()) {
                 if (first_search)
-                    logf("Ignoring non-allowlisted mod %s", folder.c_str());
+                    log_info("Ignoring non-allowlisted mod %s", folder.c_str());
 
                 continue;
             }
@@ -160,7 +161,7 @@ vector<string> available_mods() {
             // is this mod in the blocklist?
             if (config.blocklist.find(folder) != config.blocklist.end()) {
                 if (first_search)
-                    logf("Ignoring blocklisted mod %s", folder.c_str());
+                    log_info("Ignoring blocklisted mod %s", folder.c_str());
 
                 continue;
             }
@@ -228,7 +229,7 @@ optional<string> find_first_cached_item(const string &norm_path) {
 }
 
 optional<string> find_first_modfile(const string &norm_path) {
-    //logf_verbose("%s(%s)", __FUNCTION__, norm_path.c_str());
+    //log_verbose("%s(%s)", __FUNCTION__, norm_path.c_str());
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;

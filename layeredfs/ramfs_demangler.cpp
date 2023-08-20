@@ -37,6 +37,7 @@
 #include "3rd_party/hat-trie/htrie_map.h"
 
 #include "ramfs_demangler.h"
+#include "log.hpp"
 #include "utils.h"
 #include "winxp_mutex.hpp"
 
@@ -103,7 +104,7 @@ void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
 	if (find != open_file_map.end()) {
 		auto path = find->second;
 		// even this is too verbose
-		//logf_verbose("Mapped %p to %s", dest, path.c_str());
+		//log_verbose("Mapped %p to %s", dest, path.c_str());
 		ram_load_map[dest] = path;
 
 		auto cleanup = cleanup_map.find(path);
@@ -122,13 +123,13 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 		void* buffer;
 
 		if (!flags) {
-			logf_verbose("ramfs has no flags?");
+			log_verbose("ramfs has no flags?");
 			mangling_mtx.unlock();
 			return;
 		}
 		const char* baseptr = strstr(flags, "base=");
 		if (!baseptr) {
-			logf_verbose("ramfs has no base pointer?");
+			log_verbose("ramfs has no base pointer?");
 			mangling_mtx.unlock();
 			return;
 		}
@@ -138,7 +139,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 		auto find = ram_load_map.find(buffer);
 		if (find != ram_load_map.end()) {
 			auto orig_path = find->second;
-			logf_verbose("ramfs mount mapped to %s", orig_path.c_str());
+			log_verbose("ramfs mount mapped to %s", orig_path.c_str());
 			string mount_path = (string)mountpoint + "/" + fsroot;
 			ramfs_map[mount_path.c_str()] =  orig_path;
 
@@ -152,7 +153,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 		auto find = ramfs_map.longest_prefix(fsroot);
 		if (find != ramfs_map.end()) {
 			auto orig_path = *find;
-			logf_verbose("imagefs mount mapped to %s", orig_path.c_str());
+			log_verbose("imagefs mount mapped to %s", orig_path.c_str());
 			mangling_map[mountpoint] = orig_path;
 
 			auto cleanup = cleanup_map.find(orig_path);
@@ -164,7 +165,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			// this fixes ifs-inside-ifs by demangling the root location too
 			string root = (string)fsroot;
 			ramfs_demangler_demangle_if_possible_nolock(root);
-			logf_verbose("imagefs mount mapped to %s", root.c_str());
+			log_verbose("imagefs mount mapped to %s", root.c_str());
 			mangling_map[mountpoint] =  root;
 		}
 	}
@@ -177,7 +178,7 @@ void ramfs_demangler_demangle_if_possible(std::string& raw_path) {
 
 	auto search = mangling_map.longest_prefix(raw_path);
 	if (search != mangling_map.end()) {
-		//logf_verbose("can demangle %s to %s", search.key().c_str(), search->c_str());
+		//log_verbose("can demangle %s to %s", search.key().c_str(), search->c_str());
 		string_replace(raw_path, search.key().c_str(), search->c_str());
 	}
 

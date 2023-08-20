@@ -178,7 +178,7 @@
     <ClInclude Include="avs.h" />
     <ClInclude Include="config.hpp" />
     <ClInclude Include="hook.h" />
-    <ClInclude Include="jubeat.h" />
+    <ClInclude Include="log.hpp" />
     <ClInclude Include="modpath_handler.h" />
     <ClInclude Include="ramfs_demangler.h" />
     <ClInclude Include="texture_packer.h" />
@@ -194,7 +194,7 @@
     <ClCompile Include="config.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="hook.cpp" />
-    <ClCompile Include="jubeat.cpp" />
+    <ClCompile Include="log.cpp" />
     <ClCompile Include="modpath_handler.cpp" />
     <ClCompile Include="ramfs_demangler.cpp" />
     <ClCompile Include="texture_packer.cpp" />

@@ -3,10 +3,13 @@
 
 #include "avs.h"
 #include "hook.h"
+#include "log.hpp"
 #include "3rd_party/MinHook.h"
 #include "utils.h"
 
 #define AVS_STRUCT_DEF(ret_type, name, ...) char* name;
+
+const char *avs_loaded_dll_name;
 
 typedef struct {
     char *version_name;
@@ -25,6 +28,10 @@ const avs_exports_t avs_exports[] = {
     [&] { avs_exports_t x = { 0 };
     x.version_name                        = "normal";
     x.unique_check                        = NULL;
+    x.log_body_fatal                      = "log_body_fatal";
+    x.log_body_warning                    = "log_body_warning";
+    x.log_body_info                       = "log_body_info";
+    x.log_body_misc                       = "log_body_misc";
     x.avs_fs_open                         = "avs_fs_open";
     x.avs_fs_close                        = "avs_fs_close";
     x.avs_fs_convert_path                 = "avs_fs_convert_path";
@@ -52,8 +59,45 @@ const avs_exports_t avs_exports[] = {
     return x;
     }(),
     [&] { avs_exports_t x = { 0 };
-    x.version_name                        = "SDVX";
+    x.version_name                        = "2.13.x (XC058ba5------)";
     x.unique_check                        = NULL;
+    x.log_body_fatal                      = "XC058ba5000084";
+    x.log_body_warning                    = "XC058ba50000e1";
+    x.log_body_info                       = "XC058ba500015a";
+    x.log_body_misc                       = "XC058ba500002d";
+    x.avs_fs_open                         = "XC058ba50000b6";
+    x.avs_fs_close                        = "XC058ba500011b";
+    x.avs_fs_convert_path                 = "XC058ba50000d5";
+    x.avs_fs_read                         = "XC058ba5000139";
+    x.avs_fs_lseek                        = "XC058ba500000f";
+    x.avs_fs_fstat                        = "XC058ba50000d0";
+    x.avs_fs_lstat                        = "XC058ba5000063";
+    x.avs_fs_mount                        = "XC058ba500009c";
+    x.mdigest_create                      = "XC058ba50000db";
+    x.mdigest_update                      = "XC058ba5000096";
+    x.mdigest_finish                      = "XC058ba500002f";
+    x.mdigest_destroy                     = "XC058ba5000004";
+    x.property_read_query_memsize         = "XC058ba5000066";
+    x.property_read_query_memsize_long    = "XC058ba5000091";
+    x.property_create                     = "XC058ba5000107";
+    x.property_insert_read                = "XC058ba5000016";
+    x.property_mem_write                  = "XC058ba5000162";
+    x.property_desc_to_buffer             = "XC058ba50000cd";
+    x.property_destroy                    = "XC058ba500010f";
+    x.property_node_query_stat            = "XC058ba500015e";
+    x.cstream_create                      = "XC058ba5000118";
+    x.cstream_operate                     = "XC058ba5000078";
+    x.cstream_finish                      = "XC058ba5000130";
+    x.cstream_destroy                     = "XC058ba500012b";
+    return x;
+    }(),
+    [&] { avs_exports_t x = { 0 };
+    x.version_name                        = "2.15.x (XCd229cc------)";
+    x.unique_check                        = NULL;
+    x.log_body_fatal                      = "XCd229cc0000e6";
+    x.log_body_warning                    = "XCd229cc000018";
+    x.log_body_info                       = "XCd229cc0000dc";
+    x.log_body_misc                       = "XCd229cc000075";
     x.avs_fs_open                         = "XCd229cc000090";
     x.avs_fs_close                        = "XCd229cc00011f";
     x.avs_fs_convert_path                 = "XCd229cc00001e";
@@ -81,8 +125,12 @@ const avs_exports_t avs_exports[] = {
     return x;
     }(),
     [&] { avs_exports_t x = { 0 }; // sdvx cloud
-    x.version_name                        = "SDVX Cloud/Beatstream";
+    x.version_name                        = "2.16.[3-7] (XCnbrep7------)";
     x.unique_check                        = "XCnbrep700013c";
+    x.log_body_fatal                      = "XCnbrep700017a";
+    x.log_body_warning                    = "XCnbrep700017b";
+    x.log_body_info                       = "XCnbrep700017c";
+    x.log_body_misc                       = "XCnbrep700017d";
     x.avs_fs_open                         = "XCnbrep700004e";
     x.avs_fs_close                        = "XCnbrep7000055";
     x.avs_fs_convert_path                 = "XCnbrep7000046";
@@ -109,37 +157,13 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XCnbrep7000134";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 };
-    x.version_name                        = "IIDX 19";
-    x.avs_fs_open                         = "XC058ba50000b6";
-    x.avs_fs_close                        = "XC058ba500011b";
-    x.avs_fs_convert_path                 = "XC058ba50000d5";
-    x.avs_fs_read                         = "XC058ba5000139";
-    x.avs_fs_lseek                        = "XC058ba500000f";
-    x.avs_fs_fstat                        = "XC058ba50000d0";
-    x.avs_fs_lstat                        = "XC058ba5000063";
-    x.avs_fs_mount                        = "XC058ba500009c";
-    x.mdigest_create                      = "XC058ba50000db";
-    x.mdigest_update                      = "XC058ba5000096";
-    x.mdigest_finish                      = "XC058ba500002f";
-    x.mdigest_destroy                     = "XC058ba5000004";
-    x.property_read_query_memsize         = "XC058ba5000066";
-    x.property_read_query_memsize_long    = "XC058ba5000091";
-    x.property_create                     = "XC058ba5000107";
-    x.property_insert_read                = "XC058ba5000016";
-    x.property_mem_write                  = "XC058ba5000162";
-    x.property_desc_to_buffer             = "XC058ba50000cd";
-    x.property_destroy                    = "XC058ba500010f";
-    x.property_node_query_stat            = "XC058ba500015e";
-    x.cstream_create                      = "XC058ba5000118";
-    x.cstream_operate                     = "XC058ba5000078";
-    x.cstream_finish                      = "XC058ba5000130";
-    x.cstream_destroy                     = "XC058ba500012b";
-    return x;
-    }(),
     [&] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
-    x.version_name                        = "IIDX before 25";
+    x.version_name                        = "2.16.1 (XCnbrep7 but different)",
     x.unique_check                        = NULL;
+    x.log_body_fatal                      = "XCnbrep7000168";
+    x.log_body_warning                    = "XCnbrep7000169";
+    x.log_body_info                       = "XCnbrep700016a";
+    x.log_body_misc                       = "XCnbrep700016b";
     x.avs_fs_open                         = "XCnbrep7000039";
     x.avs_fs_close                        = "XCnbrep7000040";
     x.avs_fs_convert_path                 = "XCnbrep7000031";
@@ -166,9 +190,13 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XCnbrep7000128";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much
-    x.version_name                        = "museca/IIDX 25+";
-    x.unique_check                        = "XCgsqzn000013c";
+    [&] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much. 2.16.3 with different prefix
+    x.version_name                        = "2.17.x (XCgsqzn0------)";
+    x.unique_check                        = NULL;
+    x.log_body_fatal                      = "XCgsqzn000017a";
+    x.log_body_warning                    = "XCgsqzn000017b";
+    x.log_body_info                       = "XCgsqzn000017c";
+    x.log_body_misc                       = "XCgsqzn000017d";
     x.avs_fs_open                         = "XCgsqzn000004e";
     x.avs_fs_close                        = "XCgsqzn0000055";
     x.avs_fs_convert_path                 = "XCgsqzn0000046";
@@ -202,7 +230,7 @@ FOREACH_AVS_FUNC(AVS_FUNC_PTR)
 
 /*void* (*avs_fs_mount)(char* mountpoint, char* fsroot, char* fstype, int a5);
 void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
-    logf("Mounting %s at %s with type %s", fsroot, mountpoint, fstype);
+    log_misc("Mounting %s at %s with type %s", fsroot, mountpoint, fstype);
     return avs_fs_mount(mountpoint, fsroot, fstype, a5);
 }*/
 
@@ -217,7 +245,7 @@ bool init_avs(void) {
 
 #ifdef _DEBUG
     for (int i = 0; i < lenof(avs_exports); i++) {
-#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) logf("MISSING EXPORT %d: %s", i, #name);
+#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) log_warning("MISSING EXPORT %d: %s", i, #name);
         FOREACH_AVS_FUNC(VERBOSE_EXPORT_CHECK)
     }
 #endif
@@ -235,7 +263,7 @@ bool init_avs(void) {
     }
 
     if (mod_handle == NULL) {
-        logf("Couldn't find AVS dll");
+        log_warning("Couldn't find AVS dll in memory");
         return false;
     }
 
@@ -254,7 +282,8 @@ bool init_avs(void) {
         TEST_HOOK_AND_APPLY(avs_fs_read);
 
         success = true;
-        logf("Detected dll: %s", avs_exports[i].version_name);
+        avs_loaded_dll_name = avs_exports[i].version_name;
+
         break;
     }
     return success;
@@ -273,7 +302,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
         avs_fs_lseek(f, 0, SEEK_SET);
         memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
         if (memsize < 0) {
-            logf("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
+            log_warning("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
             goto FAIL;
         }
     }
@@ -282,7 +311,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
     prop = property_create(flags, prop_buffer, memsize);
     if (prop < 0) {
         // double cast to squash truncation warning
-        logf("Couldn't create prop (%s)", get_prop_error_str((int32_t)(size_t)prop));
+        log_warning("Couldn't create prop (%s)", get_prop_error_str((int32_t)(size_t)prop));
         goto FAIL;
     }
 
@@ -291,7 +320,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
     avs_fs_close(f);
 
     if (ret < 0) {
-        logf("Couldn't read prop (%s)", get_prop_error_str(ret));
+        log_warning("Couldn't read prop (%s)", get_prop_error_str(ret));
         goto FAIL;
     }
 
@@ -309,7 +338,7 @@ FAIL:
 property_t prop_from_file_path(string const&path) {
     AVS_FILE f = avs_fs_open(path.c_str(), 1, 420);
     if (f < 0) {
-        logf("Couldn't open prop");
+        log_warning("Couldn't open prop");
         return NULL;
     }
 
@@ -328,7 +357,7 @@ char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
     }
     else {
         xml[0] = '\0';
-        logf("property_mem_write failed (%s)", get_prop_error_str(written));
+        log_warning("property_mem_write failed (%s)", get_prop_error_str(written));
     }
 
     return xml;
@@ -360,7 +389,7 @@ bool rapidxml_from_avs_filepath(
 ) {
     AVS_FILE f = avs_fs_open(path.c_str(), 1, 420);
     if (f < 0) {
-        logf("Couldn't open prop");
+        log_warning("Couldn't open prop");
         return false;
     }
 
@@ -388,7 +417,7 @@ bool rapidxml_from_avs_filepath(
         // parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
         doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_utf8>(xml);
     } catch (const rapidxml::parse_error& e) {
-        logf("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
+        log_warning("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
         return false;
     }
 
@@ -436,7 +465,7 @@ string md5_sum(const char* str) {
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length) {
     auto compressor = cstream_create(AVS_COMPRESS_AVSLZ);
     if (!compressor) {
-        logf("Couldn't create");
+        log_warning("Couldn't create");
         return NULL;
     }
     compressor->input_buffer = input;
@@ -456,11 +485,11 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
         ret = cstream_operate(compressor);
     }
     if (!ret) {
-        logf("Couldn't operate");
+        log_warning("Couldn't operate");
         return NULL;
     }
     if (cstream_finish(compressor)) {
-        logf("Couldn't finish");
+        log_warning("Couldn't finish");
         return NULL;
     }
     *compressed_length = compress_size - compressor->output_size;

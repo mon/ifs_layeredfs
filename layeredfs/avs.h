@@ -184,6 +184,11 @@ typedef size_t(*avs_reader_t)(AVS_FILE context, void *bytes, size_t nbytes);
 // because the functions are repeated in 3 places, we format them with an X macro
 // return value, name, va args...
 #define FOREACH_AVS_FUNC(X) \
+/* Logging functions */ \
+X(void,       log_body_fatal, const char *module, const char *fmt, ELLIPSIS) \
+X(void,       log_body_warning, const char *module, const char *fmt, ELLIPSIS) \
+X(void,       log_body_info, const char *module, const char *fmt, ELLIPSIS) \
+X(void,       log_body_misc, const char *module, const char *fmt, ELLIPSIS) \
 /* file functions */ \
 X(AVS_FILE,   avs_fs_open, const char* name, uint16_t mode, int flags) \
 X(void,       avs_fs_close, AVS_FILE f) \
@@ -230,3 +235,5 @@ bool init_avs(void);
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);
 
 const char* get_prop_error_str(int32_t code);
+
+extern const char *avs_loaded_dll_name;

@@ -27,6 +27,7 @@ using std::string;
 
 #include "ramfs_demangler.h"
 #include "config.hpp"
+#include "log.hpp"
 #include "utils.h"
 #include "avs.h"
 //#include "jubeat.h"
@@ -142,7 +143,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
     vector<Bitmap*> textures;
 
     for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
-        logf_verbose("New image: %s", it->c_str());
+        log_verbose("New image: %s", it->c_str());
 
         string png_tex = *it + ".png";
         auto png_loc = find_first_modfile(ifs_mod_path + "/" + png_tex);
@@ -164,7 +165,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         unsigned width, height;
         LodePNGState state = {};
         if (lodepng_inspect(&width, &height, &state, header, 33)) {
-            logf("couldn't inspect png");
+            log_warning("couldn't inspect png");
             continue;
         }
 
@@ -174,10 +175,10 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
     auto pack_start = time();
     vector<Packer*> packed_textures;
     if (!pack_textures(textures, packed_textures)) {
-        logf("Couldn't pack textures :(");
+        log_warning("Couldn't pack textures :(");
         return false;
     }
-    logf("Texture packing %d ms", time() - pack_start);
+    log_misc("Texture packing %d ms", time() - pack_start);
 
     // because the property API, being
     // a) written by Konami
@@ -242,7 +243,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         }
     }
 
-    logf("Texture extend total time %d ms", time() - start);
+    log_misc("Texture extend total time %d ms", time() - start);
     return true;
 }
 
@@ -253,12 +254,12 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
     auto ifs_path = norm_path;
     // truncate
     ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
-    //logf("Reading ifs %s", ifs_path.c_str());
+    //log_misc("Reading ifs %s", ifs_path.c_str());
     auto ifs_mod_path = ifs_path;
     string_replace(ifs_mod_path, ".ifs", "_ifs");
 
     if (!find_first_modfolder(ifs_mod_path)) {
-        logf_verbose("mod folder doesn't exist, skipping");
+        log_verbose("mod folder doesn't exist, skipping");
         return;
     }
 
@@ -272,7 +273,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
     auto texturelist_node = texturelist.first_node("texturelist");
 
     if (!texturelist_node) {
-        logf("texlist has no texturelist node");
+        log_warning("texlist has no texturelist node");
         return;
     }
 
@@ -295,14 +296,14 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
 
         auto format = texture->first_attribute("format");
         if (!format) {
-            logf("Texture missing format %s", path_to_open.c_str());
+            log_warning("Texture missing format %s", path_to_open.c_str());
             continue;
         }
 
         //<size __type="2u16">128 128</size>
         auto size = texture->first_node("size");
         if (!size) {
-            logf("Texture missing size %s", path_to_open.c_str());
+            log_warning("Texture missing size %s", path_to_open.c_str());
             continue;
         }
 
@@ -318,7 +319,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
             image = image->next_sibling("image")) {
             auto name = image->first_attribute("name");
             if (!name) {
-                logf("Texture missing name %s", path_to_open.c_str());
+                log_warning("Texture missing name %s", path_to_open.c_str());
                 continue;
             }
 
@@ -326,14 +327,14 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
             auto imgrect = image->first_node("imgrect");
             auto uvrect = image->first_node("uvrect");
             if (!imgrect || !uvrect) {
-                logf("Texture missing dimensions %s", path_to_open.c_str());
+                log_warning("Texture missing dimensions %s", path_to_open.c_str());
                 continue;
             }
 
             // it's a 4u16
             sscanf_s(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0], &dimensions[1], &dimensions[2], &dimensions[3]);
 
-            //logf("Image '%s' compress %d format %d", tmp, compress, format_type);
+            //log_misc("Image '%s' compress %d format %d", tmp, compress, format_type);
             image_t image_info;
             image_info.name = name->value();
             image_info.name_md5 = md5_sum(name->value());
@@ -352,7 +353,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
         }
     }
 
-    logf_verbose("%d added PNGs", extra_pngs.size());
+    log_verbose("%d added PNGs", extra_pngs.size());
     if (extra_pngs.size() > 0) {
         if (add_images_to_list(extra_pngs, texturelist_node, ifs_path, ifs_mod_path, compress))
             prop_was_rewritten = true;
@@ -361,7 +362,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
     if (prop_was_rewritten) {
         string outfolder = CACHE_FOLDER "/" + ifs_mod_path;
         if (!mkdir_p(outfolder)) {
-            logf("Couldn't create cache folder");
+            log_warning("Couldn't create cache folder");
         }
         string outfile = outfolder + "/texturelist.xml";
         rapidxml_dump_to_file(outfile, texturelist);
@@ -372,7 +373,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
 bool cache_texture(string const&png_path, image_t &tex) {
     string cache_path = tex.cache_folder();
     if (!mkdir_p(cache_path)) {
-        logf("Couldn't create texture cache folder");
+        log_warning("Couldn't create texture cache folder");
         return false;
     }
 
@@ -396,12 +397,12 @@ bool cache_texture(string const&png_path, image_t &tex) {
 
     error = lodepng_decode32_file(&image, &width, &height, png_path.c_str());
     if (error) {
-        logf("can't load png %u: %s\n", error, lodepng_error_text(error));
+        log_warning("can't load png %u: %s\n", error, lodepng_error_text(error));
         return false;
     }
 
     if (width != tex.width || height != tex.height) {
-        logf("Loaded png (%dx%d) doesn't match texturelist.xml (%dx%d), ignoring", width, height, tex.width, tex.height);
+        log_warning("Loaded png (%dx%d) doesn't match texturelist.xml (%dx%d), ignoring", width, height, tex.width, tex.height);
         return false;
     }
 
@@ -447,7 +448,7 @@ bool cache_texture(string const&png_path, image_t &tex) {
         auto compressed = lz_compress(image, image_size, &compressed_size);
         free(image);
         if (compressed == NULL) {
-            logf("Couldn't compress");
+            log_warning("Couldn't compress");
             return false;
         }
         image = compressed;
@@ -456,7 +457,7 @@ bool cache_texture(string const&png_path, image_t &tex) {
 
     fopen_s(&cache, cache_file.c_str(), "wb");
     if (!cache) {
-        logf("can't open cache for writing");
+        log_warning("can't open cache for writing");
         return false;
     }
     if (tex.compression == AVSLZ) {
@@ -479,7 +480,7 @@ void handle_texture(string const&norm_path, optional<string> &mod_path) {
         return;
     }
 
-    //logf("Mapped file %s is found!", norm_path.c_str());
+    //log_misc("Mapped file %s is found!", norm_path.c_str());
     auto tex = tex_search->second;
     ifs_textures_mtx.unlock(); // is it safe to unlock this early? Time will tell...
 
@@ -493,15 +494,15 @@ void handle_texture(string const&norm_path, optional<string> &mod_path) {
     }
 
     if (tex.compression == UNSUPPORTED_COMPRESS) {
-        logf("Unsupported compression for %s", png_path->c_str());
+        log_warning("Unsupported compression for %s", png_path->c_str());
         return;
     }
     if (tex.format == UNSUPPORTED_FORMAT) {
-        logf("Unsupported texture format for %s", png_path->c_str());
+        log_warning("Unsupported texture format for %s", png_path->c_str());
         return;
     }
 
-    logf_verbose("Mapped file %s found!", png_path->c_str());
+    log_verbose("Mapped file %s found!", png_path->c_str());
     if (cache_texture(*png_path, tex)) {
         mod_path = tex.cache_file();
     }
@@ -561,17 +562,17 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 
     auto first_result = rapidxml_from_avs_filepath(starting, merged_xml, merged_xml);
     if (!first_result) {
-        logf("Couldn't merge (can't load first xml %s)", starting.c_str());
+        log_warning("Couldn't merge (can't load first xml %s)", starting.c_str());
         return;
     }
 
-    logf("Merging into %s", starting.c_str());
+    log_info("Merging into %s", starting.c_str());
     for (auto &path : to_merge) {
-        logf("  %s", path.c_str());
+        log_info("  %s", path.c_str());
         rapidxml::xml_document<> rapid_to_merge;
         auto merge_load_result = rapidxml_from_avs_filepath(path, rapid_to_merge, merged_xml);
         if (!merge_load_result) {
-            logf("Couldn't merge (can't load xml) %s", path.c_str());
+            log_warning("Couldn't merge (can't load xml) %s", path.c_str());
             return;
         }
 
@@ -586,7 +587,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
     auto folder_terminator = out.rfind("/");
     out_folder = out.substr(0, folder_terminator);
     if (!mkdir_p(out_folder)) {
-        logf("Couldn't create merged cache folder");
+        log_warning("Couldn't create merged cache folder");
     }
 
     rapidxml_dump_to_file(out, merged_xml);
@@ -597,14 +598,14 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
     }
     mod_path = out;
 
-    logf("Merge took %d ms", time() - start);
+    log_misc("Merge took %d ms", time() - start);
 }
 
 int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     if (name == NULL)
         return avs_fs_lstat(name, st);
 
-    logf_verbose("statting %s", name);
+    log_verbose("statting %s", name);
     string path = name;
 
     // can it be modded?
@@ -615,7 +616,7 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     auto mod_path = find_first_modfile(*norm_path);
 
     if (mod_path) {
-        logf_verbose("Overwriting lstat");
+        log_verbose("Overwriting lstat");
         return avs_fs_lstat(mod_path->c_str(), st);
     }
     return avs_fs_lstat(name, st);
@@ -625,7 +626,7 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
     if (name == NULL)
         return avs_fs_convert_path(dest_name, name);
 
-    logf_verbose("convert_path %s", name);
+    log_verbose("convert_path %s", name);
     string path = name;
 
     // can it be modded?
@@ -636,14 +637,14 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
     auto mod_path = find_first_modfile(*norm_path);
 
     if (mod_path) {
-        logf_verbose("Overwriting convert_path");
+        log_verbose("Overwriting convert_path");
         return avs_fs_convert_path(dest_name, mod_path->c_str());
     }
     return avs_fs_convert_path(dest_name, name);
 }
 
 int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* args) {
-    logf_verbose("mounting %s to %s with type %s and args %s", fsroot, mountpoint, fstype, args);
+    log_verbose("mounting %s to %s with type %s and args %s", fsroot, mountpoint, fstype, args);
     ramfs_demangler_on_fs_mount(mountpoint, fsroot, fstype, args);
 
     return avs_fs_mount(mountpoint, fsroot, fstype, args);
@@ -657,7 +658,7 @@ size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if(name == NULL)
         return avs_fs_open(name, mode, flags);
-    logf_verbose("opening %s mode %d flags %d", name, mode, flags);
+    log_verbose("opening %s mode %d flags %d", name, mode, flags);
     // only touch reads
     if (mode != 1) {
         return avs_fs_open(name, mode, flags);
@@ -690,13 +691,13 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     }
 
     if (mod_path) {
-        logf("Using %s", mod_path->c_str());
+        log_info("Using %s", mod_path->c_str());
     }
 
     auto to_open = mod_path ? *mod_path : orig_path;
     auto ret = avs_fs_open(to_open.c_str(), mode, flags);
     ramfs_demangler_on_fs_open(to_open, ret);
-    // logf("returned %d", ret);
+    // log_misc("returned %d", ret);
     return ret;
 }
 
@@ -711,7 +712,7 @@ void avs_playpen() {
 
     auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
     if (memsize < 0) {
-        logf("Couldn't get memsize %08X", memsize);
+        log_warning("Couldn't get memsize %08X", memsize);
         goto FAIL;
     }
 
@@ -721,7 +722,7 @@ void avs_playpen() {
     prop_buffer = malloc(memsize);
     prop = property_create(PROP_READ|PROP_WRITE|PROP_APPEND|PROP_CREATE|PROP_JSON, prop_buffer, memsize);
     if (!prop) {
-        logf("Couldn't create prop");
+        log_warning("Couldn't create prop");
         goto FAIL;
     }
 
@@ -741,11 +742,11 @@ FAIL:
 
     /*auto d = avs_fs_opendir(MOD_FOLDER);
     if (!d) {
-        logf("couldn't d");
+        log_warning("couldn't d");
         return;
     }
     for (char* n = avs_fs_readdir(d); n; n = avs_fs_readdir(d))
-        logf("dir %s", n);
+        log_info("dir %s", n);
     avs_fs_closedir(d);*/
     //char name[64];
     //auto playpen = prop_from_file("playpen.xml");
@@ -757,15 +758,15 @@ FAIL:
     //print_node(end);
     /*for (int i = 0; i <= 8; i++) {
         if (i == 6 || i == 3) continue;
-        logf("Traverse: %d", i);
+        log_info("Traverse: %d", i);
         auto node = property_search(playpen, NULL, "/root/t2");
         auto nnn = property_node_traversal(node, 8);
         auto nna = property_node_traversal(nnn, TRAVERSE_FIRST_ATTR);
         property_node_name(nna, name, 64);
-        logf("bloop %s", name);
+        log_info("bloop %s", name);
         for (;node;node = property_node_traversal(node, i)) {
             if (!property_node_name(node, name, 64)) {
-                logf("    %s", name);
+                log_info("    %s", name);
             }
         }
     }*/
@@ -774,32 +775,47 @@ FAIL:
 
 extern "C" {
     __declspec(dllexport) int init(void) {
-        logf("IFS layeredFS v" VERSION " DLL init...");
+        // all logs up until init_avs succeeds will go to a file for debugging purposes
+
+        // find out where we're logging to
+        load_config();
+
         if (MH_Initialize() != MH_OK) {
-            logf("Couldn't initialize MinHook");
+            log_fatal("Couldn't initialize MinHook");
             return 1;
         }
 
-        load_config();
-        cache_mods();
-
-        logf("Hooking ifs operations");
         if (!init_avs()) {
-            logf("Couldn't find ifs operations in dll. Send avs dll (libavs-winxx.dll or avs2-core.dll) to mon.");
+            log_fatal("Couldn't find ifs operations in dll. Send avs dll (libavs-winxx.dll or avs2-core.dll) to mon.");
             return 2;
         }
+
+        // re-route to AVS logs if no external file specified
+        if(!config.logfile) {
+            imp_log_body_fatal = log_body_fatal;
+            imp_log_body_warning = log_body_warning;
+            imp_log_body_info = log_body_info;
+            imp_log_body_misc = log_body_misc;
+        }
+
+        // now we can say hello!
+        log_info("IFS layeredFS v" VERSION " init");
+        log_info("AVS DLL detected: %s", avs_loaded_dll_name);
+        print_config();
+
+        cache_mods();
 
         //jb_texhook_init();
 
         if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
-            logf("Couldn't enable hooks");
+            log_warning("Couldn't enable hooks");
             return 2;
         }
-        logf("Hook DLL init success");
+        log_info("Hook DLL init success");
 
-        logf("Detected mod folders:");
+        log_info("Detected mod folders:");
         for (auto &p : available_mods()) {
-            logf("%s", p.c_str());
+            log_info("%s", p.c_str());
         }
 
         return 0;

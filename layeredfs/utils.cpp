@@ -1,44 +1,8 @@
+#include <stdarg.h>
+#include <Windows.h>
+
 #include "utils.h"
 #include "avs.h"
-#include "winxp_mutex.hpp"
-
-#define SUPPRESS_PRINTF
-
-void logf(char* fmt, ...) {
-    static CriticalSectionLock log_mutex;
-    static FILE* logfile = NULL;
-    static bool tried_to_open = false;
-    va_list args;
-#ifndef SUPPRESS_PRINTF
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    printf("\n");
-#endif
-    // don't reopen every time: slow as shit
-    if (!tried_to_open) {
-        log_mutex.lock();
-
-        if (!logfile) {
-            fopen_s(&logfile, "ifs_hook.log", "w");
-        }
-        tried_to_open = true;
-        log_mutex.unlock();
-    }
-    if (logfile) {
-        log_mutex.lock();
-
-        va_start(args, fmt);
-        vfprintf(logfile, fmt, args);
-        va_end(args);
-        fprintf(logfile, "\n");
-
-        if(config.developer_mode)
-            fflush(logfile);
-
-        log_mutex.unlock();
-    }
-}
 
 char* snprintf_auto(const char* fmt, ...) {
     va_list argList;
