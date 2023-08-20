@@ -6,3 +6,6 @@ Debug/
 ipch/
 Release/
 *.filters
+*.o
+playpen.exe
+*.dll
