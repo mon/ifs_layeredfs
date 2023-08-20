@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Windows.h>
+#include <windows.h>
 
 // This class is a lightweight replacement for std::mutex on Windows platforms.
 // std::mutex does not work on Windows XP SP2 with the latest VC++ libraries,

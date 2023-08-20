@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include <windows.h>
 #include <stdio.h>
 
@@ -7,13 +8,13 @@
 #include "3rd_party/MinHook.h"
 #include "utils.h"
 
-#define AVS_STRUCT_DEF(ret_type, name, ...) char* name;
+#define AVS_STRUCT_DEF(ret_type, name, ...) const char* name;
 
 const char *avs_loaded_dll_name;
 
 typedef struct {
-    char *version_name;
-    char *unique_check; // for IIDX vs SDVX cloud, almost all funcs are identical
+    const char *version_name;
+    const char *unique_check; // for IIDX vs SDVX cloud, almost all funcs are identical
 
     FOREACH_AVS_FUNC(AVS_STRUCT_DEF)
 } avs_exports_t;
@@ -25,7 +26,7 @@ const LPCWSTR dll_names[] = {
 };
 
 const avs_exports_t avs_exports[] = {
-    [&] { avs_exports_t x = { 0 };
+    [] { avs_exports_t x = { 0 };
     x.version_name                        = "normal";
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "log_body_fatal";
@@ -58,7 +59,7 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "cstream_destroy";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 };
+    [] { avs_exports_t x = { 0 };
     x.version_name                        = "2.13.x (XC058ba5------)";
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XC058ba5000084";
@@ -91,7 +92,7 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XC058ba500012b";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 };
+    [] { avs_exports_t x = { 0 };
     x.version_name                        = "2.15.x (XCd229cc------)";
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XCd229cc0000e6";
@@ -124,7 +125,7 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XCd229cc0000e3";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 }; // sdvx cloud
+    [] { avs_exports_t x = { 0 }; // sdvx cloud
     x.version_name                        = "2.16.[3-7] (XCnbrep7------)";
     x.unique_check                        = "XCnbrep700013c";
     x.log_body_fatal                      = "XCnbrep700017a";
@@ -157,7 +158,7 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XCnbrep7000134";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
+    [] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
     x.version_name                        = "2.16.1 (XCnbrep7 but different)",
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XCnbrep7000168";
@@ -190,7 +191,7 @@ const avs_exports_t avs_exports[] = {
     x.cstream_destroy                     = "XCnbrep7000128";
     return x;
     }(),
-    [&] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much. 2.16.3 with different prefix
+    [] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much. 2.16.3 with different prefix
     x.version_name                        = "2.17.x (XCgsqzn0------)";
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XCgsqzn000017a";
@@ -234,9 +235,9 @@ void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
     return avs_fs_mount(mountpoint, fsroot, fstype, a5);
 }*/
 
-#define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, avs_exports[i]. ## func, hook_ ## func, (LPVOID*) &func) != MH_OK || func == NULL) continue
-#define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i]. ## func)) == NULL) continue
-#define CHECK_UNIQUE(func) if( avs_exports[i]. ## func != NULL && GetProcAddress(mod_handle, avs_exports[i]. ## func) == NULL) continue
+#define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, avs_exports[i].func, (LPVOID)hook_ ## func, (LPVOID*)&func) != MH_OK || func == NULL) continue
+#define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i].func)) == NULL) continue
+#define CHECK_UNIQUE(func) if( avs_exports[i].func != NULL && GetProcAddress(mod_handle, avs_exports[i].func) == NULL) continue
 
 #define AVS_FUNC_LOAD(ret_type, name, ...) LOAD_FUNC(name);
 
@@ -255,7 +256,7 @@ bool init_avs(void) {
     LPCWSTR dll_name = NULL;
     HMODULE mod_handle = NULL;
     for (int i = 0; i < lenof(dll_names); i++) {
-        mod_handle = GetModuleHandle(dll_names[i]);
+        mod_handle = GetModuleHandleW(dll_names[i]);
         if (mod_handle != NULL) {
             dll_name = dll_names[i];
             break;
@@ -292,6 +293,7 @@ bool init_avs(void) {
 property_t prop_from_file_handle(AVS_FILE f) {
     void* prop_buffer = NULL;
     property_t prop = NULL;
+    int ret;
 
     int flags = PROP_CREATE_FLAGS;
     auto memsize = property_read_query_memsize_long(avs_fs_read, f, NULL, NULL, NULL);
@@ -316,7 +318,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
     }
 
     avs_fs_lseek(f, 0, SEEK_SET);
-    int ret = property_insert_read(prop, 0, avs_fs_read, f);
+    ret = property_insert_read(prop, 0, avs_fs_read, f);
     avs_fs_close(f);
 
     if (ret < 0) {
@@ -471,7 +473,7 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
     compressor->input_buffer = input;
     compressor->input_size = (uint32_t)length;
     // worst case, for every 8 bytes there will be an extra flag byte
-    auto to_add = max(length / 8, 1);
+    auto to_add = std::max(length / 8, (size_t)1);
     auto compress_size = length + to_add;
     auto compress_buffer = (unsigned char*)malloc(compress_size);
     compressor->output_buffer = compress_buffer;
@@ -499,7 +501,7 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
 
 typedef struct {
     uint32_t code;
-    char* msg;
+    const char* msg;
 } prop_error_info_t;
 
 const prop_error_info_t prop_error_list[73] = {
@@ -588,7 +590,7 @@ const char* get_prop_error_str(int32_t code) {
     return ret;
 }
 
-char* prop_data_to_str(int type, void* data) {
+const char* prop_data_to_str(int type, void* data) {
     static char ret[64];
 
     type &= 63;

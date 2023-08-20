@@ -10,6 +10,9 @@
 // layeredfs super-verbose (since most people have loglevel misc already)
 #define log_verbose(...) if(config.verbose_logs) {log_misc(__VA_ARGS__);}
 
+// for the playpen
+void log_to_stdout(void);
+
 typedef void (*log_formatter_t)(const char *module, const char *fmt, ...);
 
 extern log_formatter_t imp_log_body_fatal;

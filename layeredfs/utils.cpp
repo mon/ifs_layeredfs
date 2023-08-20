@@ -1,5 +1,5 @@
 #include <stdarg.h>
-#include <Windows.h>
+#include <windows.h>
 
 #include "utils.h"
 #include "avs.h"
@@ -139,7 +139,7 @@ std::vector<std::string> folders_in_folder(const char* root) {
 
 time_t file_time(const char* path) {
     auto wide = str_widen(path);
-    auto hFile = CreateFile(wide,  // file to open
+    auto hFile = CreateFileW(wide,  // file to open
         GENERIC_READ,          // open for reading
         FILE_SHARE_READ,       // share for reading
         NULL,                  // default security
