@@ -1,6 +1,9 @@
 #include "config.hpp" // since log_verbose uses it
 
+#ifndef LOG_MODULE
 #define LOG_MODULE "layeredfs"
+#endif
+
 // functions that default to file output, but will be overriden to point to AVS
 // logging functions if the user doesn't specify their own log file
 #define log_fatal(...) imp_log_body_fatal(LOG_MODULE, __VA_ARGS__)

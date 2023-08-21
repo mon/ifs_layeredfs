@@ -9,7 +9,7 @@ CFLAGS=-Werror -std=c11 -static
 OBJECTS=layeredfs/playpen.o layeredfs/utils.o layeredfs/log.o \
 	layeredfs/config.o layeredfs/avs.o layeredfs/hook.o \
 	layeredfs/ramfs_demangler.o layeredfs/modpath_handler.o layeredfs/dllmain.o \
-	layeredfs/texture_packer.o \
+	layeredfs/texture_packer.o layeredfs/texbin.o \
 	minhook/src/hook.o minhook/src/buffer.o minhook/src/trampoline.o \
 	minhook/src/hde/hde32.o minhook/src/hde/hde64.o \
 	layeredfs/3rd_party/lodepng.o \

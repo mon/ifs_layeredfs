@@ -5,6 +5,7 @@
 Debug/
 ipch/
 Release/
+x64/
 *.filters
 *.o
 playpen.exe

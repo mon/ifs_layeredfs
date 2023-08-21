@@ -6,19 +6,145 @@
 #include "hook.h"
 #include "log.hpp"
 
+#include <fstream>
+
 void boot_avs(void);
 bool load_dll(void);
+LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo);
 
 typedef void (*avs_log_writer_t)(const char *chars, uint32_t nchars, void *ctx);
-void (*avs_shutdown)();
-void (*avs_boot)(node_t config, void *com_heap, size_t sz_com_heap, void *reserved, avs_log_writer_t log_writer, void *log_context);
-node_t (*property_search)(property_t prop, node_t node, const char *path);
+
+#define FOREACH_EXTRA_FUNC(X) \
+X("XCgsqzn0000129", void,   avs_boot, node_t config, void *com_heap, size_t sz_com_heap, void *reserved, avs_log_writer_t log_writer, void *log_context) \
+X("XCgsqzn000012a", void,   avs_shutdown) \
+X("XCgsqzn00000a1", node_t, property_search, property_t prop, node_t node, const char *path) \
+
+#define AVS_FUNC_PTR(obfus_name, ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
+FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
 
 static bool print_logs = true;
 
 #define QUIET_BOOT
 
+#include "texbin.hpp"
+
+// decompressed_length MUST be set and will be updated on finish
+unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length) {
+    auto compressor = cstream_create(AVS_DECOMPRESS_AVSLZ);
+    if (!compressor) {
+        log_warning("Couldn't create");
+        return NULL;
+    }
+    compressor->input_buffer = input;
+    compressor->input_size = (uint32_t)length; // may be -1 to auto-finish
+    auto decompress_buffer = (unsigned char*)malloc(*decompressed_length);
+    compressor->output_buffer = decompress_buffer;
+    compressor->output_size = (uint32_t)*decompressed_length;
+
+    cstream_operate(compressor);
+    compressor->input_buffer = NULL;
+    compressor->input_size = -1;
+    bool ret = cstream_operate(compressor);
+    if (!ret) {
+        log_warning("Couldn't operate");
+        return NULL;
+    }
+    if (cstream_finish(compressor)) {
+        log_warning("Couldn't finish");
+        return NULL;
+    }
+    *decompressed_length = *decompressed_length - compressor->output_size;
+    cstream_destroy(compressor);
+    return decompress_buffer;
+}
+
+void lz_unfuck(uint8_t *buf, size_t len) {
+    int repl = 0;
+    uint8_t *end = buf + len;
+    while(buf < end) {
+        uint8_t flag = *buf++;
+        for(auto i = 0; i < 8; i++) {
+            if(!(flag & 1) && (buf+1) < end) {
+                uint8_t hi = buf[0];
+                uint8_t lo = buf[1];
+
+                *buf++ = (hi >> 4) | (lo & 0xF0);
+                *buf++ = (hi << 4) | (lo & 0x0F);
+                repl++;
+            } else {
+                buf++;
+            }
+
+            flag >>= 1;
+        }
+    }
+
+    log_info("unfucked %d bytes", repl);
+}
+
+optional<std::vector<uint8_t>> readFile(const char* filename)
+{
+    // open the file:
+    std::streampos fileSize;
+    std::ifstream file(filename, std::ios::binary);
+
+    if(!file) {
+        log_warning("Couldn't open %s", filename);
+        return nullopt;
+    }
+
+    // get its size:
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // read the data:
+    std::vector<uint8_t> fileData(fileSize);
+    file.read((char*) &fileData[0], fileSize);
+    return fileData;
+}
+
 void avs_playpen() {
+    // log_info("loading file");
+    // auto _debug = readFile("debug.bin");
+    // if(!_debug) {
+    //     return;
+    // }
+    // auto debug = *_debug;
+    // log_info("Loaded %d bytes", debug.size());
+
+    // // lz_unfuck(&debug[8], comp_sz);
+    // // auto decomp = lz_decompress(&debug[8], comp_sz, &decomp_sz);
+    // auto decomp = texbin_lz77_decompress(debug);
+    // log_info("Decomp to %u", decomp.size());
+    // auto comp = texbin_lz77_compress(decomp);
+    // log_info("Comp again to %u", comp.size());
+    // auto decomp2 = texbin_lz77_decompress(comp);
+    // log_info("Final decomp to %u", decomp2.size());
+
+    // auto f = fopen("debug.out.bin", "wb");
+    // fwrite(&decomp[0], 1, decomp.size(), f);
+    // fclose(f);
+
+    // return;
+
+
+    // auto _tex = Texbin::from_path("tex_l44qb_smc_sm.bin");
+    auto tex = Texbin::from_path("tex_custom.bin");
+    if(!tex) {
+        return;
+    }
+
+#ifdef TEXBIN_VERBOSE
+    tex->debug();
+#endif
+
+    tex->add_or_replace_image("AAA_NEW_IMAGE", "new image test.png");
+    tex->add_or_replace_image("SSM_000_T1000", "replace image test.png");
+
+    tex->save("tex_custom_modified.bin");
+    // tex.save("tex_l44qb_smc_sm_modified.bin");
+
     /*string path = "testcases.xml";
     void* prop_buffer = NULL;
     property_t prop = NULL;
@@ -91,6 +217,7 @@ FAIL:
 }
 
 int main(int argc, char** argv) {
+    AddVectoredExceptionHandler(1, exc_handler);
     log_to_stdout();
     if(!load_dll()) {
         log_fatal("DLL load failed");
@@ -109,9 +236,6 @@ int main(int argc, char** argv) {
 
     avs_playpen();
 
-    // it's just a bit noisy
-    log_info("Shutting down");
-    print_logs = false;
     avs_shutdown();
 
     return 0;
@@ -120,8 +244,16 @@ int main(int argc, char** argv) {
 #define DEFAULT_HEAP_SIZE 16777216
 
 void log_writer(const char *chars, uint32_t nchars, void *ctx) {
-    if(print_logs)
-        printf("%.*s", nchars, chars);
+    // don't print noisy shutdown logs
+    auto prefix = "[----/--/-- --:--:--] ";
+    auto len = strlen(prefix);
+    if(strncmp(chars, prefix, len) == 0) {
+        return;
+    }
+
+    if(print_logs) {
+        fprintf(stderr, "%.*s", nchars, chars);
+    }
 }
 
 static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
@@ -134,6 +266,10 @@ static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
     </mounttable>
   </fs>
   <log><level>misc</level></log>
+  <sntp>
+    <ea_on __type="bool">0</ea_on>
+    <servers></servers>
+  </sntp>
 </config>
 )";
 
@@ -142,24 +278,20 @@ static size_t read_str(int32_t context, void *dst_buf, size_t count) {
     return count;
 }
 
+#define LOAD_FUNC(obfus_name, ret_type, name, ...) \
+    if(!(name = (decltype(name))GetProcAddress(avs, obfus_name))) {\
+        log_fatal("Playpen: couldn't get " #name); \
+        return false; \
+    }
+
 bool load_dll(void) {
     auto avs = LoadLibraryA("avs2-core.dll");
     if(!avs) {
         log_fatal("Playpen: Couldn't load avs dll");
         return false;
     }
-    if(!(avs_boot = (decltype(avs_boot))GetProcAddress(avs, "XCgsqzn0000129"))) {
-        log_fatal("Playpen: couldn't get avs_boot");
-        return false;
-    }
-    if(!(avs_shutdown = (decltype(avs_shutdown))GetProcAddress(avs, "XCgsqzn000012a"))) {
-        log_fatal("Playpen: couldn't get avs_shutdown");
-        return false;
-    }
-    if(!(property_search = (decltype(property_search))GetProcAddress(avs, "XCgsqzn00000a1"))) {
-        log_fatal("Playpen: couldn't get property_search");
-        return false;
-    }
+
+    FOREACH_EXTRA_FUNC(LOAD_FUNC);
 
     return true;
 }
@@ -190,4 +322,10 @@ void boot_avs(void) {
     }
 
     avs_boot(avs_config_root, avs_heap, DEFAULT_HEAP_SIZE, NULL, log_writer, NULL);
+}
+
+LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo) {
+    fprintf(stderr, "Unhandled exception %X\n", ExceptionInfo->ExceptionRecord->ExceptionCode);
+
+    return EXCEPTION_CONTINUE_SEARCH;
 }
