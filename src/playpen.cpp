@@ -371,7 +371,7 @@ void boot_avs(void) {
 }
 
 LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo) {
-    fprintf(stderr, "Unhandled exception %X\n", ExceptionInfo->ExceptionRecord->ExceptionCode);
+    fprintf(stderr, "Unhandled exception %lX\n", ExceptionInfo->ExceptionRecord->ExceptionCode);
 
     return EXCEPTION_CONTINUE_SEARCH;
 }

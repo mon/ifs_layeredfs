@@ -6,12 +6,6 @@
 
 using namespace rbp;
 
-Bitmap::Bitmap(const string& name, int width, int height)
-    : width(width), height(height), name(name)
-{
-
-}
-
 bool pack_textures(vector<Bitmap*> &textures, vector<Packer*> &packed_textures) {
     std::sort(textures.begin(), textures.end(), [](const Bitmap* a, const Bitmap* b) {
         return (a->width * a->height) < (b->width * b->height);

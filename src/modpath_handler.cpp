@@ -8,7 +8,7 @@
 #include "modpath_handler.h"
 #include "config.hpp"
 #include "log.hpp"
-#include "utils.h"
+#include "utils.hpp"
 #include "avs.h"
 #include "winxp_mutex.hpp"
 
@@ -180,27 +180,19 @@ vector<string> available_mods() {
     return ret;
 }
 
-bool mkdir_p(string &path) {
+bool mkdir_p(const string &path) {
     /* Adapted from http://stackoverflow.com/a/2336245/119527 */
-    const size_t len = strlen(path.c_str());
-    char _path[MAX_PATH];
     char *p;
-
     errno = 0;
-
-    /* Copy string so its mutable */
-    if (len > sizeof(_path) - 1) {
-        return false;
-    }
-    strcpy_s(_path, sizeof(_path), path.c_str());
+    auto _path = path;
 
     /* Iterate the string */
-    for (p = _path + 1; *p; p++) {
+    for (p = _path.data() + 1; *p; p++) {
         if (*p == '/') {
             /* Temporarily truncate */
             *p = '\0';
 
-            if (!CreateDirectoryA(_path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+            if (!CreateDirectoryA(_path.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
                 return false;
             }
 
@@ -208,7 +200,7 @@ bool mkdir_p(string &path) {
         }
     }
 
-    if (!CreateDirectoryA(_path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+    if (!CreateDirectoryA(_path.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
         return false;
     }
 

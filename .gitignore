@@ -1,12 +1,4 @@
-*.db
 *.zip
-.vs
-*.vcxproj.user
-Debug/
-ipch/
-Release/
-x64/
-*.filters
-*.o
-playpen.exe
 *.dll
+build32/
+build64/

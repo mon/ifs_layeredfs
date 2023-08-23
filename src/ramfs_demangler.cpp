@@ -38,7 +38,7 @@
 
 #include "ramfs_demangler.h"
 #include "log.hpp"
-#include "utils.h"
+#include "utils.hpp"
 #include "winxp_mutex.hpp"
 
 using namespace std;

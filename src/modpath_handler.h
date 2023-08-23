@@ -24,4 +24,4 @@ optional<string> normalise_path(string &path);
 optional<string> find_first_modfile(const string &norm_path);
 optional<string> find_first_modfolder(const string &norm_path);
 vector<string> find_all_modfile(const string &norm_path);
-bool mkdir_p(string &path);
+bool mkdir_p(const string &path);

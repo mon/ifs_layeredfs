@@ -27,7 +27,7 @@ static void log_to_file(char level, const char* fmt, va_list args) {
             // default to ifs_hook.log because we need *something* in the case
             // of a fatal error
             const char *path = config.logfile ? config.logfile : "ifs_hook.log";
-            fopen_s(&logfile, path, "w");
+            logfile = fopen(path, "w");
         }
         tried_to_open = true;
         log_mutex.unlock();

@@ -15,7 +15,9 @@ struct Bitmap
     int height;
     int packX;
     int packY;
-    Bitmap(const string& name, int width, int height);
+    Bitmap(const string& name, int width, int height)
+    : name(name), width(width), height(height)
+    {}
 };
 
 struct Packer

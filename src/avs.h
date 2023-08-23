@@ -22,14 +22,16 @@ enum mdigest_algs_t {
 };
 #define MD5_LEN 16
 
+#pragma pack(push,1)
 struct avs_stat {
-    time_t st_atime;
-    time_t st_mtime;
-    time_t st_ctime;
-    int32_t unk1;
+    int64_t st_ctime;
+    int64_t st_mtime;
+    int64_t st_atime;
+    int32_t link_count;
     uint32_t filesize;
-    // not actually sure how big theirs is
-    struct stat padding;
+    uint32_t hi_filesize;
+    uint16_t mode;
+    uint16_t perm;
 };
 
 typedef struct {
@@ -174,6 +176,8 @@ struct node_info {
     uint8_t blah[47];
     property_type type;
 };
+
+#pragma pack(pop)
 
 typedef property_info* property_t;
 typedef node_info* node_t;

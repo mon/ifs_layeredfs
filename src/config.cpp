@@ -4,7 +4,7 @@
 
 #include "config.hpp"
 #include "log.hpp"
-#include "utils.h"
+#include "utils.hpp"
 
 #define VERBOSE_FLAG   "--layered-verbose"
 #define DEVMODE_FLAG   "--layered-devmode"
@@ -19,18 +19,14 @@ config_t config;
 static const char *allowlist = NULL;
 static const char *blocklist = NULL;
 
-void comma_separated_to_set(std::unordered_set<std::string> &dest, const char* arg) {
-    char *str = _strdup(arg);
-    str_tolower_inline(str); // ignore case for filenames
-    char *state = NULL;
-    char* token = strtok_s(str, ",", &state);
-
-    do {
-        dest.insert(token);
-        token = strtok_s(NULL, ",", &state);
-    } while (token != NULL);
-
-    free(str);
+void comma_separated_to_set(std::unordered_set<std::string> &dest, const std::string &arg) {
+    size_t last = 0;
+    size_t next = 0;
+    while ((next = arg.find(",", last)) != std::string::npos) {
+        dest.insert(arg.substr(last, next-last));
+        last = next + 1;
+    }
+    dest.insert(arg.substr(last));
 }
 
 const char* parse_list(const char* prefix, const char* arg, std::unordered_set<std::string> &dest) {
@@ -41,7 +37,7 @@ const char* parse_list(const char* prefix, const char* arg, std::unordered_set<s
 
     const char* list_start = &arg[prefix_len];
 
-    comma_separated_to_set(dest, list_start);
+    comma_separated_to_set(dest, std::string(list_start));
 
     return list_start;
 }

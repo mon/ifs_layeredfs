@@ -19,7 +19,6 @@ using std::string;
 #include <fstream>
 
 #include "3rd_party/MinHook.h"
-#pragma comment(lib, "minhook.lib")
 
 #include "3rd_party/lodepng.h"
 #include "3rd_party/stb_dxt.h"
@@ -30,7 +29,7 @@ using std::string;
 #include "config.hpp"
 #include "log.hpp"
 #include "texbin.hpp"
-#include "utils.h"
+#include "utils.hpp"
 #include "avs.h"
 //#include "jubeat.h"
 #include "texture_packer.h"
@@ -40,8 +39,6 @@ using std::string;
 // let me use the std:: version, damnit
 #undef max
 #undef min
-
-#define VER_STRING "3.0"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -154,8 +151,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         if (!png_loc)
             continue;
 
-        FILE* f;
-        fopen_s(&f, png_loc->c_str(), "rb");
+        FILE* f = fopen(png_loc->c_str(), "rb");
         if (!f) // shouldn't happen but check anyway
             continue;
 
@@ -283,7 +279,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
 
     auto compress = NONE;
     rapidxml::xml_attribute<> *compress_node;
-    if (compress_node = texturelist_node->first_attribute("compress")) {
+    if ((compress_node = texturelist_node->first_attribute("compress"))) {
         if (!_stricmp(compress_node->value(), "avslz")) {
             compress = AVSLZ;
         }
@@ -334,7 +330,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
             }
 
             // it's a 4u16
-            sscanf_s(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0], &dimensions[1], &dimensions[2], &dimensions[3]);
+            sscanf(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0], &dimensions[1], &dimensions[2], &dimensions[3]);
 
             //log_misc("Image '%s' compress %d format %d", tmp, compress, format_type);
             image_t image_info;
@@ -403,7 +399,7 @@ bool cache_texture(string const&png_path, image_t &tex) {
         return false;
     }
 
-    if (width != tex.width || height != tex.height) {
+    if ((int)width != tex.width || (int)height != tex.height) {
         log_warning("Loaded png (%dx%d) doesn't match texturelist.xml (%dx%d), ignoring", width, height, tex.width, tex.height);
         return false;
     }
@@ -434,8 +430,7 @@ bool cache_texture(string const&png_path, image_t &tex) {
             image[i + 1] = tmp;
         }
 
-        /*FILE* f;
-        fopen_s(&f, "dxt_debug.bin", "wb");
+        /*FILE* f = fopen("dxt_debug.bin", "wb");
         fwrite(dxt5_image, 1, dxt5_size, f);
         fclose(f);*/
         break;
@@ -457,7 +452,7 @@ bool cache_texture(string const&png_path, image_t &tex) {
         image_size = compressed_size;
     }
 
-    fopen_s(&cache, cache_file.c_str(), "wb");
+    cache = fopen(cache_file.c_str(), "wb");
     if (!cache) {
         log_warning("can't open cache for writing");
         return false;
@@ -544,8 +539,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
     hash_filenames(to_merge, hash);
 
     uint8_t cache_hash[MD5_LEN] = {0};
-    FILE* cache_hashfile;
-    fopen_s(&cache_hashfile, out_hashed.c_str(), "rb");
+    FILE* cache_hashfile = fopen(out_hashed.c_str(), "rb");
     if (cache_hashfile) {
         fread(cache_hash, 1, sizeof(cache_hash), cache_hashfile);
         fclose(cache_hashfile);
@@ -593,7 +587,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
     }
 
     rapidxml_dump_to_file(out, merged_xml);
-    fopen_s(&cache_hashfile, out_hashed.c_str(), "wb");
+    cache_hashfile = fopen(out_hashed.c_str(), "wb");
     if (cache_hashfile) {
         fwrite(hash, 1, sizeof(hash), cache_hashfile);
         fclose(cache_hashfile);
@@ -653,7 +647,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
 
     uint8_t cache_hash[MD5_LEN] = {0};
     FILE* cache_hashfile;
-    fopen_s(&cache_hashfile, out_hashed.c_str(), "rb");
+    cache_hashfile = fopen(out_hashed.c_str(), "rb");
     if (cache_hashfile) {
         fread(cache_hash, 1, sizeof(cache_hash), cache_hashfile);
         fclose(cache_hashfile);
@@ -707,7 +701,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
         return;
     }
 
-    fopen_s(&cache_hashfile, out_hashed.c_str(), "wb");
+    cache_hashfile = fopen(out_hashed.c_str(), "wb");
     if (cache_hashfile) {
         fwrite(hash, 1, sizeof(hash), cache_hashfile);
         fclose(cache_hashfile);

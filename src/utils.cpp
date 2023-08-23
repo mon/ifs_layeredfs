@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <windows.h>
 
-#include "utils.h"
+#include "utils.hpp"
 #include "avs.h"
 
 char* snprintf_auto(const char* fmt, ...) {
@@ -98,7 +98,8 @@ bool folder_exists(const char* name) {
 
 void str_tolower_inline(char* str) {
     while (*str) {
-        *str++ = tolower(*str);
+        *str = tolower(*str);
+        str++;
     }
 }
 

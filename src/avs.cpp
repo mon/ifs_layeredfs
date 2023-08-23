@@ -6,7 +6,7 @@
 #include "hook.h"
 #include "log.hpp"
 #include "3rd_party/MinHook.h"
-#include "utils.h"
+#include "utils.hpp"
 
 #define AVS_STRUCT_DEF(ret_type, name, ...) const char* name;
 
@@ -255,7 +255,7 @@ bool init_avs(void) {
     // Please don't be proven wrong
     LPCWSTR dll_name = NULL;
     HMODULE mod_handle = NULL;
-    for (int i = 0; i < lenof(dll_names); i++) {
+    for (size_t i = 0; i < lenof(dll_names); i++) {
         mod_handle = GetModuleHandleW(dll_names[i]);
         if (mod_handle != NULL) {
             dll_name = dll_names[i];
@@ -268,7 +268,7 @@ bool init_avs(void) {
         return false;
     }
 
-    for (int i = 0; i < lenof(avs_exports); i++) {
+    for (size_t i = 0; i < lenof(avs_exports); i++) {
         // make sure this is the right DLL
         CHECK_UNIQUE(unique_check);
 
@@ -418,11 +418,6 @@ bool rapidxml_from_avs_filepath(
         xml = avs_file_to_string(f, doc_to_allocate_with);
     }
     avs_fs_close(f);
-
-    /*FILE* fff;
-    fopen_s(&fff, "hmmm.xml", "wb");
-    fwrite(xml_owned, 1, strlen(xml_owned), fff);
-    fclose(fff);*/
 
     try {
         // parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
@@ -591,8 +586,8 @@ const prop_error_info_t prop_error_list[73] = {
 
 const char* get_prop_error_str(int32_t code) {
     static char ret[64];
-    for (int i = 0; i < lenof(prop_error_list); i++) {
-        if (prop_error_list[i].code == code)
+    for (size_t i = 0; i < lenof(prop_error_list); i++) {
+        if (prop_error_list[i].code == (uint32_t)code)
             return prop_error_list[i].msg;
     }
     snprintf(ret, sizeof(ret), "unknown (%d)", code);

@@ -1,7 +1,7 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include <windows.h>
 #include "hook.h"
-#include "utils.h"
+#include "utils.hpp"
 
 HMODULE my_module;
 char dll_filename[MAX_PATH];

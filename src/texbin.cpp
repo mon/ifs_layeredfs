@@ -288,7 +288,7 @@ uint32_t hash_name(const char *name) {
 
     for(; *name; name++) {
         for (int i = 0; i <= 5; i++) {
-            hash = (hash >> 31) & 0x4C11DB7 ^ ((hash << 1) | ((*name >> i) & 1));
+            hash = ((hash >> 31) & 0x4C11DB7) ^ ((hash << 1) | ((*name >> i) & 1));
         }
     }
 
@@ -398,7 +398,7 @@ void Texbin::debug() {
         total += (uint32_t)image.tex.size();
     }
 
-    for(auto &[name, rect] : rects) {
+    for([[maybe_unused]] auto &[_name, rect] : rects) {
         VLOG("rect: %s parent %s dims (%d,%d,%d,%d)\n",
             name.c_str(), rect.parent_name.c_str(),
             rect.x, rect.y, rect.w, rect.h
@@ -893,7 +893,7 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
         }
 
         uint32_t length = 2;
-        int32_t dict_i = 0;
+        int32_t dict_pos = 0;
 
         if (data_i + 2 < data.size()) {
             uint32_t value;
@@ -927,17 +927,17 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
                 if (match_len > length && match_len < output.size())
                 {
                     length = match_len;
-                    dict_i = index;
+                    dict_pos = index;
                 }
             }
         }
 
         if (length > 2)
         {
-            output.push_back(dict_i);
+            output.push_back(dict_pos);
 
             uint32_t niblo = (length - 3) & 0xf;
-            uint32_t nibhi = (dict_i >> 4) & 0xf0;
+            uint32_t nibhi = (dict_pos >> 4) & 0xf0;
 
             output.push_back((niblo | nibhi));
         }
