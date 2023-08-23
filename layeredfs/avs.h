@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <vector>
 using std::string;
 
 #include "3rd_party/rapidxml.hpp"
@@ -230,6 +231,7 @@ bool rapidxml_from_avs_filepath(
     rapidxml::xml_document<>& doc,
     rapidxml::xml_document<>& doc_to_allocate_with
 );
+std::vector<uint8_t> avs_file_to_vec(AVS_FILE f);
 string md5_sum(const char* str);
 bool init_avs(void);
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);

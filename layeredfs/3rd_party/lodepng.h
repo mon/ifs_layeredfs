@@ -54,7 +54,7 @@ the custom_zlib field of the compress and decompress settings*/
 #endif
 /*deflate&zlib encoder and png encoder*/
 #ifndef LODEPNG_NO_COMPILE_ENCODER
-//#define LODEPNG_COMPILE_ENCODER
+#define LODEPNG_COMPILE_ENCODER
 #endif
 /*the optional built in harddisk file loading and saving functions*/
 #ifndef LODEPNG_NO_COMPILE_DISK
@@ -77,7 +77,7 @@ source files with custom allocators.*/
 /*compile the C++ version (you can disable the C++ wrapper here even when compiling for C++)*/
 #ifdef __cplusplus
 #ifndef LODEPNG_NO_COMPILE_CPP
-//#define LODEPNG_COMPILE_CPP
+#define LODEPNG_COMPILE_CPP
 #endif
 #endif
 

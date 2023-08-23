@@ -374,6 +374,15 @@ char* avs_file_to_string(AVS_FILE f, rapidxml::xml_document<>& allocator) {
     return ret;
 }
 
+std::vector<uint8_t> avs_file_to_vec(AVS_FILE f) {
+    avs_stat stat = {0};
+    avs_fs_fstat(f, &stat);
+    std::vector<uint8_t> ret;
+    ret.resize(stat.filesize);
+    avs_fs_read(f, &ret[0], stat.filesize);
+    return ret;
+}
+
 bool is_binary_prop(AVS_FILE f) {
     avs_fs_lseek(f, 0, SEEK_SET);
     unsigned char head;

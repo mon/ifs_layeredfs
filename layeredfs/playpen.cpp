@@ -5,6 +5,7 @@
 
 #include "hook.h"
 #include "log.hpp"
+#include "3rd_party/lodepng.h"
 
 #include <fstream>
 
@@ -99,7 +100,7 @@ optional<std::vector<uint8_t>> readFile(const char* filename)
     file.seekg(0, std::ios::beg);
 
     // read the data:
-    std::vector<uint8_t> fileData(fileSize);
+    std::vector<uint8_t> fileData((size_t)fileSize);
     file.read((char*) &fileData[0], fileSize);
     return fileData;
 }
@@ -130,19 +131,20 @@ void avs_playpen() {
 
 
     // auto _tex = Texbin::from_path("tex_l44qb_smc_sm.bin");
-    auto tex = Texbin::from_path("tex_custom.bin");
+    // auto tex = Texbin::from_path("tex_custom.bin");
+    auto tex = Texbin::from_path("tex_l44_system.bin");
     if(!tex) {
         return;
     }
 
-#ifdef TEXBIN_VERBOSE
-    tex->debug();
-#endif
+// #ifdef TEXBIN_VERBOSE
+//     tex->debug();
+// #endif
 
-    tex->add_or_replace_image("AAA_NEW_IMAGE", "new image test.png");
-    tex->add_or_replace_image("SSM_000_T1000", "replace image test.png");
+//     tex->add_or_replace_image("AAA_NEW_IMAGE", "new image test.png");
+//     tex->add_or_replace_image("SSM_000_T1000", "replace image test.png");
 
-    tex->save("tex_custom_modified.bin");
+//     tex->save("tex_custom_modified.bin");
     // tex.save("tex_l44qb_smc_sm_modified.bin");
 
     /*string path = "testcases.xml";
@@ -216,7 +218,51 @@ FAIL:
     //prop_free(playpen);
 }
 
+// used to compare my results against texbintool, the "known good" impl
+void textypes() {
+    // if the image we get isn't great
+    int i = 0;
+    // find . -type f | grep .bin$ | grep -Ev '^./(Groove|CHUNITHM|taiko|Crossbeats)' | grep -v 'DIVA AFT' > bins.txt
+    ifstream files("bins.txt");
+    for (string line; getline(files, line); ) {
+        auto f = line;
+        auto bin = Texbin::from_path(f.c_str());
+        if(!bin) {
+            continue;
+        }
+
+        // printf("%s\n", f.c_str());
+        for(auto &[name, image] : bin->images) {
+            // printf("%s %s\n", _name.c_str(), image.tex_type_str().c_str());
+            auto type = image.tex_type_str();
+
+            if(type == "BGR_16BIT" && ++i == 14) {
+                system(("\"gitadora-texbintool.exe --no-split \"" + f + "\"\"").c_str());
+                printf("%s %s\n", f.c_str(), name.c_str());
+
+                auto decode = image.tex_to_argb8888();
+                if(!decode) {
+                    printf("Bailing, decode failed (type %s)\n", type.c_str());
+                    exit(0);
+                }
+                auto [data, width, height] = *decode;
+                lodepng_encode32_file("test.png", &data[0], width, height);
+
+                // auto ff = fopen("test.bin", "wb");
+                // fwrite(&data[0], 1, data.size(), ff);
+                // fclose(ff);
+
+                exit(0);
+            }
+            // printf("%s\n", image.tex_type_str().c_str());
+        }
+    }
+
+    exit(0);
+}
+
 int main(int argc, char** argv) {
+    // textypes();
     AddVectoredExceptionHandler(1, exc_handler);
     log_to_stdout();
     if(!load_dll()) {

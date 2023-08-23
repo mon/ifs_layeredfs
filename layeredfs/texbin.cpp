@@ -18,6 +18,7 @@
 #include "avs.h"
 #include "log.hpp"
 #include "3rd_party/lodepng.h"
+#include "3rd_party/libsquish/squish.h"
 
 using namespace std;
 using std::nullopt;
@@ -122,21 +123,27 @@ class TexbinRectEntry {
     uint16_t x1, x2, y1, y2;
 };
 
+// just used for size peeking
+struct TexHdr {
+    char magic[4];
+    uint32_t check1;
+    uint32_t check2;
+    uint32_t archive_size;
+    uint16_t width, height;
+    uint32_t format1;
+    uint8_t unk1[0x14] = {0};
+    uint32_t format2;
+    uint8_t unk2[0x10] = {0};
+};
+
+static_assert(sizeof(TexHdr) == 64, "Texbin tex header size is wrong");
+
 #pragma pack(pop)
 
 // texbintool always sets little_endian=true, unsure where it's seen most often
-static optional<vector<uint8_t>> image_data_from_png(const char *path, bool little_endian = true) {
-    unsigned error;
-    unsigned char *image;
-    unsigned width, height;
-    error = lodepng_decode32_file(&image, &width, &height, path);
-    if (error) {
-        log_warning("can't load png %u: %s\n", error, lodepng_error_text(error));
-        return nullopt;
-    }
-
-    // TODO: width/height check
-
+static vector<uint8_t> argb8888_to_texture_data(
+        const unsigned char *image, unsigned width, unsigned height,
+        bool little_endian = true) {
     size_t image_size = 4 * width * height;
 
     vector<uint8_t> data;
@@ -196,7 +203,7 @@ static optional<vector<uint8_t>> image_data_from_png(const char *path, bool litt
     return texbin_lz77_compress(data);
 }
 
-static vector<string> load_names(ifstream &f, uint32_t name_offset) {
+static vector<string> load_names(istream &f, uint32_t name_offset) {
     vector<string> ret;
 
     f.seekg(name_offset);
@@ -239,7 +246,7 @@ static vector<string> load_names(ifstream &f, uint32_t name_offset) {
     return ret;
 }
 
-static vector<vector<uint8_t>> load_data(ifstream &f, const TexbinHdr& hdr) {
+static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
     vector<vector<uint8_t>> ret;
     ret.reserve(hdr.file_count);
 
@@ -266,12 +273,6 @@ static vector<vector<uint8_t>> load_data(ifstream &f, const TexbinHdr& hdr) {
     }
 
     return ret;
-}
-
-string basename_without_extension(string const & path) {
-    auto basename = path.substr(path.find_last_of("/\\") + 1);
-    string::size_type const p(basename.find_last_of('.'));
-    return p > 0 && p != string::npos ? basename.substr(0, p) : basename;
 }
 
 // only have C++17, so can't use std::countl_zero
@@ -351,26 +352,40 @@ void write_names(ofstream &f, unordered_map<string, T> &names) {
 }
 
 bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) {
-    auto _data = image_data_from_png(png_path);
-    if(!_data) {
-        log_warning("Could not load %s", png_path);
+    unsigned error;
+    vector<uint8_t> image;
+    unsigned width, height;
+    error = lodepng::decode(image, width, height, png_path);
+    if (error) {
+        log_warning("Can't load png %u: %s\n", error, lodepng_error_text(error));
         return false;
     }
-    auto data = *_data;
 
     auto existing_image = images.find(image_name);
     auto existing_rect = rects.find(image_name);
     if(existing_image != images.end()) {
+        auto [w, h] = existing_image->second.peek_dimensions();
+        if(width != w || height != h) {
+            log_info("Replacement image %s has dimensions %dx%d but original is %dx%d, ignoring",
+                image_name, width, height, w, h
+            );
+            return false;
+        }
+
         log_info("Replacing %s", image_name);
-        images[image_name] = data;
+        images[image_name] = ImageEntryParsed(argb8888_to_texture_data(&image[0], width, height));
     } else if(existing_rect != rects.end()) {
-        // TODO: this might not work! Needs testing!
-        log_info("Replacing rect image %s with standalone", image_name);
-        images[image_name] = data;
-        rects.erase(existing_rect);
+        if(width != existing_rect->second.w || height != existing_rect->second.h) {
+            log_info("Replacement rect image %s has dimensions %dx%d but original is %dx%d, ignoring",
+                image_name, width, height, existing_rect->second.w, existing_rect->second.h
+            );
+            return false;
+        }
+        log_info("Replacing rect image %s", image_name);
+        existing_rect->second.dirty_data = image;
     } else{
         log_info("Adding new image %s", image_name);
-        images[image_name] = data;
+        images[image_name] = ImageEntryParsed(argb8888_to_texture_data(&image[0], width, height));
     }
 
     return true;
@@ -380,7 +395,7 @@ void Texbin::debug() {
     uint32_t total = 0;
     for(auto &[name, image] : images) {
         VLOG("file: %s len %d\n", name.c_str(), image.size());
-        total += (uint32_t)image.size();
+        total += (uint32_t)image.tex.size();
     }
 
     for(auto &[name, rect] : rects) {
@@ -393,16 +408,8 @@ void Texbin::debug() {
     VLOG("Total data: %d\n", total);
 }
 
-optional<Texbin> Texbin::from_path(const char *path) {
-    // there are a handful of .bin files we might try to parse that *aren't*
-    // texbins, so gate all logs before header magic check behind log_verbose
-    log_verbose("Opening %s", path);
-    auto basename = basename_without_extension(path);
-    ifstream f (path, ios::binary | ios::ate);
-    if(!f) {
-        log_verbose("cannot open");
-        return nullopt;
-    }
+optional<Texbin> Texbin::from_stream(istream &f) {
+    f.seekg(0, ios::end);
     auto file_len = f.tellg();
     f.seekg(0);
 
@@ -418,7 +425,7 @@ optional<Texbin> Texbin::from_path(const char *path) {
     }
 
     if(hdr.archive_size != file_len) {
-        log_warning("bad archive size");
+        log_warning("bad archive size (file said %d stream said %d)", hdr.archive_size, file_len);
         return nullopt;
     }
 
@@ -434,11 +441,11 @@ optional<Texbin> Texbin::from_path(const char *path) {
 
     auto data = load_data(f, hdr);
 
-    unordered_map<string, vector<uint8_t>> images;
+    unordered_map<string, ImageEntryParsed> images;
     images.reserve(hdr.file_count);
 
     for(uint32_t i = 0; i < hdr.file_count; i++) {
-        images[names[i]] = data[i];
+        images[names[i]] = ImageEntryParsed(data[i]);
     }
 
     unordered_map<string, RectEntryParsed> rects;
@@ -496,7 +503,70 @@ optional<Texbin> Texbin::from_path(const char *path) {
         }
     }
 
-    return Texbin(basename, images, rects);
+    return Texbin(images, rects);
+}
+
+optional<Texbin> Texbin::from_path(const char *path) {
+    // there are a handful of .bin files we might try to parse that *aren't*
+    // texbins, so gate all logs before header magic check behind log_verbose
+    log_verbose("Opening %s", path);
+    ifstream f (path, ios::binary);
+    if(!f) {
+        log_verbose("cannot open");
+        return nullopt;
+    }
+
+    return Texbin::from_stream(f);
+}
+
+void Texbin::process_dirty_rects() {
+    unordered_map<string, vector<RectEntryParsed*>> updates;
+    for(auto &[key, rect] : rects) {
+        if(rect.dirty_data) {
+            auto [it, _] = updates.emplace(rect.parent_name, vector<RectEntryParsed*>());
+            it->second.push_back(&rect);
+        }
+    }
+
+    for(auto &[rect_name, rects] : updates) {
+        auto _image = images.find(rect_name);
+        if(_image == images.end()) {
+            log_warning("Can't update rect %s: no tex???", rect_name.c_str());
+            continue;
+        }
+        auto image = &_image->second;
+        auto _tex = image->tex_to_argb8888();
+        if(!_tex) {
+            log_warning("Can't update rect %s: cannot load tex", rect_name.c_str());
+            continue;
+        }
+        auto [tex, width, height] = *_tex;
+
+        for(auto &rect : rects) {
+            if(rect->x2() > width || rect->y2() > height) {
+                log_warning("Can't update rect %s: out of bounds", rect_name.c_str());
+            }
+
+            auto dirty = *rect->dirty_data;
+
+            for(size_t y = 0; y < rect->h; y++) {
+                size_t src_start = y * rect->w * 4;
+                size_t dst_start = ((y + rect->y) * width * 4) + (rect->x * 4);
+                size_t len = rect->w * 4;
+                if((dst_start + len) > tex.size()) {
+                    log_warning("Out of bounds????");
+                    continue;
+                }
+                log_verbose("cpy rect from %d to %d", src_start, dst_start);
+                memcpy(&tex[dst_start], &dirty[src_start], len);
+                log_verbose("done");
+            }
+
+            rect->dirty_data = nullopt;
+        }
+
+        image->tex = argb8888_to_texture_data(&tex[0], width, height);
+    }
 }
 
 bool Texbin::save(const char *dest) {
@@ -505,6 +575,8 @@ bool Texbin::save(const char *dest) {
         log_warning("Can't open output");
         return false;
     }
+
+    process_dirty_rects(); // update any rect textures we modified
 
     TexbinHdr hdr;
 
@@ -516,12 +588,12 @@ bool Texbin::save(const char *dest) {
     uint32_t data_offset = hdr.data_entry_offset + (uint32_t)(images.size() * sizeof(TexbinDataEntry));
     for(auto &[_name, data] : images) {
         TexbinDataEntry entry;
-        entry.size = (uint32_t)data.size();
+        entry.size = (uint32_t)data.tex.size();
         entry.offset = data_offset;
         f.write((char*)&entry, sizeof(entry));
 
-        data_offset += (uint32_t)data.size();
-        uint32_t pad = 4 - (data.size() % 4);
+        data_offset += (uint32_t)data.tex.size();
+        uint32_t pad = 4 - (data.tex.size() % 4);
         if(pad != 4) {
             data_offset += pad;
         }
@@ -530,7 +602,7 @@ bool Texbin::save(const char *dest) {
     hdr.data_offset = (uint32_t)f.tellp();
 
     for(auto &[_name, data] : images) {
-        f.write((char*)&data[0], data.size());
+        f.write((char*)&data.tex[0], data.tex.size());
         // the test files I have all seem to conform to this, but texbintool
         // only aligns the entire section. Better safe than sorry...
         pad32(f);
@@ -569,6 +641,8 @@ bool Texbin::save(const char *dest) {
         f.seekp(hdr.rect_offset);
         f.write((char*)&rect_hdr, sizeof(rect_hdr));
         f.seekp(0, ios::end);
+    } else {
+        hdr.rect_offset = 0;
     }
 
     // update header with actual written values
@@ -579,6 +653,212 @@ bool Texbin::save(const char *dest) {
     f.write((char*)&hdr, sizeof(hdr));
 
     return true;
+}
+
+pair<uint16_t, uint16_t> ImageEntryParsed::peek_dimensions() {
+    auto raw = texbin_lz77_decompress(tex, 0x40);
+    if(raw.size() < 0x40) {
+        return make_pair(0, 0);
+    }
+
+    auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
+    // note: texbintool has a different check. I think this is better?
+    if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
+        // little endian
+        return make_pair(hdr->width, hdr->height);
+    } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
+        return make_pair(_byteswap_ushort(hdr->width), _byteswap_ushort(hdr->height));
+    } else {
+        return make_pair(0, 0);
+    }
+}
+
+enum TexFormat: uint8_t {
+    GRAYSCALE_2 = 0x06,
+    GRAYSCALE   = 0x01,
+    BGR_16BIT   = 0x0C,
+    BGRA_16BIT  = 0x0D,
+    BGR         = 0x0E,
+    BGRA        = 0x10,
+    BGR_4BIT    = 0x11,
+    BGR_8BIT    = 0x12,
+    DXT1        = 0x16,
+    DXT3        = 0x18,
+    DXT5        = 0x1A,
+};
+
+string ImageEntryParsed::tex_type_str() {
+    auto raw = texbin_lz77_decompress(tex, 0x40);
+    if(raw.size() < 0x40) {
+        return "SHORT TEX " + to_string(raw.size());
+    }
+
+    auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
+    // note: texbintool has a different check. I think this is better?
+    if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
+        // little endian, nothing to do
+    } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
+        hdr->format1 = _byteswap_ulong(hdr->format1);
+    } else {
+        return "BAD TEX";
+    }
+
+    switch(hdr->format1 & 0xFF) {
+        case TexFormat::GRAYSCALE_2: return "GRAYSCALE_2";
+        case TexFormat::GRAYSCALE:   return "GRAYSCALE";
+        case TexFormat::BGR_16BIT:   return "BGR_16BIT";
+        case TexFormat::BGRA_16BIT:  return "BGRA_16BIT";
+        case TexFormat::BGR:         return "BGR";
+        case TexFormat::BGRA:        return "BGRA";
+        case TexFormat::BGR_4BIT:    return "BGR_4BIT";
+        case TexFormat::BGR_8BIT:    return "BGR_8BIT";
+        case TexFormat::DXT1:        return "DXT1";
+        case TexFormat::DXT3:        return "DXT3";
+        case TexFormat::DXT5:        return "DXT5";
+
+        default: return "UNK " + to_string(hdr->format1 & 0xFF);
+    }
+}
+
+optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_argb8888() {
+    auto raw = texbin_lz77_decompress(tex);
+    if(raw.size() < 0x40) {
+        return nullopt;
+    }
+
+    auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
+    vector<uint8_t> data(&raw[0x40], &raw[raw.size()]);
+    // note: texbintool has a different check. I think this is better?
+    if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
+        // little endian, nothing to do
+    } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
+        hdr->width = _byteswap_ushort(hdr->width);
+        hdr->height = _byteswap_ushort(hdr->height);
+        hdr->format1 = _byteswap_ulong(hdr->format1);
+    } else {
+        log_warning("Not a TXDT file");
+        return nullopt;
+    }
+
+    // happy path, already the right format
+    if((hdr->format1 & 0xFF) == TexFormat::BGRA) {
+        return make_tuple(data, hdr->width, hdr->height);
+    }
+
+    // useful constants
+    size_t pixel_count = hdr->width * hdr->height;
+    size_t out_sz_bytes = pixel_count * 4;
+
+    vector<uint8_t> out_data;
+    out_data.resize(out_sz_bytes);
+
+    LodePNGColorMode out_mode;
+    out_mode.colortype = LCT_RGBA;
+    out_mode.bitdepth = 8;
+
+    LodePNGColorMode in_mode;
+    in_mode.key_defined = 0; // we never use a transparency key
+    // rest of values left to the individual formats
+
+    // note: the supported types were run based on texture analysis of my rhythm
+    // game folder. It should cover most Gitadora/Jubeat scenarios.
+
+    // todo: maybe do some bounds checks here?
+    switch(hdr->format1 & 0xFF) {
+        case TexFormat::GRAYSCALE:
+        case TexFormat::GRAYSCALE_2:
+            in_mode.colortype = LCT_GREY;
+            in_mode.bitdepth = 8;
+            lodepng_convert(&out_data[0], &data[0], &out_mode, &in_mode, hdr->width, hdr->height);
+            break;
+
+        case TexFormat::BGR_16BIT: // rgb565?
+            for(size_t i = 0; i < pixel_count; i++) {
+                size_t oi = i*4;
+                size_t ii = i*2;
+
+                // really don't know how this bit munging works, but it does
+                data[ii] = ((data[ii] & 0xc0) | (data[ii] & 0x3f) >> 1);
+                uint16_t pix = (data[ii] << 0) | (data[ii+1] << 8);
+
+                // https://stackoverflow.com/a/9069480/7972801
+                out_data[oi+0] = (((pix & 0xF800) >> 11) * 527 + 23) >> 6 ;
+                out_data[oi+1] = (((pix & 0x07E0) >> 5 ) * 259 + 33) >> 6 ;
+                out_data[oi+2] = (((pix & 0x001F)      ) * 527 + 23) >> 6 ;
+                out_data[oi+3] = 0xFF;
+            }
+            break;
+
+        case TexFormat::BGRA_16BIT:
+            for(size_t i = 0; i < pixel_count; i++) {
+                size_t oi = i*4;
+                size_t ii = i*2;
+                uint16_t pix = data[ii] | (data[ii+1] << 8);
+                uint16_t a = (pix & 0x000F) >> 0;
+                uint16_t b = (pix & 0x00F0) >> 4;
+                uint16_t g = (pix & 0x0F00) >> 8;
+                uint16_t r = (pix & 0xF000) >> 12;
+                out_data[oi+0] = r | (r << 4);
+                out_data[oi+1] = g | (g << 4);
+                out_data[oi+2] = b | (b << 4);
+                out_data[oi+3] = a | (a << 4);
+            }
+            break;
+
+        case TexFormat::BGR: // todo: might be nice to support no-alpha textures
+            in_mode.colortype = LCT_RGB;
+            in_mode.bitdepth = 8;
+            lodepng_convert(&out_data[0], &data[0], &out_mode, &in_mode, hdr->width, hdr->height);
+            break;
+
+        // already handled above
+        // case TexFormat::BGRA:
+        //     return make_tuple(data, hdr->width, hdr->height);
+
+        case TexFormat::BGR_4BIT:
+            log_warning("Unsupported format BGR_4BIT, raise an issue about it!");
+            return nullopt;
+
+            // don't actually have a test file to validate against
+            // in_mode.colortype = LCT_PALETTE;
+            // in_mode.bitdepth = 4;
+            // // 0x14 byte palette header we skip
+            // in_mode.palette = &data[pixel_count + 0x14];
+            // in_mode.palettesize = (data.size() - pixel_count - 0x14) / 4;
+            // lodepng_convert(&out_data[0], &data[0], &out_mode, &in_mode, hdr->width, hdr->height);
+            // break;
+
+        case TexFormat::BGR_8BIT:
+            log_warning("Unsupported format BGR_8BIT, raise an issue about it!");
+            return nullopt;
+
+            // don't actually have a test file to validate against
+            // in_mode.colortype = LCT_PALETTE;
+            // in_mode.bitdepth = 8;
+            // // 0x14 byte palette header we skip
+            // in_mode.palette = &data[pixel_count + 0x14];
+            // in_mode.palettesize = (data.size() - pixel_count - 0x14) / 4;
+            // lodepng_convert(&out_data[0], &data[0], &out_mode, &in_mode, hdr->width, hdr->height);
+            // break;
+
+        case TexFormat::DXT1:
+            squish::DecompressImage(&out_data[0], hdr->width, hdr->height, &data[0], squish::kDxt1);
+            break;
+
+        case TexFormat::DXT3:
+            squish::DecompressImage(&out_data[0], hdr->width, hdr->height, &data[0], squish::kDxt3);
+            break;
+
+        case TexFormat::DXT5:
+            squish::DecompressImage(&out_data[0], hdr->width, hdr->height, &data[0], squish::kDxt5);
+            break;
+
+        default:
+            log_warning("Unsupported tex format type 0x%X", hdr->format1 & 0xFF);
+            return nullopt;
+    }
+
+    return make_tuple(out_data, hdr->width, hdr->height);
 }
 
 // Based on: https://github.com/littlecxm/gitadora-textool/blob/fb55c4b813994fb46edecef358319432c17fe072/gitadora-texbintool/Program.cs#L174
@@ -612,54 +892,54 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
             mask = 1;
         }
 
-        int32_t Length = 2;
-        int32_t DictPos = 0;
+        uint32_t length = 2;
+        int32_t dict_i = 0;
 
         if (data_i + 2 < data.size()) {
-            int32_t Value;
+            uint32_t value;
 
-            Value = data[data_i + 0] << 8;
-            Value |= data[data_i + 1] << 0;
+            value = data[data_i + 0] << 8;
+            value |= data[data_i + 1] << 0;
 
             for (int32_t i = 0; i < 5; i++) {
-                int32_t Index = (int32_t)((lookup[Value] >> (i * 12)) & 0xfff);
+                uint32_t index = (uint32_t)((lookup[value] >> (i * 12)) & 0xfff);
 
                 //First byte doesn't match, so the others won't match too
-                if (data[data_i] != dict[Index]) break;
+                if (data[data_i] != dict[index]) break;
 
                 //Temporary dictionary used on comparisons
-                auto CmpDict = dict;
-                size_t CmpAddr = dict_i;
+                auto cmp_dict = dict;
+                size_t cmp_addr = dict_i;
 
-                int32_t MatchLen = 0;
+                uint32_t match_len = 0;
 
                 for (int32_t j = 0; j < 18 && data_i + j < data.size(); j++)
                 {
-                    if (CmpDict[(Index + j) & 0xfff] == data[data_i + j])
-                        MatchLen++;
+                    if (cmp_dict[(index + j) & 0xfff] == data[data_i + j])
+                        match_len++;
                     else
                         break;
 
-                    CmpDict[CmpAddr] = data[data_i + j];
-                    CmpAddr = (CmpAddr + 1) & 0xfff;
+                    cmp_dict[cmp_addr] = data[data_i + j];
+                    cmp_addr = (cmp_addr + 1) & 0xfff;
                 }
 
-                if (MatchLen > Length && MatchLen < output.size())
+                if (match_len > length && match_len < output.size())
                 {
-                    Length = MatchLen;
-                    DictPos = Index;
+                    length = match_len;
+                    dict_i = index;
                 }
             }
         }
 
-        if (Length > 2)
+        if (length > 2)
         {
-            output.push_back(DictPos);
+            output.push_back(dict_i);
 
-            int32_t NibLo = (Length - 3) & 0xf;
-            int32_t NibHi = (DictPos >> 4) & 0xf0;
+            uint32_t niblo = (length - 3) & 0xf;
+            uint32_t nibhi = (dict_i >> 4) & 0xf0;
 
-            output.push_back((NibLo | NibHi));
+            output.push_back((niblo | nibhi));
         }
         else
         {
@@ -667,20 +947,20 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
 
             output.push_back(data[data_i]);
 
-            Length = 1;
+            length = 1;
         }
 
-        for (int32_t i = 0; i < Length; i++)
+        for (uint32_t i = 0; i < length; i++)
         {
             if (data_i + 1 < data.size())
             {
-                int32_t Value;
+                uint32_t value;
 
-                Value = data[data_i + 0] << 8;
-                Value |= data[data_i + 1] << 0;
+                value = data[data_i + 0] << 8;
+                value |= data[data_i + 1] << 0;
 
-                lookup[Value] <<= 12;
-                lookup[Value] |= (uint32_t)dict_i;
+                lookup[value] <<= 12;
+                lookup[value] |= (uint32_t)dict_i;
             }
 
             dict[dict_i] = data[data_i++];
@@ -695,41 +975,45 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
     return output;
 }
 
-vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr) {
+vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, size_t max_len) {
     size_t decomp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[0]);
     size_t comp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[4]);
     auto comp = &comp_with_hdr[8];
-    log_info("%s: Comp sz %u decomp sz %u", __FUNCTION__, comp_len, decomp_len);
+    log_verbose("%s: Comp sz %u decomp sz %u (clamp: %d)",
+        __FUNCTION__, comp_len, decomp_len, max_len
+    );
+    // optionally extract only the first n bytes
+    if(max_len) {
+        decomp_len = min(max_len, decomp_len);
+    }
+
+    // actually not compressed
+    if(comp_len == 0) {
+        size_t data_len = min(decomp_len, comp_with_hdr.size() - 8);
+        return vector<uint8_t>(comp, comp + data_len);
+    }
 
     vector<uint8_t> decomp;
     decomp.reserve(decomp_len);
 
-    uint8_t window[4096];
+    uint8_t window[4096] = {0};
     uint32_t comp_i = 0, window_i = 4078;
 
-    uint8_t controlByte = 0;
+    uint8_t control = 0;
 
     while (comp_i < comp_len) {
-        controlByte = comp[comp_i++];
+        control = comp[comp_i++];
 
-        for(auto i = 0; i < 8; i++) {
-            if ((controlByte & 0x01) != 0) {
+        for(auto i = 0; i < 8 && decomp.size() < decomp_len; i++) {
+            if ((control & 0x01) != 0) {
                 if (comp_i >= comp_len) {
                     return decomp;
                 }
 
                 decomp.push_back(window[window_i++] = comp[comp_i++]);
 
-                if (decomp.size() >= decomp_len) {
-                    return decomp;
-                }
-
                 window_i &= 0xfff;
             } else {
-                if (decomp.size() >= decomp_len - 1) {
-                    return decomp;
-                }
-
                 size_t slide_off = (((comp[comp_i + 1] & 0xf0) << 4) | comp[comp_i]) & 0xfff;
                 size_t slide_len = (comp[comp_i + 1] & 0x0f) + 3;
                 comp_i += 2;
@@ -747,7 +1031,7 @@ vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr) {
                 }
             }
 
-            controlByte >>= 1;
+            control >>= 1;
         }
     }
 

@@ -108,6 +108,12 @@ void str_tolower_inline(std::string& str) {
     }
 }
 
+void str_toupper_inline(std::string& str) {
+    for (size_t i = 0; i < str.length(); i++) {
+        str[i] = toupper(str[i]);
+    }
+}
+
 std::vector<std::string> folders_in_folder(const char* root) {
     std::vector<std::string> results;
     WIN32_FIND_DATAA ffd;
@@ -174,4 +180,10 @@ LONG time(void) {
     SYSTEMTIME time;
     GetSystemTime(&time);
     return (time.wSecond * 1000) + time.wMilliseconds;
+}
+
+string basename_without_extension(string const & path) {
+    auto basename = path.substr(path.find_last_of("/\\") + 1);
+    string::size_type const p(basename.find_last_of('.'));
+    return p > 0 && p != string::npos ? basename.substr(0, p) : basename;
 }

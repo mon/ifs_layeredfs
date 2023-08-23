@@ -13,6 +13,15 @@ OBJECTS=layeredfs/playpen.o layeredfs/utils.o layeredfs/log.o \
 	minhook/src/hook.o minhook/src/buffer.o minhook/src/trampoline.o \
 	minhook/src/hde/hde32.o minhook/src/hde/hde64.o \
 	layeredfs/3rd_party/lodepng.o \
+	layeredfs/3rd_party/libsquish/squish.o \
+	layeredfs/3rd_party/libsquish/alpha.o \
+	layeredfs/3rd_party/libsquish/rangefit.o \
+	layeredfs/3rd_party/libsquish/singlecolourfit.o \
+	layeredfs/3rd_party/libsquish/clusterfit.o \
+	layeredfs/3rd_party/libsquish/colourset.o \
+	layeredfs/3rd_party/libsquish/colourfit.o \
+	layeredfs/3rd_party/libsquish/colourblock.o \
+	layeredfs/3rd_party/libsquish/maths.o \
 	layeredfs/3rd_party/GuillotineBinPack.o layeredfs/3rd_party/stb_dxt.o
 
 playpen.exe: $(OBJECTS)
