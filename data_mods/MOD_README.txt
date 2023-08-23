@@ -19,7 +19,8 @@ Folder structure
   Any files that exist here will be used instead
 
 Special case: IFS files and their textures
-  IFS file contents can be modded by replacing ".ifs" with "_ifs" and creating a folder
+  IFS file contents can be modded by replacing ".ifs" with "_ifs" and creating a folder.
+  (This is the folder name you get by using ifstools to extract a .ifs file)
   Most textures live inside the "tex" folder eg "somefile_ifs/tex/image.png"
     You can just use "somefile_ifs/image.png" for neater folders
   Replacement images must match the dimensions of the image they are replacing
@@ -30,6 +31,18 @@ Special case: IFS files and their textures
 Special case: IFS files that do not exist
   IFS LayeredFS cannot create IFS files out of nothing
   Either use a packed ".ifs", or modify an existing file with "_ifs"
+
+Special case: "texbin" files (.bin textures from Jubeat and Gitadora)
+  Texbin file contents can be modded by deleting ".bin" and creating a folder.
+  (This is the folder name you get by using gitadora-texbintool to extract a .bin file)
+  Replacement images must match the dimensions of the image they are replacing
+    If not, the error is logged and the image is not used
+  Images that do not exist in the original .bin will be added to its texture list
+  Gitadora's fancy texture packing/arrangement is handled automatically
+
+Special case: "texbin" files that do not exist
+  Unlike IFS files, LayeredFS will create a .bin file for you even if the original
+  does not exist!
 
 Special case: XML files
   XML files with the same name as the default will be used normally
