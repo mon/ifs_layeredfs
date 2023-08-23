@@ -553,13 +553,7 @@ void Texbin::process_dirty_rects() {
                 size_t src_start = y * rect->w * 4;
                 size_t dst_start = ((y + rect->y) * width * 4) + (rect->x * 4);
                 size_t len = rect->w * 4;
-                if((dst_start + len) > tex.size()) {
-                    log_warning("Out of bounds????");
-                    continue;
-                }
-                log_verbose("cpy rect from %d to %d", src_start, dst_start);
                 memcpy(&tex[dst_start], &dirty[src_start], len);
-                log_verbose("done");
             }
 
             rect->dirty_data = nullopt;
@@ -913,8 +907,7 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
 
                 uint32_t match_len = 0;
 
-                for (int32_t j = 0; j < 18 && data_i + j < data.size(); j++)
-                {
+                for (int32_t j = 0; j < 18 && data_i + j < data.size(); j++) {
                     if (cmp_dict[(index + j) & 0xfff] == data[data_i + j])
                         match_len++;
                     else
@@ -924,25 +917,21 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
                     cmp_addr = (cmp_addr + 1) & 0xfff;
                 }
 
-                if (match_len > length && match_len < output.size())
-                {
+                if (match_len > length && match_len < output.size()) {
                     length = match_len;
                     dict_pos = index;
                 }
             }
         }
 
-        if (length > 2)
-        {
+        if (length > 2) {
             output.push_back(dict_pos);
 
             uint32_t niblo = (length - 3) & 0xf;
             uint32_t nibhi = (dict_pos >> 4) & 0xf0;
 
             output.push_back((niblo | nibhi));
-        }
-        else
-        {
+        } else {
             header |= (uint8_t)mask;
 
             output.push_back(data[data_i]);
@@ -950,10 +939,8 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
             length = 1;
         }
 
-        for (uint32_t i = 0; i < length; i++)
-        {
-            if (data_i + 1 < data.size())
-            {
+        for (uint32_t i = 0; i < length; i++) {
+            if (data_i + 1 < data.size()) {
                 uint32_t value;
 
                 value = data[data_i + 0] << 8;
