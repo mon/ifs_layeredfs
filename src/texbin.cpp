@@ -366,10 +366,9 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
     if(existing_image != images.end()) {
         auto [w, h] = existing_image->second.peek_dimensions();
         if(width != w || height != h) {
-            log_info("Replacement image %s has dimensions %dx%d but original is %dx%d, ignoring",
+            log_info("Replacement image %s has dimensions %dx%d but original is %dx%d, repacking anyway",
                 image_name, width, height, w, h
             );
-            return false;
         }
 
         log_info("Replacing %s", image_name);
