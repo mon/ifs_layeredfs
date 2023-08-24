@@ -132,10 +132,11 @@ void avs_playpen() {
 
     // auto _tex = Texbin::from_path("tex_l44qb_smc_sm.bin");
     // auto tex = Texbin::from_path("tex_custom.bin");
-    auto tex = Texbin::from_path("tex_l44_system.bin");
+    auto tex = Texbin::from_path("tex_l44_paseli_info.bin");
     if(!tex) {
         return;
     }
+    tex->debug();
 
 // #ifdef TEXBIN_VERBOSE
 //     tex->debug();

@@ -238,6 +238,10 @@ static vector<string> load_names(istream &f, uint32_t name_offset) {
         while(f.get(ch) && ch > '\0') {
             name += ch;
         }
+        if(!f) {
+            log_warning("bad name entry at %" PRId32, i);
+            return ret;
+        }
         ret[entry.id] = name;
 
         f.seekg(pos);
@@ -247,6 +251,8 @@ static vector<string> load_names(istream &f, uint32_t name_offset) {
 }
 
 static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
+    bool warned_about_size_mismatch = false;
+
     vector<vector<uint8_t>> ret;
     ret.reserve(hdr.file_count);
 
@@ -261,10 +267,35 @@ static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
         auto pos = f.tellg();
 
         f.seekg(entry.offset);
+
+        // the size *appears* to be the compressed size, but older (??) versions
+        // of texbintool seem to emit the decompressed size, so do a quick read
+        // and double check. The game seems to ignore the "bad" size and use the
+        // actual data len, so they're not broken.
+        uint32_t sizes[2];
+        if(!f.read((char*)&sizes[0], sizeof(sizes))) {
+            log_warning("can't read data at i %" PRId32 " offset %" PRId32,
+                i, entry.offset
+            );
+            return ret;
+        }
+
+        auto comp_len = _byteswap_ulong(sizes[1]);
+        if(entry.size != (comp_len + 8)) {
+            if(!warned_about_size_mismatch) {
+                warned_about_size_mismatch = true;
+                log_warning("File has invalid entry size, using real size");
+            }
+            entry.size = comp_len + 8;
+        }
+
+        f.seekg(entry.offset);
         vector<uint8_t> data;
         data.resize(entry.size);
         if(!f.read((char*)&data[0], entry.size)) {
-            log_warning("can't read data at %i" PRId32, i);
+            log_warning("can't read data at i %" PRId32 " offset %" PRId32 " len %" PRId32,
+                i, entry.offset, entry.size
+            );
             return ret;
         }
         ret.push_back(data);
@@ -393,11 +424,11 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
 void Texbin::debug() {
     uint32_t total = 0;
     for(auto &[name, image] : images) {
-        VLOG("file: %s len %d\n", name.c_str(), image.size());
+        VLOG("file: %s len %d\n", name.c_str(), image.tex.size());
         total += (uint32_t)image.tex.size();
     }
 
-    for([[maybe_unused]] auto &[_name, rect] : rects) {
+    for([[maybe_unused]] auto &[name, rect] : rects) {
         VLOG("rect: %s parent %s dims (%d,%d,%d,%d)\n",
             name.c_str(), rect.parent_name.c_str(),
             rect.x, rect.y, rect.w, rect.h
