@@ -2,6 +2,7 @@
 #include <windows.h>
 
 #include "utils.hpp"
+#include "log.hpp"
 #include "avs.h"
 
 char* snprintf_auto(const char* fmt, ...) {
@@ -144,7 +145,7 @@ std::vector<std::string> folders_in_folder(const char* root) {
     return results;
 }
 
-time_t file_time(const char* path) {
+uint64_t file_time(const char* path) {
     auto wide = str_widen(path);
     auto hFile = CreateFileW(wide,  // file to open
         GENERIC_READ,          // open for reading
@@ -161,20 +162,23 @@ time_t file_time(const char* path) {
     GetFileTime(hFile, NULL, NULL, &mtime);
     CloseHandle(hFile);
 
-    /*struct avs_stat st;
-    auto f = avs_fs_open(path, 1, 420);
-    if (f < 0) {
-        return 0;
-    }
-    auto res = avs_fs_fstat(f, &st);
-    avs_fs_close(f);
-    if (!res) {
-        return 0;
-    }*/
     ULARGE_INTEGER result;
     result.LowPart = mtime.dwLowDateTime;
     result.HighPart = mtime.dwHighDateTime;
+    // log_verbose("file time %lu for %s", result.QuadPart, path);
     return result.QuadPart;
+
+    // NOTE: can't use this method because the DLL time is taken before AVS is
+    // hooked
+
+    // struct avs_stat st;
+    // auto res = avs_fs_lstat(path, &st);
+    // if (res) {
+    //     log_verbose("file time %ld for %s", st.st_mtime, path);
+    //     return st.st_mtime;
+    // } else {
+    //     return 0;
+    // }
 }
 
 LONG time(void) {

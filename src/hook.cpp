@@ -547,7 +547,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
 
     auto time_out = file_time(out.c_str());
     // don't forget to take the input into account
-    time_t newest = file_time(starting.c_str());
+    auto newest = file_time(starting.c_str());
     for (auto &path : to_merge)
         newest = std::max(newest, file_time(path.c_str()));
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
@@ -654,7 +654,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
     }
 
     auto time_out = file_time(out.c_str());
-    time_t newest = file_time(bin_orig_path.c_str());
+    auto newest = file_time(bin_orig_path.c_str());
     for (auto &path : pngs_list)
         newest = std::max(newest, file_time(path.c_str()));
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
@@ -663,6 +663,10 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
         log_misc("texbin cache up to date, skip");
         return;
     }
+    // log_verbose("Regenerating cache");
+    // log_verbose("  time_out >= newest == %d", time_out >= newest);
+    // log_verbose("  time_out >= dll_time == %d", time_out >= dll_time);
+    // log_verbose("  memcmp(hash, cache_hash, sizeof(hash)) == 0 == %d", memcmp(hash, cache_hash, sizeof(hash)) == 0);
 
     Texbin texbin;
     AVS_FILE f = avs_fs_open(bin_orig_path.c_str(), 1, 420);

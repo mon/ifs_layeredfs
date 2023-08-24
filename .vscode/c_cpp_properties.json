@@ -1,0 +1,29 @@
+{
+    "configurations": [
+        {
+            "name": "32 bit",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/i686-w64-mingw32-gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x86",
+            "compileCommands": "${workspaceFolder}/build32/compile_commands.json"
+        },
+        {
+            "name": "64 bit",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/x86_64-w64-mingw32-gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "compileCommands": "${workspaceFolder}/build64/compile_commands.json"
+        }
+    ],
+    "version": 4
+}

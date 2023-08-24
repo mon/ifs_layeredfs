@@ -18,6 +18,6 @@ void str_toupper_inline(std::string &str);
 bool file_exists(const char* name);
 bool folder_exists(const char* name);
 std::vector<std::string> folders_in_folder(const char* root);
-time_t file_time(const char* path);
+uint64_t file_time(const char* path);
 LONG time(void);
 std::string basename_without_extension(std::string const & path);

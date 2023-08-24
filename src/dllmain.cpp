@@ -5,7 +5,7 @@
 
 HMODULE my_module;
 char dll_filename[MAX_PATH];
-time_t dll_time;
+uint64_t dll_time;
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
