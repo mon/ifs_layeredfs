@@ -4,7 +4,6 @@ project('layeredfs', 'c', 'cpp', version: '3.0_BETA',
         'buildtype=release',
         'strip=true',
         'werror=true',
-        'b_lto=true',
     ]
 )
 
