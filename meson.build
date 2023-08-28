@@ -39,7 +39,6 @@ third_party = static_library('3rd_party',
 layeredfs_lib = static_library('layeredfs',
     sources: [
         'src/avs.cpp',
-        'src/config.cpp',
         'src/dllmain.cpp',
         'src/hook.cpp',
         'src/log.cpp',
@@ -54,14 +53,83 @@ layeredfs_lib = static_library('layeredfs',
     cpp_args: '-DVER_STRING="' + meson.project_version() + '"',
 )
 
-shared_library('ifs_hook',
-    sources: 'src/dllmain.cpp',
-    link_with: layeredfs_lib,
-    name_prefix: '',
+# has to be bare source so each special version gets a different copy
+layeredfs_cfg_dep = declare_dependency(
+    sources: 'src/config.cpp'
 )
 
 executable('playpen',
     sources: 'src/playpen.cpp',
     build_by_default: false,
-    link_with: layeredfs_lib
+    link_with: layeredfs_lib,
+    dependencies: layeredfs_cfg_dep,
 )
+
+# "normal" hook
+shared_library('ifs_hook',
+    link_with: layeredfs_lib,
+    dependencies: layeredfs_cfg_dep,
+    name_prefix: '',
+    install_dir: '/',
+    install: true,
+)
+
+# pre-configured DLLs if you don't know how to (or can't) add cmdline args
+special_cfgs = [
+    ['always_verbose', ['-DCFG_VERBOSE']],
+    ['always_logs_to_file', ['-DCFG_LOGFILE']],
+    ['always_verbose_and_logs_to_file', ['-DCFG_VERBOSE','-DCFG_LOGFILE']],
+    # useful because it flushes the logfile
+    ['always_devmode_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_LOGFILE']],
+    # "Why isn't it working???"
+    ['always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE']],
+]
+
+foreach cfg : special_cfgs
+    folder_name = cfg[0]
+    defines = cfg[1]
+
+    shared_library('ifs_hook_' + folder_name,
+        link_with: layeredfs_lib,
+        dependencies: layeredfs_cfg_dep,
+        cpp_args: defines,
+        name_prefix: '',
+        install_dir: '/special_builds' / folder_name,
+        install: true,
+    )
+endforeach
+
+injector_cfgs = [
+    ['d3d9', '-DUSE_D3D9'],
+    ['dxgi', '-DUSE_DXGI'],
+    ['dxgi_for_bombergirl', ['-DUSE_DXGI', '-DBOMBERGIRL_BULLSHIT']],
+    ['opengl32', '-DUSE_OGL'],
+]
+
+foreach cfg : injector_cfgs
+    dll_name = cfg[0]
+    define = cfg[1]
+    def_file = 'src_injector' / dll_name + '.def'
+
+    if dll_name == 'dxgi_for_bombergirl'
+        if host_machine.cpu_family() == 'x86'
+            continue
+        endif
+        def_file = 'src_injector/dxgi.def'
+    endif
+
+    shared_library(dll_name,
+        sources: 'src_injector/dllmain.cpp',
+        vs_module_defs: def_file,
+        cpp_args: define,
+        link_args: [
+            # don't auto-export everything
+            '-Wl,--exclude-all-symbols',
+            # fix stdcall mangling even with `extern "C"`
+            '-Wl,--enable-stdcall-fixup'
+        ],
+        name_prefix: '',
+        install_dir: '/automatic_injector_dlls',
+        install: true,
+    )
+endforeach

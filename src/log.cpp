@@ -26,7 +26,7 @@ static void log_to_file(char level, const char* fmt, va_list args) {
         if (!logfile) {
             // default to ifs_hook.log because we need *something* in the case
             // of a fatal error
-            const char *path = config.logfile ? config.logfile : "ifs_hook.log";
+            const char *path = config.logfile ? config.logfile : DEFAULT_LOGFILE;
             logfile = fopen(path, "w");
         }
         tried_to_open = true;

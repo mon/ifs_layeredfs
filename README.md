@@ -19,14 +19,23 @@ The DLLs go next to the other game DLLs. Pick the right DLL for your game - if
 folder.
 
 For most games, you do not need to modify your gamestart.bat - the hook is
-loaded automatically by copying D3d9.dll to the install directory. This
-*doesn't* work for Jubeat though, you need to use `-k ifs_hook.dll` in your
-commandline.
+loaded automatically by copying `D3d9.dll` to the install directory. For
+**Jubeat** and **GFDM** (_not_ Gitadora), you'll need to use `opengl32.dll`
+instead. If neither of these work and the game is very new, try `dxgi.dll`. For
+**Bombergirl**, it has a special DLL loader that likes to break things. You will
+need to use `dxgi_for_bombergirl.dll` (renamed to `dxgi.dll`) **AND** copy
+`dxgi.dll` from `C:\Windows\System32` (renamed to `_dxgi.dll`).
 
-For more control (or if playing Jubeat) -
-Load ifs_hook.dll using your launcher/injector of choice (eg: `-k ifs_hook.dll`)
+If you don't really care, you can copy all the injector DLLs into the game
+folder, it won't break anything.
+
+For more control, load ifs_hook.dll using your launcher/injector of choice
+(eg: add `-k ifs_hook.dll` to the commandline)
 
 # Flags
+If you can't work out to enable a flag, the release .zip contains DLLs that have
+certain useful combos pre-enabled. They can be found in the `special_builds`
+folder.
 ```
 --layered-disable Disable layeredfs
 --layered-verbose Print *tons* of info. Useful to find why your mods aren't

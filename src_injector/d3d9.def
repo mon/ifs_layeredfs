@@ -1,0 +1,24 @@
+EXPORTS
+    __ord16 @16,NONAME
+    __ord17 @17,NONAME
+    __ord18 @18,NONAME
+    __ord19 @19,NONAME
+    Direct3DCreate9On12 @20
+    Direct3DCreate9On12Ex @21
+    __ord22 @22,NONAME
+    __ord23 @23,NONAME
+    Direct3DShaderValidatorCreate9 @24
+    PSGPError @25
+    PSGPSampleTexture @26
+    D3DPERF_BeginEvent @27
+    D3DPERF_EndEvent @28
+    D3DPERF_GetStatus @29
+    D3DPERF_QueryRepeatFrame @30
+    D3DPERF_SetMarker @31
+    D3DPERF_SetOptions @32
+    D3DPERF_SetRegion @33
+    DebugSetLevel @34
+    DebugSetMute @35
+    Direct3D9EnableMaximizedWindowedModeShim @36
+    Direct3DCreate9 @37
+    Direct3DCreate9Ex @38

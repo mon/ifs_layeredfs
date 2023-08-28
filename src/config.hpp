@@ -12,6 +12,8 @@ typedef struct {
     std::unordered_set<std::string> blocklist;
 } config_t;
 
+#define DEFAULT_LOGFILE "ifs_hook.log"
+
 extern config_t config;
 
 void load_config(void);

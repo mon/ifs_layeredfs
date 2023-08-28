@@ -43,12 +43,27 @@ const char* parse_list(const char* prefix, const char* arg, std::unordered_set<s
 }
 
 void load_config(void) {
+    config.disable = false;
     config.allowlist.clear();
     config.blocklist.clear();
+
+#ifdef CFG_VERBOSE
+    config.verbose_logs = true;
+#else
     config.verbose_logs = false;
+#endif
+
+#ifdef CFG_DEVMODE
+    config.developer_mode = true;
+#else
     config.developer_mode = false;
-    config.disable = false;
+#endif
+
+#ifdef CFG_LOGFILE
+    config.logfile = DEFAULT_LOGFILE;
+#else
     config.logfile = NULL;
+#endif
 
     int i;
 
