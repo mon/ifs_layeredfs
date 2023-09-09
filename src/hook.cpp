@@ -781,8 +781,8 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if(name == NULL)
         return avs_fs_open(name, mode, flags);
     log_verbose("opening %s mode %d flags %d", name, mode, flags);
-    // only touch reads
-    if (mode != 1) {
+    // only touch reads - new AVS has bitflags (R=1,W=2), old AVS has enum (R=0,W=1,RW=2)
+    if ((avs_loaded_version >= 1400 && mode != 1) || (avs_loaded_version < 1400 && mode != 0)) {
         return avs_fs_open(name, mode, flags);
     }
     string path = name;

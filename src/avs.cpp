@@ -11,9 +11,11 @@
 #define AVS_STRUCT_DEF(ret_type, name, ...) const char* name;
 
 const char *avs_loaded_dll_name;
+uint16_t avs_loaded_version;
 
 typedef struct {
     const char *version_name;
+    uint16_t version;
     const char *unique_check; // for IIDX vs SDVX cloud, almost all funcs are identical
 
     FOREACH_AVS_FUNC(AVS_STRUCT_DEF)
@@ -28,6 +30,7 @@ const LPCWSTR dll_names[] = {
 const avs_exports_t avs_exports[] = {
     [] { avs_exports_t x = { 0 };
     x.version_name                        = "normal";
+    x.version                             = 1200;
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "log_body_fatal";
     x.log_body_warning                    = "log_body_warning";
@@ -61,6 +64,7 @@ const avs_exports_t avs_exports[] = {
     }(),
     [] { avs_exports_t x = { 0 };
     x.version_name                        = "2.13.x (XC058ba5------)";
+    x.version                             = 1300;
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XC058ba5000084";
     x.log_body_warning                    = "XC058ba50000e1";
@@ -94,6 +98,7 @@ const avs_exports_t avs_exports[] = {
     }(),
     [] { avs_exports_t x = { 0 };
     x.version_name                        = "2.15.x (XCd229cc------)";
+    x.version                             = 1500;
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XCd229cc0000e6";
     x.log_body_warning                    = "XCd229cc000018";
@@ -127,6 +132,7 @@ const avs_exports_t avs_exports[] = {
     }(),
     [] { avs_exports_t x = { 0 }; // sdvx cloud
     x.version_name                        = "2.16.[3-7] (XCnbrep7------)";
+    x.version                             = 1630;
     x.unique_check                        = "XCnbrep700013c";
     x.log_body_fatal                      = "XCnbrep700017a";
     x.log_body_warning                    = "XCnbrep700017b";
@@ -160,6 +166,7 @@ const avs_exports_t avs_exports[] = {
     }(),
     [] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
     x.version_name                        = "2.16.1 (XCnbrep7 but different)",
+    x.version                             = 1610;
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XCnbrep7000168";
     x.log_body_warning                    = "XCnbrep7000169";
@@ -193,6 +200,7 @@ const avs_exports_t avs_exports[] = {
     }(),
     [] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much. 2.16.3 with different prefix
     x.version_name                        = "2.17.x (XCgsqzn0------)";
+    x.version                             = 1700;
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "XCgsqzn000017a";
     x.log_body_warning                    = "XCgsqzn000017b";
@@ -284,6 +292,7 @@ bool init_avs(void) {
 
         success = true;
         avs_loaded_dll_name = avs_exports[i].version_name;
+        avs_loaded_version = avs_exports[i].version;
 
         break;
     }

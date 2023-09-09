@@ -243,3 +243,4 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
 const char* get_prop_error_str(int32_t code);
 
 extern const char *avs_loaded_dll_name;
+extern uint16_t avs_loaded_version; // uses bemanitools form, e.g. 2.17.3 = 1703
