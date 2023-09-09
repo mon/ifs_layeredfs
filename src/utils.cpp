@@ -80,10 +80,17 @@ wchar_t *str_widen(const char *src)
 }
 
 bool file_exists(const char* name) {
-    auto res = avs_fs_open(name, 1, 420);
-    if (res > 0)
-        avs_fs_close(res);
-    return res > 0;
+    DWORD dwAttrib = GetFileAttributesA(name);
+
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+            !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+
+    // file_exists is only used by the modfile machinery, so don't use this -
+    // it can be adversely affected by posix=1 in the filesystem config
+    // auto res = avs_fs_open(name, 1, 420);
+    // if (res > 0)
+    //     avs_fs_close(res);
+    // return res > 0;
 }
 
 bool folder_exists(const char* name) {
