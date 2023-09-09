@@ -152,7 +152,7 @@ void avs_playpen() {
     void* prop_buffer = NULL;
     property_t prop = NULL;
 
-    auto f = avs_fs_open(path.c_str(), 1, 420);
+    auto f = avs_fs_open(path.c_str(), avs_open_mode_read(), 420);
     if (f < 0)
         return;
 

@@ -244,3 +244,12 @@ const char* get_prop_error_str(int32_t code);
 
 extern const char *avs_loaded_dll_name;
 extern uint16_t avs_loaded_version; // uses bemanitools form, e.g. 2.17.3 = 1703
+
+static inline uint16_t avs_open_mode_read() {
+    // new AVS has bitflags (R=1,W=2), old AVS has enum (R=0,W=1,RW=2)
+    if(avs_loaded_version >= 1400) {
+        return 1;
+    } else {
+        return 0;
+    }
+}

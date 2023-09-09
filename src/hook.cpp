@@ -669,7 +669,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
     // log_verbose("  memcmp(hash, cache_hash, sizeof(hash)) == 0 == %d", memcmp(hash, cache_hash, sizeof(hash)) == 0);
 
     Texbin texbin;
-    AVS_FILE f = avs_fs_open(bin_orig_path.c_str(), 1, 420);
+    AVS_FILE f = avs_fs_open(bin_orig_path.c_str(), avs_open_mode_read(), 420);
     if (f >= 0) {
         auto orig_data = avs_file_to_vec(f);
         avs_fs_close(f);

@@ -347,7 +347,7 @@ FAIL:
 }
 
 property_t prop_from_file_path(string const&path) {
-    AVS_FILE f = avs_fs_open(path.c_str(), 1, 420);
+    AVS_FILE f = avs_fs_open(path.c_str(), avs_open_mode_read(), 420);
     if (f < 0) {
         log_warning("Couldn't open prop");
         return NULL;
@@ -407,7 +407,7 @@ bool rapidxml_from_avs_filepath(
     rapidxml::xml_document<>& doc,
     rapidxml::xml_document<>& doc_to_allocate_with
 ) {
-    AVS_FILE f = avs_fs_open(path.c_str(), 1, 420);
+    AVS_FILE f = avs_fs_open(path.c_str(), avs_open_mode_read(), 420);
     if (f < 0) {
         log_warning("Couldn't open prop");
         return false;
