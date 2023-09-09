@@ -19,7 +19,7 @@ config_t config;
 static const char *allowlist = NULL;
 static const char *blocklist = NULL;
 
-void comma_separated_to_set(std::unordered_set<std::string> &dest, const std::string &arg) {
+void comma_separated_to_set(std::set<std::string, CaseInsensitiveCompare> &dest, const std::string &arg) {
     size_t last = 0;
     size_t next = 0;
     while ((next = arg.find(",", last)) != std::string::npos) {
@@ -29,7 +29,7 @@ void comma_separated_to_set(std::unordered_set<std::string> &dest, const std::st
     dest.insert(arg.substr(last));
 }
 
-const char* parse_list(const char* prefix, const char* arg, std::unordered_set<std::string> &dest) {
+const char* parse_list(const char* prefix, const char* arg, std::set<std::string, CaseInsensitiveCompare> &dest) {
     size_t prefix_len = strlen(prefix) + strlen("=");
     if (strlen(arg) <= prefix_len) {
         return NULL;

@@ -1,7 +1,6 @@
 #include <windows.h>
 #include <algorithm>
-#include <unordered_map>
-#include <unordered_set>
+#include <set>
 
 #include "ramfs_demangler.h"
 
@@ -16,13 +15,13 @@ using std::nullopt;
 
 typedef struct {
     std::string name;
-    std::unordered_set<string> contents;
+    std::set<string, CaseInsensitiveCompare> contents;
 } mod_contents_t;
 
 std::vector<mod_contents_t> cached_mods;
 
-std::unordered_set<string> walk_dir(const string &path, const string &root) {
-    std::unordered_set<string> result;
+std::set<string, CaseInsensitiveCompare> walk_dir(const string &path, const string &root) {
+    std::set<string, CaseInsensitiveCompare> result;
 
     WIN32_FIND_DATAA ffd;
     auto contents = FindFirstFileA((path + "/*").c_str(), &ffd);
@@ -33,12 +32,11 @@ std::unordered_set<string> walk_dir(const string &path, const string &root) {
                 !strcmp(ffd.cFileName, "..")) {
                 continue;
             }
-            str_tolower_inline(ffd.cFileName);
 
             string result_path;
             if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
                 // sanity check a common mistake
-                if (root == "" && !strcmp(ffd.cFileName, "data")) {
+                if (root == "" && !strcasecmp(ffd.cFileName, "data")) {
                     log_warning("\"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
                 }
                 result_path = root + ffd.cFileName + "/";
@@ -92,7 +90,7 @@ optional<string> normalise_path(string &path) {
         if (game_folders.empty()) {
             for (auto folder : folders_in_folder(".")) {
                 // data is the normal case we transparently handle
-                if (!strcmp(folder.c_str(), "data")) {
+                if (!strcasecmp(folder.c_str(), "data")) {
                     continue;
                 }
 
@@ -104,15 +102,14 @@ optional<string> normalise_path(string &path) {
     }
 
     ramfs_demangler_demangle_if_possible(path);
-    str_tolower_inline(path);
 
-    auto data_pos = path.find("data/");
+    auto data_pos = string_find_icase(path, "data/");
     auto other_pos = string::npos;
 
     if (data_pos == string::npos) {
         // search all our other folders for anything that matches
         for (auto folder : game_folders) {
-            other_pos = path.find(folder);
+            other_pos = string_find_icase(path, folder);
             if (other_pos != string::npos) {
                 break;
             }
@@ -146,7 +143,7 @@ vector<string> available_mods() {
     if (config.developer_mode) {
         static bool first_search = true;
         for (auto folder : folders_in_folder(MOD_FOLDER)) {
-            if (!strcmp(folder.c_str(), "_cache")) {
+            if (!strcasecmp(folder.c_str(), "_cache")) {
                 continue;
             }
 
@@ -176,7 +173,10 @@ vector<string> available_mods() {
             ret.push_back(dir.name);
         }
     }
-    std::sort(ret.begin(), ret.end());
+    // case insensitive, so apple comes before English
+    std::sort(ret.begin(), ret.end(), [](const string& a, const string& b){
+            return strcasecmp(a.c_str(), b.c_str()) < 0;
+    });
     return ret;
 }
 

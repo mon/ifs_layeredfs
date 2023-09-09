@@ -1,9 +1,11 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 #include <optional>
+
+#include "utils.hpp"
 
 using namespace std;
 
@@ -56,15 +58,15 @@ class Texbin {
     // will we
 
     // name -> entry
-    unordered_map<string, ImageEntryParsed> images;
+    map<string, ImageEntryParsed, CaseInsensitiveCompare> images;
     // name -> entry. Don't need to maintain a list of source rects, as we don't
     // support packing a new texture into an existing rect (please let this
     // remain a never-needed usecase)
-    unordered_map<string, RectEntryParsed> rects;
+    map<string, RectEntryParsed, CaseInsensitiveCompare> rects;
 
     Texbin(
-        unordered_map<string, ImageEntryParsed> images,
-        unordered_map<string, RectEntryParsed> rects
+        map<string, ImageEntryParsed, CaseInsensitiveCompare> images,
+        map<string, RectEntryParsed, CaseInsensitiveCompare> rects
     )
         : images(images)
         , rects(rects)

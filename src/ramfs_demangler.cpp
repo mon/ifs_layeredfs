@@ -31,6 +31,7 @@
 */
 
 #include <algorithm>
+#include <map>
 #include <unordered_map>
 #include <optional>
 
@@ -50,7 +51,7 @@ typedef struct {
 	optional<string> mounted_path;
 } file_cleanup_info_t;
 
-static unordered_map<string, file_cleanup_info_t> cleanup_map;
+static map<string, file_cleanup_info_t, CaseInsensitiveCompare> cleanup_map;
 static unordered_map<AVS_FILE, string> open_file_map;
 static unordered_map<void*, string> ram_load_map;
 // using tries for fast prefix matches on our mangled names

@@ -1,15 +1,17 @@
 #pragma once
 
-#include <unordered_set>
+#include <set>
 #include <string>
+
+#include "utils.hpp"
 
 typedef struct {
     bool verbose_logs;
     bool developer_mode;
     bool disable;
     const char *logfile;
-    std::unordered_set<std::string> allowlist;
-    std::unordered_set<std::string> blocklist;
+    std::set<std::string, CaseInsensitiveCompare> allowlist;
+    std::set<std::string, CaseInsensitiveCompare> blocklist;
 } config_t;
 
 #define DEFAULT_LOGFILE "ifs_hook.log"

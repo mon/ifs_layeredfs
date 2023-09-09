@@ -1,6 +1,8 @@
 #include <stdarg.h>
 #include <windows.h>
 
+#include <algorithm>
+
 #include "utils.hpp"
 #include "log.hpp"
 #include "avs.h"
@@ -36,12 +38,12 @@ void string_replace(std::string &str, const char* from, const char* to) {
     //   .xml exists in .merged.xml, if we start at the previous match we will
     //   replace forever. In this case, we skip the replaced string
     size_t increment = to_len;
-    if(strstr(to, from) == NULL) {
+    if(string_find_icase(to, from) == std::string::npos) {
         increment = 0;
     }
 
     size_t offset = 0;
-    for (auto pos = str.find(from); pos != std::string::npos; pos = str.find(from, offset)) {
+    for (auto pos = string_find_icase(str, from); pos != std::string::npos; pos = string_find_icase(str, from, offset)) {
         str.replace(pos, from_len, to);
         // avoid recursion if to contains from
         offset = pos + increment;
@@ -49,7 +51,7 @@ void string_replace(std::string &str, const char* from, const char* to) {
 }
 
 bool string_replace_first(std::string& str, const char* from, const char* to) {
-    auto pos = str.find(from);
+    auto pos = string_find_icase(str, from);
     if (pos == std::string::npos) {
         return false;
     }
@@ -57,6 +59,19 @@ bool string_replace_first(std::string& str, const char* from, const char* to) {
     str.replace(pos, strlen(from), to);
 
     return true;
+}
+
+std::size_t string_find_icase(const std::string & strHaystack, const std::string & strNeedle, std::size_t off) {
+    auto it = std::search(
+        strHaystack.begin() + off, strHaystack.end(),
+        strNeedle.begin(),   strNeedle.end(),
+        [](unsigned char ch1, unsigned char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+    );
+    if(it == strHaystack.end()) {
+        return string::npos;
+    } else {
+        return it - strHaystack.begin();
+    }
 }
 
 wchar_t *str_widen(const char *src)
@@ -104,19 +119,6 @@ bool folder_exists(const char* name) {
     return true;
 }
 
-void str_tolower_inline(char* str) {
-    while (*str) {
-        *str = tolower(*str);
-        str++;
-    }
-}
-
-void str_tolower_inline(std::string& str) {
-    for (size_t i = 0; i < str.length(); i++) {
-        str[i] = tolower(str[i]);
-    }
-}
-
 void str_toupper_inline(std::string& str) {
     for (size_t i = 0; i < str.length(); i++) {
         str[i] = toupper(str[i]);
@@ -140,9 +142,6 @@ std::vector<std::string> folders_in_folder(const char* root) {
             !strcmp(ffd.cFileName, "..")) {
             continue;
         }
-
-        // all lowercase
-        str_tolower_inline(ffd.cFileName);
 
         results.push_back(ffd.cFileName);
     } while (FindNextFileA(contents, &ffd) != 0);

@@ -11,6 +11,7 @@
 
 // all good code mixes C and C++, right?
 using std::string;
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
@@ -76,7 +77,7 @@ typedef struct image {
 } image_t;
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
-static std::unordered_map<string, image_t> ifs_textures;
+static std::map<string, image_t, CaseInsensitiveCompare> ifs_textures;
 static CriticalSectionLock ifs_textures_mtx;
 
 typedef std::unordered_set<string> string_set;
@@ -624,7 +625,6 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
         auto png = std::move(pngs.extract(it++).value());
         // todo: hacky as hell, list_pngs should do better
         png = png + ".png";
-        str_tolower_inline(png);
         auto png_res = find_first_modfile(bin_mod_path + "/" + png);
         if(png_res) {
             pngs_list.push_back(*png_res);
@@ -694,7 +694,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
     }
 
     for (auto &path : pngs_list) {
-        // I have yet to see a texbin with allcaps names for textures
+        // I have yet to see a texbin without allcaps names for textures
         auto tex_name = basename_without_extension(path);
         str_toupper_inline(tex_name);
         texbin.add_or_replace_image(tex_name.c_str(), path.c_str());

@@ -336,7 +336,7 @@ void pad32(ofstream &f) {
 }
 
 template<typename T>
-void write_names(ofstream &f, unordered_map<string, T> &names) {
+void write_names(ofstream &f, map<string, T, CaseInsensitiveCompare> &names) {
     auto start = f.tellp();
     TexbinNamesHdr hdr;
     f.write((char*)&hdr, sizeof(hdr)); // update with real values later
@@ -471,14 +471,14 @@ optional<Texbin> Texbin::from_stream(istream &f) {
 
     auto data = load_data(f, hdr);
 
-    unordered_map<string, ImageEntryParsed> images;
-    images.reserve(hdr.file_count);
+    map<string, ImageEntryParsed, CaseInsensitiveCompare> images;
+    // images.reserve(hdr.file_count);
 
     for(uint32_t i = 0; i < hdr.file_count; i++) {
         images[names[i]] = ImageEntryParsed(data[i]);
     }
 
-    unordered_map<string, RectEntryParsed> rects;
+    map<string, RectEntryParsed, CaseInsensitiveCompare> rects;
     if(hdr.rect_offset) {
         TexbinRectHdr rect_hdr;
         f.seekg(hdr.rect_offset);
@@ -503,7 +503,6 @@ optional<Texbin> Texbin::from_stream(istream &f) {
         }
 
         f.seekg(hdr.rect_offset + rect_hdr.rect_entry_offset);
-        rects.reserve(rect_hdr.image_count);
         for(uint32_t i = 0; i < rect_hdr.image_count; i++) {
             TexbinRectEntry entry;
             if(!f.read((char*)&entry, sizeof(entry))) {
