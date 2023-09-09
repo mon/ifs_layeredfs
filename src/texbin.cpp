@@ -394,7 +394,17 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
 
     auto existing_image = images.find(image_name);
     auto existing_rect = rects.find(image_name);
-    if(existing_image != images.end()) {
+    // rect image names may shadow normal image names, so check them first
+    if(existing_rect != rects.end()) {
+        if(width != existing_rect->second.w || height != existing_rect->second.h) {
+            log_info("Replacement rect image %s has dimensions %dx%d but original is %dx%d, ignoring",
+                image_name, width, height, existing_rect->second.w, existing_rect->second.h
+            );
+            return false;
+        }
+        log_info("Replacing rect image %s", image_name);
+        existing_rect->second.dirty_data = image;
+    } else if(existing_image != images.end()) {
         auto [w, h] = existing_image->second.peek_dimensions();
         if(width != w || height != h) {
             log_info("Replacement image %s has dimensions %dx%d but original is %dx%d, repacking anyway",
@@ -404,15 +414,6 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
 
         log_info("Replacing %s", image_name);
         images[image_name] = ImageEntryParsed(argb8888_to_texture_data(&image[0], width, height));
-    } else if(existing_rect != rects.end()) {
-        if(width != existing_rect->second.w || height != existing_rect->second.h) {
-            log_info("Replacement rect image %s has dimensions %dx%d but original is %dx%d, ignoring",
-                image_name, width, height, existing_rect->second.w, existing_rect->second.h
-            );
-            return false;
-        }
-        log_info("Replacing rect image %s", image_name);
-        existing_rect->second.dirty_data = image;
     } else{
         log_info("Adding new image %s", image_name);
         images[image_name] = ImageEntryParsed(argb8888_to_texture_data(&image[0], width, height));
@@ -424,18 +425,18 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
 void Texbin::debug() {
     uint32_t total = 0;
     for(auto &[name, image] : images) {
-        VLOG("file: %s len %d\n", name.c_str(), image.tex.size());
+        VLOG("file: %s len %d fmt %s", name.c_str(), image.tex.size(), image.tex_type_str().c_str());
         total += (uint32_t)image.tex.size();
     }
 
     for([[maybe_unused]] auto &[name, rect] : rects) {
-        VLOG("rect: %s parent %s dims (%d,%d,%d,%d)\n",
+        VLOG("rect: %s parent %s dims (%d,%d,%d,%d)",
             name.c_str(), rect.parent_name.c_str(),
             rect.x, rect.y, rect.w, rect.h
         );
     }
 
-    VLOG("Total data: %d\n", total);
+    VLOG("Total data: %d", total);
 }
 
 optional<Texbin> Texbin::from_stream(istream &f) {
@@ -532,7 +533,11 @@ optional<Texbin> Texbin::from_stream(istream &f) {
         }
     }
 
-    return Texbin(images, rects);
+    auto ret = Texbin(images, rects);
+#ifdef TEXBIN_VERBOSE
+    ret.debug();
+#endif
+    return ret;
 }
 
 optional<Texbin> Texbin::from_path(const char *path) {
@@ -573,7 +578,13 @@ void Texbin::process_dirty_rects() {
 
         for(auto &rect : rects) {
             if(rect->x2() > width || rect->y2() > height) {
-                log_warning("Can't update rect %s: out of bounds", rect_name.c_str());
+                log_warning("Can't update rect in %s: out of bounds (canvas is %dx%d, rect is x1,x2,y1,y2 %d,%d,%d,%d)",
+                    rect_name.c_str(),
+                    width,
+                    height,
+                    rect->x, rect->x2(), rect->y, rect->y2()
+                );
+                continue;
             }
 
             auto dirty = *rect->dirty_data;
