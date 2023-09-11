@@ -1,9 +1,13 @@
 #pragma once
 
 #include <windows.h>
+#include <stdint.h>
 
 #include <string>
+#include <unordered_set>
 #include <vector>
+
+#include "avs.h"
 
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
@@ -23,9 +27,12 @@ std::vector<std::string> folders_in_folder(const char* root);
 uint64_t file_time(const char* path);
 LONG time(void);
 std::string basename_without_extension(std::string const & path);
+void hash_filenames(std::vector<std::string> &filenames, uint8_t hash[MD5_LEN]);
 
 struct CaseInsensitiveCompare {
     bool operator() (const std::string& a, const std::string& b) const {
         return strcasecmp(a.c_str(), b.c_str()) < 0;
     }
 };
+
+typedef std::unordered_set<std::string> string_set;

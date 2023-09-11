@@ -193,3 +193,14 @@ string basename_without_extension(string const & path) {
     string::size_type const p(basename.find_last_of('.'));
     return p > 0 && p != string::npos ? basename.substr(0, p) : basename;
 }
+
+void hash_filenames(std::vector<std::string> &filenames, uint8_t hash[MD5_LEN]) {
+    auto digest = mdigest_create(MD5);
+
+    for (auto &path : filenames) {
+        mdigest_update(digest, path.c_str(), (int)path.length());
+    }
+
+    mdigest_finish(digest, hash, MD5_LEN);
+    mdigest_destroy(digest);
+}

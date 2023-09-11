@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include "avs.h"
+#include "utils.hpp"
 
 extern uint64_t dll_time;
 
@@ -10,6 +11,8 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st);
 int hook_avs_fs_convert_path(char dest_name[256], const char* name);
 int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* flags);
 size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes);
+
+string_set list_pngs(string const&folder);
 
 extern "C" {
     __declspec(dllexport) int init(void);
