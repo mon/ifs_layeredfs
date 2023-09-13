@@ -19,6 +19,7 @@ typedef struct {
     const char *unique_check; // for IIDX vs SDVX cloud, almost all funcs are identical
 
     FOREACH_AVS_FUNC(AVS_STRUCT_DEF)
+    FOREACH_AVS_FUNC_OPTIONAL(AVS_STRUCT_DEF)
 } avs_exports_t;
 
 const LPCWSTR dll_names[] = {
@@ -51,7 +52,6 @@ const avs_exports_t avs_exports[] = {
     x.property_read_query_memsize         = "property_read_query_memsize";
     x.property_read_query_memsize_long    = "property_read_query_memsize_long";
     x.property_create                     = "property_create";
-    x.property_desc_to_buffer             = "property_desc_to_buffer";
     x.property_insert_read                = "property_insert_read";
     x.property_mem_write                  = "property_mem_write";
     x.property_destroy                    = "property_destroy";
@@ -87,7 +87,6 @@ const avs_exports_t avs_exports[] = {
     x.property_create                     = "XC058ba5000107";
     x.property_insert_read                = "XC058ba5000016";
     x.property_mem_write                  = "XC058ba5000162";
-    x.property_desc_to_buffer             = "XC058ba50000cd";
     x.property_destroy                    = "XC058ba500010f";
     x.property_node_query_stat            = "XC058ba500015e";
     x.cstream_create                      = "XC058ba5000118";
@@ -119,7 +118,6 @@ const avs_exports_t avs_exports[] = {
     x.property_read_query_memsize         = "XCd229cc0000ff";
     x.property_read_query_memsize_long    = "XCd229cc00002b";
     x.property_create                     = "XCd229cc000126";
-    x.property_desc_to_buffer             = "XCd229cc0000fd";
     x.property_insert_read                = "XCd229cc00009a";
     x.property_mem_write                  = "XCd229cc000033";
     x.property_destroy                    = "XCd229cc00013c";
@@ -155,7 +153,6 @@ const avs_exports_t avs_exports[] = {
     x.property_create                     = "XCnbrep7000090";
     x.property_insert_read                = "XCnbrep7000094";
     x.property_mem_write                  = "XCnbrep70000b8";
-    x.property_desc_to_buffer             = "XCnbrep7000092";
     x.property_destroy                    = "XCnbrep7000091";
     x.property_node_query_stat            = "XCnbrep70000c5";
     x.cstream_create                      = "XCnbrep7000130";
@@ -189,7 +186,6 @@ const avs_exports_t avs_exports[] = {
     x.property_create                     = "XCnbrep700007b";
     x.property_insert_read                = "XCnbrep700007f";
     x.property_mem_write                  = "XCnbrep70000a3";
-    x.property_desc_to_buffer             = "XCnbrep700007d";
     x.property_destroy                    = "XCnbrep700007c";
     x.property_node_query_stat            = "XCnbrep70000b0";
     x.cstream_create                      = "XCnbrep7000124";
@@ -223,7 +219,6 @@ const avs_exports_t avs_exports[] = {
     x.property_create                     = "XCgsqzn0000090";
     x.property_insert_read                = "XCgsqzn0000094";
     x.property_mem_write                  = "XCgsqzn00000b8";
-    x.property_desc_to_buffer             = "XCgsqzn0000092";
     x.property_destroy                    = "XCgsqzn0000091";
     x.property_node_query_stat            = "XCgsqzn00000c5";
     x.cstream_create                      = "XCgsqzn0000130";
@@ -236,6 +231,7 @@ const avs_exports_t avs_exports[] = {
 
 #define AVS_FUNC_PTR(ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
 FOREACH_AVS_FUNC(AVS_FUNC_PTR)
+FOREACH_AVS_FUNC_OPTIONAL(AVS_FUNC_PTR)
 
 /*void* (*avs_fs_mount)(char* mountpoint, char* fsroot, char* fstype, int a5);
 void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
@@ -248,6 +244,7 @@ void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
 #define CHECK_UNIQUE(func) if( avs_exports[i].func != NULL && GetProcAddress(mod_handle, avs_exports[i].func) == NULL) continue
 
 #define AVS_FUNC_LOAD(ret_type, name, ...) LOAD_FUNC(name);
+#define AVS_FUNC_LOAD_OPTIONAL(ret_type, name, ...) name = (decltype(name))GetProcAddress(mod_handle, avs_exports[i].name);
 
 bool init_avs(void) {
     bool success = false;
@@ -256,6 +253,7 @@ bool init_avs(void) {
     for (int i = 0; i < lenof(avs_exports); i++) {
 #define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) log_warning("MISSING EXPORT %d: %s", i, #name);
         FOREACH_AVS_FUNC(VERBOSE_EXPORT_CHECK)
+        FOREACH_AVS_FUNC_OPTIONAL(VERBOSE_EXPORT_CHECK)
     }
 #endif
 
@@ -282,6 +280,7 @@ bool init_avs(void) {
 
         // load all our imports, fail if any cannot be found
         FOREACH_AVS_FUNC(AVS_FUNC_LOAD)
+        FOREACH_AVS_FUNC_OPTIONAL(AVS_FUNC_LOAD_OPTIONAL)
 
         // apply hooks
         TEST_HOOK_AND_APPLY(avs_fs_open);
@@ -305,7 +304,10 @@ property_t prop_from_file_handle(AVS_FILE f) {
     int ret;
 
     int flags = PROP_CREATE_FLAGS;
-    auto memsize = property_read_query_memsize_long(avs_fs_read, f, NULL, NULL, NULL);
+    int32_t memsize = -1;
+    if(property_read_query_memsize_long) { // may not exist
+        memsize = property_read_query_memsize_long(avs_fs_read, f, NULL, NULL, NULL);
+    }
     if (memsize < 0) {
         // normal prop
         flags &= ~PROP_BIN_PLAIN_NODE_NAMES;
@@ -318,7 +320,8 @@ property_t prop_from_file_handle(AVS_FILE f) {
         }
     }
 
-    prop_buffer = malloc(memsize);
+    // MUST be 8-byte aligned so prop_free doesn't crash
+    prop_buffer = _aligned_malloc(8, (memsize + 7) & ~7);
     prop = property_create(flags, prop_buffer, memsize);
     if (prop < 0) {
         // double cast to squash truncation warning
@@ -439,29 +442,12 @@ bool rapidxml_from_avs_filepath(
     return true;
 }
 
-/*char* prop_xml_string_from_prop(property_t prop) {
-    auto prop_size = property_node_query_stat(prop, NULL, NULL);
-    char* xml = (char*)calloc(0, prop_size);
-    property_mem_write(prop, xml, prop_size);
-    return xml;
-}
-
-char* prop_xml_string_from_file(string const&path) {
-    auto prop = prop_from_file(path);
-    if (!prop)
-        return NULL;
-
-    auto xml = prop_xml_string_from_prop(prop);
-    prop_free(prop);
-    return xml;
-}*/
-
+// the given property MUST have been created with an 8-byte aligned memory
+// address. We can't use property_desc_to_buffer to get the unaligned memory
+// because super old AVS versions don't have it
 void prop_free(property_t prop) {
-    if (!prop)
-        return;
-    auto buffer = property_desc_to_buffer(prop);
     property_destroy(prop);
-    free(buffer);
+    _aligned_free(prop);
 }
 
 string md5_sum(const char* str) {

@@ -205,10 +205,7 @@ X(int,        avs_fs_mount, const char* mountpoint, const char* fsroot, const ch
 X(size_t,     avs_fs_read, AVS_FILE context, void *bytes, size_t nbytes) \
 /* property handling */ \
 X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1) \
-/* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use the plain names (which requires memsize_long) */ \
-X(int32_t,    property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1, int* unk2) \
 X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
-X(void*,      property_desc_to_buffer, property_t prop) \
 X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t reader, AVS_FILE f) \
 X(int,        property_mem_write, property_t prop, char* output, int output_size) \
 X(void,       property_destroy, property_t prop) \
@@ -224,8 +221,14 @@ X(bool,       cstream_operate, cstream_t* compressor) \
 X(bool,       cstream_finish, cstream_t* compressor) \
 X(bool,       cstream_destroy, cstream_t* compressor) \
 
+// Functions missing from extremely old AVS versions (2.8.3)
+#define FOREACH_AVS_FUNC_OPTIONAL(X) \
+/* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use the plain names (which requires memsize_long) */ \
+X(int32_t,    property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f, int* unk0, int* unk1, int* unk2) \
+
 #define AVS_FUNC_PROTOTYPE(ret_type, name, ...) extern ret_type (* name )( __VA_ARGS__ );
 FOREACH_AVS_FUNC(AVS_FUNC_PROTOTYPE)
+FOREACH_AVS_FUNC_OPTIONAL(AVS_FUNC_PROTOTYPE)
 
 void prop_free(property_t prop);
 property_t prop_from_file_path(string const&path);
