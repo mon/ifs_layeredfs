@@ -10,7 +10,6 @@
 #include "3rd_party/rapidxml_print.hpp"
 
 #include "avs.h"
-#include "hook.h"
 #include "log.hpp"
 #include "modpath_handler.h"
 #include "texture_packer.h"
@@ -181,11 +180,11 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
     return true;
 }
 
-void parse_texturelist(string const&path, string const&norm_path, optional<string> &mod_path) {
+void parse_texturelist(HookFile &file) {
     bool prop_was_rewritten = false;
 
     // get a reasonable base path
-    auto ifs_path = norm_path;
+    auto ifs_path = file.norm_path;
     // truncate
     ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
     //log_misc("Reading ifs %s", ifs_path.c_str());
@@ -198,7 +197,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
     }
 
     // open the correct file
-    auto path_to_open = mod_path ? *mod_path : path;
+    auto path_to_open = file.get_path_to_open();
     rapidxml::xml_document<> texturelist;
     auto success = rapidxml_from_avs_filepath(path_to_open, texturelist, texturelist);
     if (!success)
@@ -300,7 +299,7 @@ void parse_texturelist(string const&path, string const&norm_path, optional<strin
         }
         string outfile = outfolder + "/texturelist.xml";
         rapidxml_dump_to_file(outfile, texturelist);
-        mod_path = outfile;
+        file.mod_path = outfile;
     }
 }
 
@@ -405,9 +404,9 @@ bool cache_texture(string const&png_path, image_t &tex) {
     return true;
 }
 
-void handle_texture(string const&norm_path, optional<string> &mod_path) {
+void handle_texture(HookFile &file) {
     ifs_textures_mtx.lock();
-    auto tex_search = ifs_textures.find(norm_path);
+    auto tex_search = ifs_textures.find(file.norm_path);
     if (tex_search == ifs_textures.end()) {
         ifs_textures_mtx.unlock();
         return;
@@ -437,27 +436,27 @@ void handle_texture(string const&norm_path, optional<string> &mod_path) {
 
     log_verbose("Mapped file %s found!", png_path->c_str());
     if (cache_texture(*png_path, tex)) {
-        mod_path = tex.cache_file();
+        file.mod_path = tex.cache_file();
     }
     return;
 }
 
-void merge_xmls(string const& path, string const&norm_path, optional<string> &mod_path) {
+void merge_xmls(HookFile &file) {
     auto start = time();
     // initialize since we're GOTO-ing like naughty people
     string out;
     string out_folder;
     rapidxml::xml_document<> merged_xml;
 
-    auto merge_path = norm_path;
+    auto merge_path = file.norm_path;
     string_replace(merge_path, ".xml", ".merged.xml");
     auto to_merge = find_all_modfile(merge_path);
     // nothing to do...
     if (to_merge.size() == 0)
         return;
 
-    auto starting = mod_path ? *mod_path : path;
-    out = CACHE_FOLDER "/" + norm_path;
+    auto starting = file.get_path_to_open();
+    out = CACHE_FOLDER "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
 
     uint8_t hash[MD5_LEN];
@@ -477,7 +476,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
         newest = std::max(newest, file_time(path.c_str()));
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
     if(time_out >= newest && time_out >= dll_time && memcmp(hash, cache_hash, sizeof(hash)) == 0) {
-        mod_path = out;
+        file.mod_path = out;
         return;
     }
 
@@ -517,7 +516,7 @@ void merge_xmls(string const& path, string const&norm_path, optional<string> &mo
         fwrite(hash, 1, sizeof(hash), cache_hashfile);
         fclose(cache_hashfile);
     }
-    mod_path = out;
+    file.mod_path = out;
 
     log_misc("Merge took %d ms", time() - start);
 }

@@ -12,7 +12,8 @@
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
 char* snprintf_auto(const char* fmt, ...);
-int string_ends_with(const char * str, const char * suffix);
+bool string_ends_with(const char * str, const char * suffix);
+bool string_ends_with(const std::string &str, const char * suffix);
 // case insensitive
 void string_replace(std::string &str, const char* from, const char* to);
 // // case insensitive

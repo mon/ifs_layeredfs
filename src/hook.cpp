@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <direct.h>
-#include <inttypes.h>
 
 #include "hook.h"
 
@@ -42,7 +36,113 @@ using std::string;
 // debugging
 //#define ALWAYS_CACHE
 
+// used by pkfs hooks - we don't want to hook avs_fs_open if we just hooked pkfs
+thread_local static bool inside_pkfs_hook;
 
+unsigned int (*pkfs_fs_open)(const char *path);
+unsigned int (*pkfs_fs_fstat)(unsigned int f, struct avs_stat *stat);
+unsigned int (*pkfs_fs_read)(unsigned int f, void *buf, int sz);
+unsigned int (*pkfs_fs_close)(unsigned int f);
+
+class AvsHookFile : public HookFile {
+    using HookFile::HookFile;
+
+    std::optional<std::vector<uint8_t>> load_to_vec() override {
+        AVS_FILE f = avs_fs_open(get_path_to_open().c_str(), avs_open_mode_read(), 420);
+        if (f >= 0) {
+            auto ret = avs_file_to_vec(f);
+            avs_fs_close(f);
+            return ret;
+        } else {
+            return nullopt;
+        }
+    }
+};
+class AvsOpenHookFile : public AvsHookFile {
+    private:
+    uint16_t mode;
+    int flags;
+
+    public:
+    AvsOpenHookFile(const std::string path, const std::string norm_path, uint16_t mode, int flags)
+        : AvsHookFile(path, norm_path)
+        , mode(mode)
+        , flags(flags)
+    {}
+
+    bool ramfs_demangle() override {return true;};
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        return (uint32_t)avs_fs_open(get_path_to_open().c_str(), mode, flags);
+    }
+};
+
+class AvsLstatHookFile : public AvsHookFile {
+    private:
+    struct avs_stat *st;
+
+    public:
+    AvsLstatHookFile(const std::string path, const std::string norm_path, struct avs_stat *st)
+        : AvsHookFile(path, norm_path)
+        , st(st)
+    {}
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        return (uint32_t)avs_fs_lstat(get_path_to_open().c_str(), st);
+    }
+};
+
+class AvsConvertPathHookFile : public AvsHookFile {
+    private:
+    char *dest_name;
+
+    public:
+    AvsConvertPathHookFile(const std::string path, const std::string norm_path, char *dest_name)
+        : AvsHookFile(path, norm_path)
+        , dest_name(dest_name)
+    {}
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        return (uint32_t)avs_fs_convert_path(dest_name, get_path_to_open().c_str());
+    }
+};
+
+class PkfsHookFile : public HookFile {
+    public:
+    PkfsHookFile(const std::string path, const std::string norm_path)
+        : HookFile(path, norm_path)
+    {}
+
+    bool ramfs_demangle() {return false;};
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        // note that this also hides the avs_fs_open of the pakfile holding a
+        // particular file - acceptable compromise IMO
+        inside_pkfs_hook = true;
+        auto ret = pkfs_fs_open(get_path_to_open().c_str());
+        inside_pkfs_hook = false;
+        return ret;
+    }
+
+    std::optional<std::vector<uint8_t>> load_to_vec() override {
+        AVS_FILE f = pkfs_fs_open(get_path_to_open().c_str());
+        if (f != 0) {
+            avs_stat stat = {0}; // file type is shared!
+            pkfs_fs_fstat(f, &stat);
+            std::vector<uint8_t> ret;
+            ret.resize(stat.filesize);
+            pkfs_fs_read(f, &ret[0], stat.filesize);
+            pkfs_fs_close(f);
+            return ret;
+        } else {
+            return nullopt;
+        }
+    }
+};
 
 // this should probably be part of the modpath h/cpp
 void list_pngs_onefolder(string_set &names, string const& folder) {
@@ -75,11 +175,10 @@ string_set list_pngs(string const&folder) {
     return ret;
 }
 
-void handle_texbin(string const& path, string const&norm_path, optional<string> &mod_path) {
+void handle_texbin(HookFile &file) {
     auto start = time();
 
-    auto bin_orig_path = mod_path ? *mod_path : path; // may have layered pre-built mod .bin with extra PNGs
-    auto bin_mod_path = norm_path;
+    auto bin_mod_path = file.norm_path;
     // mod texbins strip the .bin off the end. This isn't consistent with the _ifs
     // used for ifs files, but it's consistent with gitadora-texbintool, the *only*
     // tool to extract .bin files currently.
@@ -116,7 +215,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
         return;
     }
 
-    string out = CACHE_FOLDER "/" + norm_path;
+    string out = CACHE_FOLDER "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
 
     uint8_t hash[MD5_LEN];
@@ -131,12 +230,12 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
     }
 
     auto time_out = file_time(out.c_str());
-    auto newest = file_time(bin_orig_path.c_str());
+    auto newest = file_time(file.get_path_to_open().c_str());
     for (auto &path : pngs_list)
         newest = std::max(newest, file_time(path.c_str()));
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
     if(time_out >= newest && time_out >= dll_time && memcmp(hash, cache_hash, sizeof(hash)) == 0) {
-        mod_path = out;
+        file.mod_path = out;
         log_misc("texbin cache up to date, skip");
         return;
     }
@@ -146,11 +245,9 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
     // log_verbose("  memcmp(hash, cache_hash, sizeof(hash)) == 0 == %d", memcmp(hash, cache_hash, sizeof(hash)) == 0);
 
     Texbin texbin;
-    AVS_FILE f = avs_fs_open(bin_orig_path.c_str(), avs_open_mode_read(), 420);
-    if (f >= 0) {
-        auto orig_data = avs_file_to_vec(f);
-        avs_fs_close(f);
-
+    auto _orig_data = file.load_to_vec();
+    if (_orig_data) {
+        auto orig_data = *_orig_data;
         // one extra copy which *sucks* but whatever
         std::istringstream stream(string((char*)&orig_data[0], orig_data.size()));
         auto _texbin = Texbin::from_stream(stream);
@@ -160,7 +257,7 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
         }
         texbin = *_texbin;
     } else {
-        log_info("Found texbin mods but no original file, creating from scratch: \"%s\"", norm_path.c_str());
+        log_info("Found texbin mods but no original file, creating from scratch: \"%s\"", file.norm_path.c_str());
     }
 
     auto folder_terminator = out.rfind("/");
@@ -187,9 +284,40 @@ void handle_texbin(string const& path, string const&norm_path, optional<string> 
         fwrite(hash, 1, sizeof(hash), cache_hashfile);
         fclose(cache_hashfile);
     }
-    mod_path = out;
+    file.mod_path = out;
 
     log_misc("Texbin generation took %d ms", time() - start);
+}
+
+uint32_t handle_file_open(HookFile &file) {
+    auto norm_copy = file.norm_path;
+    file.mod_path = find_first_modfile(norm_copy);
+    // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
+    while (!file.mod_path && string_replace_first(norm_copy, ".ifs", "_ifs")) {
+        file.mod_path = find_first_modfile(norm_copy);
+    }
+
+    if(string_ends_with(file.path, ".xml")) {
+        merge_xmls(file);
+    }
+
+    if(string_ends_with(file.path, ".bin")) {
+        handle_texbin(file);
+    }
+
+    if (string_ends_with(file.path, "texturelist.xml")) {
+        parse_texturelist(file);
+    }
+    else {
+        handle_texture(file);
+    }
+
+    auto ret = file.call_real();
+    if(file.ramfs_demangle()) {
+        ramfs_demangler_on_fs_open(file.get_path_to_open(), ret);
+    }
+    // log_verbose("(returned %d)", ret);
+    return ret;
 }
 
 int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
@@ -199,26 +327,14 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     log_verbose("statting %s", name);
     string path = name;
 
-    // can it be modded?
+    // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
-    if(!norm_path)
+    if (!norm_path)
         return avs_fs_lstat(name, st);
+    // unpack success
+    AvsLstatHookFile file(path, *norm_path, st);
 
-    auto mod_path = find_first_modfile(*norm_path);
-
-    if (mod_path) {
-        log_verbose("Overwriting lstat");
-        return avs_fs_lstat(mod_path->c_str(), st);
-    }
-    // called prior to avs_fs_open
-    if(string_ends_with(path.c_str(), ".bin")) {
-        handle_texbin(name, *norm_path, mod_path);
-        if(mod_path) {
-            log_verbose("Overwriting texbin lstat");
-            return avs_fs_lstat(mod_path->c_str(), st);
-        }
-    }
-    return avs_fs_lstat(name, st);
+    return handle_file_open(file);
 }
 
 int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
@@ -228,18 +344,14 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
     log_verbose("convert_path %s", name);
     string path = name;
 
-    // can it be modded?
+    // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
     if (!norm_path)
         return avs_fs_convert_path(dest_name, name);
+    // unpack success
+    AvsConvertPathHookFile file(path, *norm_path, dest_name);
 
-    auto mod_path = find_first_modfile(*norm_path);
-
-    if (mod_path) {
-        log_verbose("Overwriting convert_path");
-        return avs_fs_convert_path(dest_name, mod_path->c_str());
-    }
-    return avs_fs_convert_path(dest_name, name);
+    return handle_file_open(file);
 }
 
 int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* args) {
@@ -255,7 +367,7 @@ size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
 }
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
-    if(name == NULL)
+    if(name == NULL || inside_pkfs_hook)
         return avs_fs_open(name, mode, flags);
     log_verbose("opening %s mode %d flags %d", name, mode, flags);
     // only touch reads - new AVS has bitflags (R=1,W=2), old AVS has enum (R=0,W=1,RW=2)
@@ -263,45 +375,30 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
         return avs_fs_open(name, mode, flags);
     }
     string path = name;
-    string orig_path = name;
 
     // can it be modded ie is it under /data ?
-    auto _norm_path = normalise_path(path);
-    if (!_norm_path)
+    auto norm_path = normalise_path(path);
+    if (!norm_path)
         return avs_fs_open(name, mode, flags);
     // unpack success
-    auto norm_path = *_norm_path;
+    AvsOpenHookFile file(path, *norm_path, mode, flags);
 
-    auto mod_path = find_first_modfile(norm_path);
-    // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
-    while (!mod_path && string_replace_first(norm_path, ".ifs", "_ifs")) {
-        mod_path = find_first_modfile(norm_path);
-    }
+    return handle_file_open(file);
+}
 
-    if(string_ends_with(path.c_str(), ".xml")) {
-        merge_xmls(orig_path, norm_path, mod_path);
-    }
+unsigned int hook_pkfs_open(const char *name) {
+    log_verbose("pkfs_open %s", name);
 
-    if(string_ends_with(path.c_str(), ".bin")) {
-        handle_texbin(orig_path, norm_path, mod_path);
-    }
+    string path = name;
 
-    if (string_ends_with(path.c_str(), "texturelist.xml")) {
-        parse_texturelist(orig_path, norm_path, mod_path);
-    }
-    else {
-        handle_texture(norm_path, mod_path);
-    }
+    // can it be modded ie is it under /data ?
+    auto norm_path = normalise_path(path);
+    if (!norm_path)
+        return pkfs_fs_open(name);
+    // unpack success
+    PkfsHookFile file(path, *norm_path);
 
-    if (mod_path) {
-        log_info("Using %s", mod_path->c_str());
-    }
-
-    auto to_open = mod_path ? *mod_path : orig_path;
-    auto ret = avs_fs_open(to_open.c_str(), mode, flags);
-    ramfs_demangler_on_fs_open(to_open, ret);
-    // log_verbose("(returned %d)", ret);
-    return ret;
+    return handle_file_open(file);
 }
 
 extern "C" {
@@ -336,7 +433,27 @@ extern "C" {
 
         cache_mods();
 
-        //jb_texhook_init();
+        // hook pkfs, not big enough to be its own file
+        if(MH_CreateHookApi(L"libpackfs.dll", "?pkfs_fs_open@@YAIPBD@Z", (LPVOID)&hook_pkfs_open, (LPVOID*)&pkfs_fs_open) == MH_OK) {
+            auto mod = GetModuleHandleA("libpackfs.dll");
+            pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "?pkfs_fs_fstat@@YAEIPAUT_AVS_FS_STAT@@@Z");
+            pkfs_fs_read = (decltype(pkfs_fs_read))GetProcAddress(mod, "?pkfs_fs_read@@YAHIPAXH@Z");
+            pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "?pkfs_fs_close@@YAHI@Z");
+        } else if(MH_CreateHookApi(L"pkfs.dll", "pkfs_fs_open", (LPVOID)&hook_pkfs_open, (LPVOID*)&pkfs_fs_open) == MH_OK) {
+            // jubeat DLL has no mangling - only one of these will succeed (if at all)
+            auto mod = GetModuleHandleA("pkfs.dll");
+            pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "pkfs_fs_fstat");
+            pkfs_fs_read = (decltype(pkfs_fs_read))GetProcAddress(mod, "pkfs_fs_read");
+            pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "pkfs_fs_close");
+        }
+
+        if(pkfs_fs_open) {
+            if(pkfs_fs_fstat && pkfs_fs_read && pkfs_fs_close) {
+                log_info("pkfs hooks activated");
+            } else {
+                log_fatal("Couldn't fully init pkfs hook - open an issue!");
+            }
+        }
 
         if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
             log_warning("Couldn't enable hooks");

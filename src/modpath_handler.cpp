@@ -81,7 +81,7 @@ void cache_mods(void) {
 static vector<string> game_folders;
 static CriticalSectionLock game_folders_mtx;
 
-optional<string> normalise_path(string &path) {
+optional<string> normalise_path(const string &_path) {
     // one-off init
     if (game_folders.empty()) {
         game_folders_mtx.lock();
@@ -101,6 +101,7 @@ optional<string> normalise_path(string &path) {
         // all access past here is read-only, don't use the mutex any more
     }
 
+    auto path = _path;
     ramfs_demangler_demangle_if_possible(path);
 
     auto data_pos = string_find_icase(path, "data/");

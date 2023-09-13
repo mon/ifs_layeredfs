@@ -18,13 +18,17 @@ char* snprintf_auto(const char* fmt, ...) {
     return s;
 }
 
-int string_ends_with(const char * str, const char * suffix) {
+bool string_ends_with(const char * str, const char * suffix) {
     size_t str_len = strlen(str);
     size_t suffix_len = strlen(suffix);
 
     return
         (str_len >= suffix_len) &&
         (0 == _stricmp(str + (str_len - suffix_len), suffix));
+}
+
+bool string_ends_with(const std::string &str, const char * suffix) {
+    return string_ends_with(str.c_str(), suffix);
 }
 
 void string_replace(std::string &str, const char* from, const char* to) {
