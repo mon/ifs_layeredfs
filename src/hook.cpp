@@ -120,11 +120,7 @@ class PkfsHookFile : public HookFile {
 
     uint32_t call_real() override {
         log_if_modfile();
-        // note that this also hides the avs_fs_open of the pakfile holding a
-        // particular file - acceptable compromise IMO
-        inside_pkfs_hook = true;
         auto ret = pkfs_fs_open(get_path_to_open().c_str());
-        inside_pkfs_hook = false;
         return ret;
     }
 
@@ -398,6 +394,10 @@ unsigned int hook_pkfs_open(const char *name) {
     // unpack success
     PkfsHookFile file(path, *norm_path);
 
+    // note that this also hides the avs_fs_open of the pakfile holding a
+    // particular file - acceptable compromise IMO
+    inside_pkfs_hook = true;
+
 #ifdef UNPAK
     string pakdump_loc = "./data_unpak/" + file.norm_path;
     if(!file_exists(pakdump_loc.c_str())) {
@@ -422,7 +422,9 @@ unsigned int hook_pkfs_open(const char *name) {
     }
 #endif
 
-    return handle_file_open(file);
+    auto ret = handle_file_open(file);
+    inside_pkfs_hook = false;
+    return ret;
 }
 
 extern "C" {
