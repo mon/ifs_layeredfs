@@ -131,7 +131,7 @@ class PkfsHookFile : public HookFile {
     std::optional<std::vector<uint8_t>> load_to_vec() override {
         AVS_FILE f = pkfs_fs_open(get_path_to_open().c_str());
         if (f != 0) {
-            avs_stat stat = {0}; // file type is shared!
+            avs_stat stat = {0}; // stat type is shared!
             pkfs_fs_fstat(f, &stat);
             std::vector<uint8_t> ret;
             ret.resize(stat.filesize);
@@ -398,6 +398,30 @@ unsigned int hook_pkfs_open(const char *name) {
     // unpack success
     PkfsHookFile file(path, *norm_path);
 
+#ifdef UNPAK
+    string pakdump_loc = "./data_unpak/" + file.norm_path;
+    if(!file_exists(pakdump_loc.c_str())) {
+        auto folder_terminator = pakdump_loc.rfind("/");
+        auto out_folder = pakdump_loc.substr(0, folder_terminator);
+        auto data = file.load_to_vec();
+        if(data) {
+            if(mkdir_p(out_folder)) {
+                auto dump = fopen(pakdump_loc.c_str(), "wb");
+                if(dump) {
+                    fwrite(&(*data)[0], 1, data->size(), dump);
+                    fclose(dump);
+
+                    log_info("Dumped new pkfs file!");
+                } else {
+                    log_warning("Pakdump: Couldn't open output file");
+                }
+            } else {
+                log_warning("Pakdump: Couldn't create output folder");
+            }
+        }
+    }
+#endif
+
     return handle_file_open(file);
 }
 
@@ -430,6 +454,9 @@ extern "C" {
         log_info("IFS layeredFS v" VERSION " init");
         log_info("AVS DLL detected: %s", avs_loaded_dll_name);
         print_config();
+#ifdef UNPAK
+        log_info(".pak dumper mode enabled");
+#endif
 
         cache_mods();
 

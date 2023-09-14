@@ -7,11 +7,11 @@ rm -rf dist/
 # x86
 meson setup --cross-file cross-i686-w64-mingw32.txt build32
 # without `--tags runtime`, the .a files are also installed
-meson install  -C build32 --destdir ../dist/32bit --tags runtime
+meson install  -C build32 --destdir ../dist/32bit --tags runtime,doc
 
 # x86_64
 meson setup --cross-file cross-x86_64-w64-mingw32.txt build64
-meson install  -C build64 --destdir ../dist/64bit --tags runtime
+meson install  -C build64 --destdir ../dist/64bit --tags runtime,doc
 
 # docs
 cp -R data_mods dist/

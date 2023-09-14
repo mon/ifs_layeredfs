@@ -8,6 +8,7 @@ project('layeredfs', 'c', 'cpp', version: '3.0_BETA4',
 )
 
 add_project_link_arguments('-static', language: 'cpp')
+add_project_arguments('-DVER_STRING="' + meson.project_version() + '"', language: 'cpp')
 
 third_party = static_library('3rd_party',
     sources: [
@@ -40,7 +41,6 @@ layeredfs_lib = static_library('layeredfs',
     sources: [
         'src/avs.cpp',
         'src/dllmain.cpp',
-        'src/hook.cpp',
         'src/imagefs.cpp',
         'src/log.cpp',
         'src/modpath_handler.cpp',
@@ -51,12 +51,14 @@ layeredfs_lib = static_library('layeredfs',
         'src/utils.cpp',
     ],
     link_with: third_party,
-    cpp_args: '-DVER_STRING="' + meson.project_version() + '"',
 )
 
 # has to be bare source so each special version gets a different copy
 layeredfs_cfg_dep = declare_dependency(
-    sources: 'src/config.cpp'
+    sources: [
+        'src/config.cpp',
+        'src/hook.cpp',
+    ]
 )
 
 executable('playpen',
@@ -84,11 +86,26 @@ special_cfgs = [
     ['always_devmode_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_LOGFILE']],
     # "Why isn't it working???"
     ['always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE']],
+    # dump every file accessed via pkfs APIs to data_unpak
+    ['pkfs_unpack', ['-DUNPAK']]
 ]
+
+# documentation for pkfs_unpak
+if host_machine.cpu_family() == 'x86'
+    install_data(
+        'pkfs_unpack_readme.txt',
+        install_dir: '/special_builds/pkfs_unpack',
+        install_tag: 'doc',
+    )
+endif
 
 foreach cfg : special_cfgs
     folder_name = cfg[0]
     defines = cfg[1]
+
+    if folder_name == 'pkfs_unpack' and host_machine.cpu_family() != 'x86'
+        continue
+    endif
 
     shared_library('ifs_hook_' + folder_name,
         link_with: layeredfs_lib,
@@ -113,7 +130,7 @@ foreach cfg : injector_cfgs
     def_file = 'src_injector' / dll_name + '.def'
 
     if dll_name == 'dxgi_for_bombergirl'
-        if host_machine.cpu_family() == 'x86'
+        if host_machine.cpu_family() != 'x86_64'
             continue
         endif
         def_file = 'src_injector/dxgi.def'
