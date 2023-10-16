@@ -187,7 +187,7 @@ void parse_texturelist(HookFile &file) {
     auto ifs_path = file.norm_path;
     // truncate
     ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
-    //log_misc("Reading ifs %s", ifs_path.c_str());
+    // log_misc("Reading ifs %s", ifs_path.c_str());
     auto ifs_mod_path = ifs_path;
     string_replace(ifs_mod_path, ".ifs", "_ifs");
 
@@ -267,7 +267,7 @@ void parse_texturelist(HookFile &file) {
             // it's a 4u16
             sscanf(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0], &dimensions[1], &dimensions[2], &dimensions[3]);
 
-            //log_misc("Image '%s' compress %d format %d", tmp, compress, format_type);
+            // log_misc("Image '%s' compress %d format %d", name->value(), compress, format_type);
             image_t image_info;
             image_info.name = name->value();
             image_info.name_md5 = md5_sum(name->value());

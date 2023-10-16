@@ -55,7 +55,7 @@ const avs_exports_t avs_exports[] = {
     x.property_insert_read                = "property_insert_read";
     x.property_mem_write                  = "property_mem_write";
     x.property_destroy                    = "property_destroy";
-    x.property_node_query_stat            = "property_node_query_stat";
+    x.property_query_size                 = "property_query_size";
     x.cstream_create                      = "cstream_create";
     x.cstream_operate                     = "cstream_operate";
     x.cstream_finish                      = "cstream_finish";
@@ -88,7 +88,7 @@ const avs_exports_t avs_exports[] = {
     x.property_insert_read                = "XC058ba5000016";
     x.property_mem_write                  = "XC058ba5000162";
     x.property_destroy                    = "XC058ba500010f";
-    x.property_node_query_stat            = "XC058ba500015e";
+    x.property_query_size                 = "XC058ba5000101";
     x.cstream_create                      = "XC058ba5000118";
     x.cstream_operate                     = "XC058ba5000078";
     x.cstream_finish                      = "XC058ba5000130";
@@ -121,7 +121,7 @@ const avs_exports_t avs_exports[] = {
     x.property_insert_read                = "XCd229cc00009a";
     x.property_mem_write                  = "XCd229cc000033";
     x.property_destroy                    = "XCd229cc00013c";
-    x.property_node_query_stat            = "XCd229cc0000b1";
+    x.property_query_size                 = "XCd229cc000032";
     x.cstream_create                      = "XCd229cc000141";
     x.cstream_operate                     = "XCd229cc00008c";
     x.cstream_finish                      = "XCd229cc000025";
@@ -154,7 +154,7 @@ const avs_exports_t avs_exports[] = {
     x.property_insert_read                = "XCnbrep7000094";
     x.property_mem_write                  = "XCnbrep70000b8";
     x.property_destroy                    = "XCnbrep7000091";
-    x.property_node_query_stat            = "XCnbrep70000c5";
+    x.property_query_size                 = "XCnbrep700009f";
     x.cstream_create                      = "XCnbrep7000130";
     x.cstream_operate                     = "XCnbrep7000132";
     x.cstream_finish                      = "XCnbrep7000133";
@@ -187,7 +187,7 @@ const avs_exports_t avs_exports[] = {
     x.property_insert_read                = "XCnbrep700007f";
     x.property_mem_write                  = "XCnbrep70000a3";
     x.property_destroy                    = "XCnbrep700007c";
-    x.property_node_query_stat            = "XCnbrep70000b0";
+    x.property_query_size                 = "XCnbrep700008a";
     x.cstream_create                      = "XCnbrep7000124";
     x.cstream_operate                     = "XCnbrep7000126";
     x.cstream_finish                      = "XCnbrep7000127";
@@ -220,7 +220,7 @@ const avs_exports_t avs_exports[] = {
     x.property_insert_read                = "XCgsqzn0000094";
     x.property_mem_write                  = "XCgsqzn00000b8";
     x.property_destroy                    = "XCgsqzn0000091";
-    x.property_node_query_stat            = "XCgsqzn00000c5";
+    x.property_query_size                 = "XCgsqzn000009f";
     x.cstream_create                      = "XCgsqzn0000130";
     x.cstream_operate                     = "XCgsqzn0000132";
     x.cstream_finish                      = "XCgsqzn0000133";
@@ -321,9 +321,13 @@ property_t prop_from_file_handle(AVS_FILE f) {
     }
 
     // MUST be 8-byte aligned so prop_free doesn't crash
-    prop_buffer = _aligned_malloc(8, (memsize + 7) & ~7);
+    prop_buffer = _aligned_malloc((memsize + 7) & ~7, 8);
+    if(!prop_buffer) {
+        log_warning("_aligned_malloc failed :(");
+        goto FAIL;
+    }
     prop = property_create(flags, prop_buffer, memsize);
-    if (prop < 0) {
+    if (!prop) {
         // double cast to squash truncation warning
         log_warning("Couldn't create prop (%s)", get_prop_error_str((int32_t)(size_t)prop));
         goto FAIL;
@@ -345,7 +349,7 @@ FAIL:
     if (prop)
         property_destroy(prop);
     if (prop_buffer)
-        free(prop_buffer);
+        _aligned_free(prop_buffer);
     return NULL;
 }
 
@@ -360,9 +364,7 @@ property_t prop_from_file_path(string const&path) {
 }
 
 char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
-    node_size dummy = { 0 };
-
-    auto prop_size = property_node_query_stat(prop, NULL, &dummy);
+    auto prop_size = property_query_size(prop);
     char* xml = allocator.allocate_string(NULL, prop_size);
 
     auto written = property_mem_write(prop, xml, prop_size);
@@ -585,7 +587,7 @@ const char* get_prop_error_str(int32_t code) {
         if (prop_error_list[i].code == (uint32_t)code)
             return prop_error_list[i].msg;
     }
-    snprintf(ret, sizeof(ret), "unknown (%d)", code);
+    snprintf(ret, sizeof(ret), "unknown (%X)", code);
     return ret;
 }
 

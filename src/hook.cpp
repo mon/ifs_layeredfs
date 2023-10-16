@@ -310,7 +310,7 @@ uint32_t handle_file_open(HookFile &file) {
 
     auto ret = file.call_real();
     if(file.ramfs_demangle()) {
-        ramfs_demangler_on_fs_open(file.get_path_to_open(), ret);
+        ramfs_demangler_on_fs_open(file.path, ret);
     }
     // log_verbose("(returned %d)", ret);
     return ret;
@@ -460,6 +460,7 @@ extern "C" {
         log_info(".pak dumper mode enabled");
 #endif
 
+        init_modpath_handler();
         cache_mods();
 
         // hook pkfs, not big enough to be its own file

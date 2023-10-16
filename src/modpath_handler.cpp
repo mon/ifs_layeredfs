@@ -79,28 +79,19 @@ void cache_mods(void) {
 // data, data2, data_op2 etc
 // data is "flat", all others must have their own special subfolders
 static vector<string> game_folders;
-static CriticalSectionLock game_folders_mtx;
+
+void init_modpath_handler(void) {
+    for (auto folder : folders_in_folder(".")) {
+        // data is the normal case we transparently handle
+        if (!strcasecmp(folder.c_str(), "data")) {
+            continue;
+        }
+
+        game_folders.push_back(folder + "/");
+    }
+}
 
 optional<string> normalise_path(const string &_path) {
-    // one-off init
-    if (game_folders.empty()) {
-        game_folders_mtx.lock();
-
-        // check again in case init was raced
-        if (game_folders.empty()) {
-            for (auto folder : folders_in_folder(".")) {
-                // data is the normal case we transparently handle
-                if (!strcasecmp(folder.c_str(), "data")) {
-                    continue;
-                }
-
-                game_folders.push_back(folder + "/");
-            }
-        }
-        game_folders_mtx.unlock();
-        // all access past here is read-only, don't use the mutex any more
-    }
-
     auto path = _path;
     ramfs_demangler_demangle_if_possible(path);
 

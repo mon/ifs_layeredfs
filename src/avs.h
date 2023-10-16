@@ -137,13 +137,6 @@ enum compression_type {
     AVS_COMPRESS_AVSLZ = 1,
 };
 
-struct node_size {
-    int nodes;
-    int data;
-    int unk1, unk2, unk3;
-    int extra_space[16];
-};
-
 struct property_info {
     uint8_t blah[560];
     uint32_t error_code;
@@ -208,8 +201,8 @@ X(int32_t,    property_read_query_memsize, avs_reader_t reader, AVS_FILE f, int*
 X(property_t, property_create, int flags, void *buffer, uint32_t buffer_size) \
 X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t reader, AVS_FILE f) \
 X(int,        property_mem_write, property_t prop, char* output, int output_size) \
+X(int,        property_query_size, property_t prop) \
 X(void,       property_destroy, property_t prop) \
-X(int,        property_node_query_stat, property_t prop, node_t node, struct node_size *size) \
 /* md5sum *sha1 if needed) */ \
 X(mdigest_p,  mdigest_create, mdigest_algs_t algorithm) \
 X(void,       mdigest_update, mdigest_p digest, const char* data, int size) \

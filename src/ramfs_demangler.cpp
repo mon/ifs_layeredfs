@@ -63,14 +63,14 @@ static CriticalSectionLock mangling_mtx;
 // since we call this from a function that is already taking the lock
 static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path);
 
-void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_result) {
-	if (open_result < 0 || !string_ends_with(norm_path.c_str(), ".ifs")) {
+void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
+	if (open_result < 0 || !string_ends_with(path.c_str(), ".ifs")) {
 		return;
 	}
 
 	mangling_mtx.lock();
 
-	auto existing_info = cleanup_map.find(norm_path);
+	auto existing_info = cleanup_map.find(path);
 	if (existing_info != cleanup_map.end()) {
 		file_cleanup_info_t cleanup = existing_info->second;
 
@@ -92,8 +92,8 @@ void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_resu
 		nullopt,
 		nullopt
 	};
-	cleanup_map[norm_path] = cleanup;
-	open_file_map[open_result] = norm_path;
+	cleanup_map[path] = cleanup;
+	open_file_map[open_result] = path;
 
 	mangling_mtx.unlock();
 }
@@ -179,7 +179,7 @@ void ramfs_demangler_demangle_if_possible(std::string& raw_path) {
 
 	auto search = mangling_map.longest_prefix(raw_path);
 	if (search != mangling_map.end()) {
-		//log_verbose("can demangle %s to %s", search.key().c_str(), search->c_str());
+		// log_verbose("can demangle %s to %s", search.key().c_str(), search->c_str());
 		string_replace(raw_path, search.key().c_str(), search->c_str());
 	}
 

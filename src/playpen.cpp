@@ -19,6 +19,8 @@ typedef void (*avs_log_writer_t)(const char *chars, uint32_t nchars, void *ctx);
 X("XCgsqzn0000129", void,   avs_boot, node_t config, void *com_heap, size_t sz_com_heap, void *reserved, avs_log_writer_t log_writer, void *log_context) \
 X("XCgsqzn000012a", void,   avs_shutdown) \
 X("XCgsqzn00000a1", node_t, property_search, property_t prop, node_t node, const char *path) \
+X("XCgsqzn0000048", int, avs_fs_addfs, void* filesys) \
+X("XCgsqzn0000159", void*, avs_filesys_ramfs) \
 
 #define AVS_FUNC_PTR(obfus_name, ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
 FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
@@ -28,6 +30,8 @@ static bool print_logs = true;
 #define QUIET_BOOT
 
 #include "texbin.hpp"
+
+#define log_assert(cond) if(!(cond)) {log_fatal("Assertion failed:" #cond);}
 
 // decompressed_length MUST be set and will be updated on finish
 unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length) {
@@ -106,6 +110,26 @@ optional<std::vector<uint8_t>> readFile(const char* filename)
 }
 
 void avs_playpen() {
+    avs_fs_addfs(avs_filesys_ramfs());
+
+    auto f = hook_avs_fs_open("/data/graphic/gmframe29.ifs", avs_open_mode_read(), 420);
+    log_assert(f >= 0);
+
+    // avs_file_to_vec but using the hook_read so ramfs demangler catches it
+    avs_stat stat = {0};
+    avs_fs_fstat(f, &stat);
+    std::vector<uint8_t> contents;
+    contents.resize(stat.filesize);
+    hook_avs_fs_read(f, &contents[0], stat.filesize);
+    avs_fs_close(f);
+
+    char args[] = "base=0x0000000000000000,size=0x00000000,mode=ro";
+    snprintf(args, sizeof(args), "base=0x%p,size=0x%llx,mode=ro", &contents[0], contents.size());
+    log_assert(hook_avs_fs_mount("/afpr2318908", "image.bin", "ramfs", args) >= 0);
+    log_assert(hook_avs_fs_mount("/afp23/data/graphic/gmframe29.ifs", "/afpr2318908/image.bin", "imagefs", NULL) >= 0);
+    hook_avs_fs_open("/afp23/data/graphic/gmframe29.ifs/tex/texturelist.xml", avs_open_mode_read(), 420);
+    hook_avs_fs_open("/afp23/data/graphic/gmframe29.ifs/tex/643b3d20d1b19dfe98e9e23a59a72bba", avs_open_mode_read(), 420);
+
     // log_info("loading file");
     // auto _debug = readFile("debug.bin");
     // if(!_debug) {
@@ -132,11 +156,11 @@ void avs_playpen() {
 
     // auto _tex = Texbin::from_path("tex_l44qb_smc_sm.bin");
     // auto tex = Texbin::from_path("tex_custom.bin");
-    auto tex = Texbin::from_path("tex_l44_paseli_info.bin");
-    if(!tex) {
-        return;
-    }
-    tex->debug();
+    // auto tex = Texbin::from_path("tex_l44_paseli_info.bin");
+    // if(!tex) {
+    //     return;
+    // }
+    // tex->debug();
 
 // #ifdef TEXBIN_VERBOSE
 //     tex->debug();
@@ -306,6 +330,11 @@ void log_writer(const char *chars, uint32_t nchars, void *ctx) {
 static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
 <config>
   <fs>
+    <nr_filesys __type="u16">16</nr_filesys>
+    <nr_mountpoint __type="u16">1024</nr_mountpoint>
+    <nr_mounttable __type="u16">32</nr_mounttable>
+    <nr_filedesc __type="u16">4096</nr_filedesc>
+    <link_limit __type="u16">8</link_limit>
     <root><device>.</device></root>
     <mounttable>
       <vfs name="boot" fstype="fs" src="dev/raw" dst="/dev/raw" opt="vf=1,posix=1"/>
@@ -320,8 +349,10 @@ static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
 </config>
 )";
 
+static size_t off;
 static size_t read_str(int32_t context, void *dst_buf, size_t count) {
-    memcpy(dst_buf, boot_cfg, count);
+    memcpy(dst_buf, &boot_cfg[off], count);
+    off += count;
     return count;
 }
 
@@ -346,6 +377,7 @@ bool load_dll(void) {
 void boot_avs(void) {
     auto avs_heap = malloc(DEFAULT_HEAP_SIZE);
 
+    off = 0;
     int prop_len = property_read_query_memsize(read_str, 0, 0, 0);
     if (prop_len <= 0) {
         log_fatal("error reading config (size <= 0)");
@@ -357,6 +389,7 @@ void boot_avs(void) {
         log_fatal("cannot create property");
         return;
     }
+    off = 0;
     if (!property_insert_read(avs_config, 0, read_str, 0)) {
         log_fatal("avs-core", "cannot read property");
         return;
