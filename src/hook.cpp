@@ -354,6 +354,15 @@ int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fs
     log_verbose("mounting %s to %s with type %s and args %s", fsroot, mountpoint, fstype, args);
     ramfs_demangler_on_fs_mount(mountpoint, fsroot, fstype, args);
 
+    // In new jubeat, a modded IFS file will be loaded as such:
+    // pkfs_open data/music/xxxx/bsc.eve
+    // mounting /data/ifs_pack/xxxx/yyyy_msc.ifs to /data/imagefs/msc/xxxx with type imagefs and args (NULL)
+    // avs_fs_open /data/ifs_pack/xxxx/yyyy_msc.ifs
+    // ... Because of this, we have to go back to hooking avs_fs_open when a mount is seen.
+    // It shouldn't affect old-beat (the reason pkfs hooks exist at all) because
+    // they use .bin files instead of .ifs files.
+    inside_pkfs_hook = false;
+
     return avs_fs_mount(mountpoint, fsroot, fstype, args);
 }
 
