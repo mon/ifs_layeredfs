@@ -28,7 +28,28 @@ std::vector<std::string> folders_in_folder(const char* root);
 uint64_t file_time(const char* path);
 LONG time(void);
 std::string basename_without_extension(std::string const & path);
-void hash_filenames(std::vector<std::string> &filenames, uint8_t hash[MD5_LEN]);
+
+// Hashes the names and timestamps of input files into a rebuilt output.
+// Invalidates on DLL timestamp change, input timestamp change, or input change
+class CacheHasher {
+    public:
+    CacheHasher(std::string hash_file);
+    ~CacheHasher();
+    // add a path and its timestamp to the hash. Should not be called after `finish`
+    void add(std::string &path);
+    // complete the hashing op
+    void finish();
+    // check if the hashfile matches
+    bool matches();
+    // write out an updated hashfile. Should be called after `finish`
+    void commit();
+
+    private:
+    std::string hash_file;
+    mdigest_p digest;
+    uint8_t existing_hash[MD5_LEN] = {0};
+    uint8_t new_hash[MD5_LEN] = {0};
+};
 
 struct CaseInsensitiveCompare {
     bool operator() (const std::string& a, const std::string& b) const {

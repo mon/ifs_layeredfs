@@ -205,7 +205,7 @@ X(int,        property_query_size, property_t prop) \
 X(void,       property_destroy, property_t prop) \
 /* md5sum *sha1 if needed) */ \
 X(mdigest_p,  mdigest_create, mdigest_algs_t algorithm) \
-X(void,       mdigest_update, mdigest_p digest, const char* data, int size) \
+X(void,       mdigest_update, mdigest_p digest, const void* data, int size) \
 X(void,       mdigest_finish, mdigest_p digest, uint8_t* hash, int size) \
 X(void,       mdigest_destroy, mdigest_p digest) \
 /* compression */ \

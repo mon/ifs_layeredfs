@@ -220,34 +220,24 @@ void handle_texbin(HookFile &file) {
         return;
     }
 
+    auto starting = file.get_path_to_open();
     string out = CACHE_FOLDER "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
+    auto cache_hasher = CacheHasher(out_hashed);
 
-    uint8_t hash[MD5_LEN];
-    hash_filenames(pngs_list, hash);
-
-    uint8_t cache_hash[MD5_LEN] = {0};
-    FILE* cache_hashfile;
-    cache_hashfile = fopen(out_hashed.c_str(), "rb");
-    if (cache_hashfile) {
-        fread(cache_hash, 1, sizeof(cache_hash), cache_hashfile);
-        fclose(cache_hashfile);
+    cache_hasher.add(starting);
+    for (auto &path : pngs_list) {
+        cache_hasher.add(path);
     }
+    cache_hasher.finish();
 
-    auto time_out = file_time(out.c_str());
-    auto newest = file_time(file.get_path_to_open().c_str());
-    for (auto &path : pngs_list)
-        newest = std::max(newest, file_time(path.c_str()));
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
-    if(time_out >= newest && time_out >= dll_time && memcmp(hash, cache_hash, sizeof(hash)) == 0) {
+    if(cache_hasher.matches()) {
         file.mod_path = out;
         log_misc("texbin cache up to date, skip");
         return;
     }
-    // log_verbose("Regenerating cache");
-    // log_verbose("  time_out >= newest == %d", time_out >= newest);
-    // log_verbose("  time_out >= dll_time == %d", time_out >= dll_time);
-    // log_verbose("  memcmp(hash, cache_hash, sizeof(hash)) == 0 == %d", memcmp(hash, cache_hash, sizeof(hash)) == 0);
+    log_verbose("Regenerating cache");
 
     Texbin texbin;
     auto _orig_data = file.load_to_vec();
@@ -284,11 +274,7 @@ void handle_texbin(HookFile &file) {
         return;
     }
 
-    cache_hashfile = fopen(out_hashed.c_str(), "wb");
-    if (cache_hashfile) {
-        fwrite(hash, 1, sizeof(hash), cache_hashfile);
-        fclose(cache_hashfile);
-    }
+    cache_hasher.commit();
     file.mod_path = out;
 
     log_misc("Texbin generation took %d ms", time() - start);

@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include "log.hpp"
 #include "avs.h"
+#include "hook.h"
 
 char* snprintf_auto(const char* fmt, ...) {
     va_list argList;
@@ -198,13 +199,42 @@ string basename_without_extension(string const & path) {
     return p > 0 && p != string::npos ? basename.substr(0, p) : basename;
 }
 
-void hash_filenames(std::vector<std::string> &filenames, uint8_t hash[MD5_LEN]) {
-    auto digest = mdigest_create(MD5);
+CacheHasher::CacheHasher(std::string hash_file): hash_file(hash_file) {
+    digest = mdigest_create(MD5);
 
-    for (auto &path : filenames) {
-        mdigest_update(digest, path.c_str(), (int)path.length());
+    // always hash the DLL time
+    mdigest_update(digest, &dll_time, sizeof(dll_time));
+
+    auto cache_hashfile = fopen(hash_file.c_str(), "rb");
+    if (cache_hashfile) {
+        fread(existing_hash, 1, MD5_LEN, cache_hashfile);
+        fclose(cache_hashfile);
     }
+}
 
-    mdigest_finish(digest, hash, MD5_LEN);
+CacheHasher::~CacheHasher() {
     mdigest_destroy(digest);
+}
+
+void CacheHasher::add(std::string &path) {
+    mdigest_update(digest, path.c_str(), (int)path.length());
+
+    auto ts = file_time(path.c_str());
+    mdigest_update(digest, &ts, sizeof(ts));
+}
+
+void CacheHasher::finish() {
+    mdigest_finish(digest, new_hash, MD5_LEN);
+}
+
+bool CacheHasher::matches() {
+    return memcmp(new_hash, existing_hash, sizeof(new_hash)) == 0;
+}
+
+void CacheHasher::commit() {
+    auto cache_hashfile = fopen(hash_file.c_str(), "wb");
+    if (cache_hashfile) {
+        fwrite(new_hash, 1, sizeof(new_hash), cache_hashfile);
+        fclose(cache_hashfile);
+    }
 }
