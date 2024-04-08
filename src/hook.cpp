@@ -43,6 +43,7 @@ unsigned int (*pkfs_fs_open)(const char *path);
 unsigned int (*pkfs_fs_fstat)(unsigned int f, struct avs_stat *stat);
 unsigned int (*pkfs_fs_read)(unsigned int f, void *buf, int sz);
 unsigned int (*pkfs_fs_close)(unsigned int f);
+void (*pkfs_clear_hdd_error)();
 
 class AvsHookFile : public HookFile {
     using HookFile::HookFile;
@@ -135,6 +136,14 @@ class PkfsHookFile : public HookFile {
             pkfs_fs_close(f);
             return ret;
         } else {
+            // failed pkfs_fs_open will set an HDD read error, which is actually
+            // checked during boot. Usually a non-issue, since every read is
+            // preceded by an avs_fs_fstat, which creates the cached .bin.
+            //
+            // This of course is racey, so if there is a *real* error in another
+            // thread, this resets it. But it's a tight race, and I'll take that
+            // chance.
+            pkfs_clear_hdd_error();
             return nullopt;
         }
     }
@@ -484,6 +493,7 @@ extern "C" {
             pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "pkfs_fs_fstat");
             pkfs_fs_read = (decltype(pkfs_fs_read))GetProcAddress(mod, "pkfs_fs_read");
             pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "pkfs_fs_close");
+            pkfs_clear_hdd_error = (decltype(pkfs_clear_hdd_error))GetProcAddress(mod, "pkfs_clear_hdd_error");
         }
 
         if(pkfs_fs_open) {
