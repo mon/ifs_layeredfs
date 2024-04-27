@@ -8,6 +8,7 @@
 #include "3rd_party/stb_dxt.h"
 #include "3rd_party/GuillotineBinPack.h"
 #include "3rd_party/rapidxml_print.hpp"
+#include "3rd_party/md5.h"
 
 #include "avs.h"
 #include "log.hpp"
@@ -162,7 +163,8 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
 
             image_t image_info;
             image_info.name = texture->name;
-            image_info.name_md5 = md5_sum(texture->name.c_str());
+            MD5 md5;
+            image_info.name_md5 = md5(texture->name);
             image_info.format = ARGB8888REV;
             image_info.compression = compress;
             image_info.ifs_mod_path = ifs_mod_path;
@@ -270,7 +272,8 @@ void parse_texturelist(HookFile &file) {
             // log_misc("Image '%s' compress %d format %d", name->value(), compress, format_type);
             image_t image_info;
             image_info.name = name->value();
-            image_info.name_md5 = md5_sum(name->value());
+            MD5 md5;
+            image_info.name_md5 = md5(name->value());
             image_info.format = format_type;
             image_info.compression = compress;
             image_info.ifs_mod_path = ifs_mod_path;

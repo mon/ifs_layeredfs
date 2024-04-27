@@ -45,10 +45,6 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_fstat                        = "avs_fs_fstat";
     x.avs_fs_lstat                        = "avs_fs_lstat";
     x.avs_fs_mount                        = "avs_fs_mount";
-    x.mdigest_create                      = "mdigest_create";
-    x.mdigest_update                      = "mdigest_update";
-    x.mdigest_finish                      = "mdigest_finish";
-    x.mdigest_destroy                     = "mdigest_destroy";
     x.property_read_query_memsize         = "property_read_query_memsize";
     x.property_read_query_memsize_long    = "property_read_query_memsize_long";
     x.property_create                     = "property_create";
@@ -78,10 +74,6 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_fstat                        = "XC058ba50000d0";
     x.avs_fs_lstat                        = "XC058ba5000063";
     x.avs_fs_mount                        = "XC058ba500009c";
-    x.mdigest_create                      = "XC058ba50000db";
-    x.mdigest_update                      = "XC058ba5000096";
-    x.mdigest_finish                      = "XC058ba500002f";
-    x.mdigest_destroy                     = "XC058ba5000004";
     x.property_read_query_memsize         = "XC058ba5000066";
     x.property_read_query_memsize_long    = "XC058ba5000091";
     x.property_create                     = "XC058ba5000107";
@@ -111,10 +103,6 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_fstat                        = "XCd229cc0000c3";
     x.avs_fs_lstat                        = "XCd229cc0000c0";
     x.avs_fs_mount                        = "XCd229cc0000ce";
-    x.mdigest_create                      = "XCd229cc00003d";
-    x.mdigest_update                      = "XCd229cc000157";
-    x.mdigest_finish                      = "XCd229cc000015";
-    x.mdigest_destroy                     = "XCd229cc000050";
     x.property_read_query_memsize         = "XCd229cc0000ff";
     x.property_read_query_memsize_long    = "XCd229cc00002b";
     x.property_create                     = "XCd229cc000126";
@@ -144,10 +132,6 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_fstat                        = "XCnbrep7000062";
     x.avs_fs_lstat                        = "XCnbrep7000063";
     x.avs_fs_mount                        = "XCnbrep700004b";
-    x.mdigest_create                      = "XCnbrep700013f";
-    x.mdigest_update                      = "XCnbrep7000141";
-    x.mdigest_finish                      = "XCnbrep7000142";
-    x.mdigest_destroy                     = "XCnbrep7000143";
     x.property_read_query_memsize         = "XCnbrep70000b0";
     x.property_read_query_memsize_long    = "XCnbrep70000b1";
     x.property_create                     = "XCnbrep7000090";
@@ -177,10 +161,6 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_fstat                        = "XCnbrep700004d";
     x.avs_fs_lstat                        = "XCnbrep700004e";
     x.avs_fs_mount                        = "XCnbrep7000036";
-    x.mdigest_create                      = "XCnbrep7000133";
-    x.mdigest_update                      = "XCnbrep7000135";
-    x.mdigest_finish                      = "XCnbrep7000136";
-    x.mdigest_destroy                     = "XCnbrep7000137";
     x.property_read_query_memsize         = "XCnbrep700009b";
     x.property_read_query_memsize_long    = "XCnbrep700009c";
     x.property_create                     = "XCnbrep700007b";
@@ -210,10 +190,6 @@ const avs_exports_t avs_exports[] = {
     x.avs_fs_fstat                        = "XCgsqzn0000062";
     x.avs_fs_lstat                        = "XCgsqzn0000063";
     x.avs_fs_mount                        = "XCgsqzn000004b";
-    x.mdigest_create                      = "XCgsqzn000013f";
-    x.mdigest_update                      = "XCgsqzn0000141";
-    x.mdigest_finish                      = "XCgsqzn0000142";
-    x.mdigest_destroy                     = "XCgsqzn0000143";
     x.property_read_query_memsize         = "XCgsqzn00000b0";
     x.property_read_query_memsize_long    = "XCgsqzn00000b1";
     x.property_create                     = "XCgsqzn0000090";
@@ -450,19 +426,6 @@ bool rapidxml_from_avs_filepath(
 void prop_free(property_t prop) {
     property_destroy(prop);
     _aligned_free(prop);
-}
-
-string md5_sum(const char* str) {
-    uint8_t sum[MD5_LEN];
-    char sum_str[MD5_LEN*2 + 1];
-    auto digest = mdigest_create(MD5);
-    mdigest_update(digest, str, (int)strlen(str));
-    mdigest_finish(digest, sum, MD5_LEN);
-    mdigest_destroy(digest);
-    for (int i = 0; i < MD5_LEN; i++) {
-        snprintf(sum_str + 2 * i, 3, "%02x", sum[i]);
-    }
-    return sum_str;
 }
 
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length) {

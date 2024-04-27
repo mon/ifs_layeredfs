@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "avs.h"
+#include "3rd_party/md5.h"
 
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
@@ -34,7 +34,6 @@ std::string basename_without_extension(std::string const & path);
 class CacheHasher {
     public:
     CacheHasher(std::string hash_file);
-    ~CacheHasher();
     // add a path and its timestamp to the hash. Should not be called after `finish`
     void add(std::string &path);
     // complete the hashing op
@@ -46,9 +45,9 @@ class CacheHasher {
 
     private:
     std::string hash_file;
-    mdigest_p digest;
-    uint8_t existing_hash[MD5_LEN] = {0};
-    uint8_t new_hash[MD5_LEN] = {0};
+    MD5 digest;
+    uint8_t existing_hash[MD5::HashBytes] = {0};
+    uint8_t new_hash[MD5::HashBytes] = {0};
 };
 
 struct CaseInsensitiveCompare {

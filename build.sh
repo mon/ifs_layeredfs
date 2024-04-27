@@ -14,8 +14,10 @@ meson setup --cross-file cross-x86_64-w64-mingw32.txt build64
 meson install  -C build64 --destdir ../dist/64bit --tags runtime,doc
 
 # docs
-cp -R data_mods dist/
 cp README.md dist/
+# only copy MOD_README, I might have something in data_mods for testing
+mkdir -p dist/data_mods
+cp data_mods/MOD_README.txt dist/data_mods/
 
 # while we wait for mesonbuild issue #4019 / PR #11954 to be solved, need to
 # rename the special builds ourselves

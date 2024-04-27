@@ -16,12 +16,6 @@ property_query_size: 1519
 property_node_datasize(root node)  0
 */
 
-typedef void* mdigest_p;
-enum mdigest_algs_t {
-    MD5 = 0,
-};
-#define MD5_LEN 16
-
 #pragma pack(push,1)
 struct avs_stat {
     int64_t st_ctime;
@@ -203,11 +197,6 @@ X(int,        property_insert_read, property_t prop, node_t node, avs_reader_t r
 X(int,        property_mem_write, property_t prop, char* output, int output_size) \
 X(int,        property_query_size, property_t prop) \
 X(void,       property_destroy, property_t prop) \
-/* md5sum *sha1 if needed) */ \
-X(mdigest_p,  mdigest_create, mdigest_algs_t algorithm) \
-X(void,       mdigest_update, mdigest_p digest, const void* data, int size) \
-X(void,       mdigest_finish, mdigest_p digest, uint8_t* hash, int size) \
-X(void,       mdigest_destroy, mdigest_p digest) \
 /* compression */ \
 X(cstream_t*, cstream_create, compression_type type) \
 X(bool,       cstream_operate, cstream_t* compressor) \
@@ -232,7 +221,6 @@ bool rapidxml_from_avs_filepath(
     rapidxml::xml_document<>& doc_to_allocate_with
 );
 std::vector<uint8_t> avs_file_to_vec(AVS_FILE f);
-string md5_sum(const char* str);
 bool init_avs(void);
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);
 

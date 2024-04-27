@@ -1,4 +1,4 @@
-project('layeredfs', 'c', 'cpp', version: '3.3',
+project('layeredfs', 'c', 'cpp', version: '3.4_RC1',
     default_options: [
         'cpp_std=c++17',
         'buildtype=release',
@@ -16,6 +16,7 @@ third_party = static_library('3rd_party',
         'src/3rd_party/Rect.cpp',
         'src/3rd_party/lodepng.cpp',
         'src/3rd_party/stb_dxt.cpp',
+        'src/3rd_party/md5.cpp',
 
         'src/3rd_party/libsquish/alpha.cpp',
         'src/3rd_party/libsquish/clusterfit.cpp',
