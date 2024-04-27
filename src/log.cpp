@@ -39,7 +39,7 @@ static void log_to_file(char level, const char* fmt, va_list args) {
         vfprintf(logfile, fmt, args);
         fprintf(logfile, "\n");
 
-        if(config.developer_mode)
+        if(config.developer_mode || level == 'F')
             fflush(logfile);
 
         log_mutex.unlock();
