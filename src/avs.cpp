@@ -30,7 +30,7 @@ const LPCWSTR dll_names[] = {
 
 const avs_exports_t avs_exports[] = {
     [] { avs_exports_t x = { 0 };
-    x.version_name                        = "normal";
+    x.version_name                        = "plain (2.12.x and older)";
     x.version                             = 1200;
     x.unique_check                        = NULL;
     x.log_body_fatal                      = "log_body_fatal";

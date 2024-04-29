@@ -458,6 +458,9 @@ extern "C" {
 
         // now we can say hello!
         log_info("IFS layeredFS v" VERSION " init");
+#ifdef SPECIAL_VER
+        log_info("Build config: " SPECIAL_VER);
+#endif
         log_info("AVS DLL detected: %s", avs_loaded_dll_name);
         print_config();
 #ifdef UNPAK
@@ -473,6 +476,7 @@ extern "C" {
             pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "?pkfs_fs_fstat@@YAEIPAUT_AVS_FS_STAT@@@Z");
             pkfs_fs_read = (decltype(pkfs_fs_read))GetProcAddress(mod, "?pkfs_fs_read@@YAHIPAXH@Z");
             pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "?pkfs_fs_close@@YAHI@Z");
+            pkfs_clear_hdd_error = (decltype(pkfs_clear_hdd_error))GetProcAddress(mod, "?pkfs_clear_hdd_error@@YAXXZ");
         } else if(MH_CreateHookApi(L"pkfs.dll", "pkfs_fs_open", (LPVOID)&hook_pkfs_open, (LPVOID*)&pkfs_fs_open) == MH_OK) {
             // jubeat DLL has no mangling - only one of these will succeed (if at all)
             auto mod = GetModuleHandleA("pkfs.dll");
@@ -483,7 +487,7 @@ extern "C" {
         }
 
         if(pkfs_fs_open) {
-            if(pkfs_fs_fstat && pkfs_fs_read && pkfs_fs_close) {
+            if(pkfs_fs_fstat && pkfs_fs_read && pkfs_fs_close && pkfs_clear_hdd_error) {
                 log_info("pkfs hooks activated");
             } else {
                 log_fatal("Couldn't fully init pkfs hook - open an issue!");

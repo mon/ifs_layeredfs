@@ -1,4 +1,4 @@
-project('layeredfs', 'c', 'cpp', version: '3.4_RC1',
+project('layeredfs', 'c', 'cpp', version: '3.4_RC2',
     default_options: [
         'cpp_std=c++17',
         'buildtype=release',
@@ -110,7 +110,7 @@ foreach cfg : special_cfgs
     shared_library('ifs_hook_' + folder_name,
         link_with: layeredfs_lib,
         dependencies: layeredfs_cfg_dep,
-        cpp_args: defines,
+        cpp_args: [defines, f'-DSPECIAL_VER="@folder_name@"'],
         name_prefix: '',
         install_dir: '/special_builds' / folder_name,
         install: true,
