@@ -1,4 +1,4 @@
-project('layeredfs', 'c', 'cpp', version: '3.4_RC4',
+project('layeredfs', 'c', 'cpp', version: '3.4',
     default_options: [
         'cpp_std=c++17',
         'buildtype=release',
@@ -87,9 +87,9 @@ special_cfgs = [
     # "Why isn't it working???"
     ['always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE']],
     # dump every file accessed via pkfs APIs to data_unpak
-    ['pkfs_unpack', ['-DUNPAK']]
+    ['pkfs_unpack', ['-DUNPAK']],
     # debug pkfs
-    ['pkfs_unpack_always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE', '-DUNPAK']]
+    ['pkfs_unpack_always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE', '-DUNPAK']],
 ]
 
 # documentation for pkfs_unpak
