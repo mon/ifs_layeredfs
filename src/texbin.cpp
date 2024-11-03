@@ -1006,7 +1006,7 @@ vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, siz
     size_t decomp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[0]);
     size_t comp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[4]);
     auto comp = &comp_with_hdr[8];
-    log_verbose("%s: Comp sz %u decomp sz %u (clamp: %d)",
+    VLOG("%s: Comp sz %u decomp sz %u (clamp: %d)",
         __FUNCTION__, comp_len, decomp_len, max_len
     );
     // optionally extract only the first n bytes

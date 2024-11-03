@@ -122,6 +122,9 @@ class PkfsHookFile : public HookFile {
     uint32_t call_real() override {
         log_if_modfile();
         auto ret = pkfs_fs_open(get_path_to_open().c_str());
+        if(ret == 0) {
+            log_verbose("pkfs_fs_open(%s) failed in call_real", get_path_to_open().c_str());
+        }
         return ret;
     }
 
@@ -143,6 +146,7 @@ class PkfsHookFile : public HookFile {
             // This of course is racey, so if there is a *real* error in another
             // thread, this resets it. But it's a tight race, and I'll take that
             // chance.
+            log_verbose("pkfs_open(%s) failed in load_to_vec, clearing HDD error", get_path_to_open().c_str());
             pkfs_clear_hdd_error();
             return nullopt;
         }
@@ -393,8 +397,10 @@ unsigned int hook_pkfs_open(const char *name) {
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
-    if (!norm_path)
+    if (!norm_path) {
+        log_verbose("pkfs_open falling back to real (no norm)");
         return pkfs_fs_open(name);
+    }
     // unpack success
     PkfsHookFile file(path, *norm_path);
 

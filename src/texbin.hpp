@@ -9,7 +9,7 @@
 
 using namespace std;
 
-//#define TEXBIN_VERBOSE
+// #define TEXBIN_VERBOSE
 
 // because for some reason, texbin decided to implement lz77 *slightly differently*
 // from every other place konami games use it. smh.

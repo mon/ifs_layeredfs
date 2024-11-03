@@ -1,4 +1,4 @@
-project('layeredfs', 'c', 'cpp', version: '3.4_RC2',
+project('layeredfs', 'c', 'cpp', version: '3.4_RC4',
     default_options: [
         'cpp_std=c++17',
         'buildtype=release',
@@ -88,6 +88,8 @@ special_cfgs = [
     ['always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE']],
     # dump every file accessed via pkfs APIs to data_unpak
     ['pkfs_unpack', ['-DUNPAK']]
+    # debug pkfs
+    ['pkfs_unpack_always_devmode_verbose_and_logs_to_file', ['-DCFG_DEVMODE', '-DCFG_VERBOSE', '-DCFG_LOGFILE', '-DUNPAK']]
 ]
 
 # documentation for pkfs_unpak
@@ -103,7 +105,7 @@ foreach cfg : special_cfgs
     folder_name = cfg[0]
     defines = cfg[1]
 
-    if folder_name == 'pkfs_unpack' and host_machine.cpu_family() != 'x86'
+    if folder_name.contains('pkfs_unpack') and host_machine.cpu_family() != 'x86'
         continue
     endif
 

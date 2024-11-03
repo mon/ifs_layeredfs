@@ -110,25 +110,34 @@ optional<std::vector<uint8_t>> readFile(const char* filename)
 }
 
 void avs_playpen() {
-    avs_fs_addfs(avs_filesys_ramfs());
+    // auto texo = Texbin::from_path("gfdm issues/tex_gf_game2_orig.bin");
+    // auto texn = Texbin::from_path("gfdm issues/tex_gf_game2_repack.bin");
 
-    auto f = hook_avs_fs_open("/data/graphic/gmframe29.ifs", avs_open_mode_read(), 420);
-    log_assert(f >= 0);
+    auto texo = Texbin::from_path("gfdm issues/tex_gf_common_orig.bin");
+    texo->add_or_replace_image("COM_BACKPIC00", "gfdm issues/COM_BACKPIC00.png");
+    texo->save("gfdm issues/gf_common_mypack.bin");
+    auto texoo = Texbin::from_path("gfdm issues/gf_common_mypack.bin");
+    // auto texn = Texbin::from_path("gfdm issues/tex_gf_common_repack.bin");
 
-    // avs_file_to_vec but using the hook_read so ramfs demangler catches it
-    avs_stat stat = {0};
-    avs_fs_fstat(f, &stat);
-    std::vector<uint8_t> contents;
-    contents.resize(stat.filesize);
-    hook_avs_fs_read(f, &contents[0], stat.filesize);
-    avs_fs_close(f);
+    // avs_fs_addfs(avs_filesys_ramfs());
 
-    char args[] = "base=0x0000000000000000,size=0x00000000,mode=ro";
-    snprintf(args, sizeof(args), "base=0x%p,size=0x%llx,mode=ro", &contents[0], contents.size());
-    log_assert(hook_avs_fs_mount("/afpr2318908", "image.bin", "ramfs", args) >= 0);
-    log_assert(hook_avs_fs_mount("/afp23/data/graphic/gmframe29.ifs", "/afpr2318908/image.bin", "imagefs", NULL) >= 0);
-    hook_avs_fs_open("/afp23/data/graphic/gmframe29.ifs/tex/texturelist.xml", avs_open_mode_read(), 420);
-    hook_avs_fs_open("/afp23/data/graphic/gmframe29.ifs/tex/643b3d20d1b19dfe98e9e23a59a72bba", avs_open_mode_read(), 420);
+    // auto f = hook_avs_fs_open("/data/graphic/gmframe29.ifs", avs_open_mode_read(), 420);
+    // log_assert(f >= 0);
+
+    // // avs_file_to_vec but using the hook_read so ramfs demangler catches it
+    // avs_stat stat = {0};
+    // avs_fs_fstat(f, &stat);
+    // std::vector<uint8_t> contents;
+    // contents.resize(stat.filesize);
+    // hook_avs_fs_read(f, &contents[0], stat.filesize);
+    // avs_fs_close(f);
+
+    // char args[] = "base=0x0000000000000000,size=0x00000000,mode=ro";
+    // snprintf(args, sizeof(args), "base=0x%p,size=0x%llx,mode=ro", &contents[0], contents.size());
+    // log_assert(hook_avs_fs_mount("/afpr2318908", "image.bin", "ramfs", args) >= 0);
+    // log_assert(hook_avs_fs_mount("/afp23/data/graphic/gmframe29.ifs", "/afpr2318908/image.bin", "imagefs", NULL) >= 0);
+    // hook_avs_fs_open("/afp23/data/graphic/gmframe29.ifs/tex/texturelist.xml", avs_open_mode_read(), 420);
+    // hook_avs_fs_open("/afp23/data/graphic/gmframe29.ifs/tex/643b3d20d1b19dfe98e9e23a59a72bba", avs_open_mode_read(), 420);
 
     // log_info("loading file");
     // auto _debug = readFile("debug.bin");
