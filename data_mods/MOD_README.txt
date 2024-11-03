@@ -1,5 +1,43 @@
 IFS LayeredFS will search every directory in this folder for modded files to use.
 
+============= QUICKSTART EXAMPLES =============
+
+a.k.a. "I don't want to read all this":
+Example mod paths:
+
+IFS files:
+data/graphics/ver04/logo_j.ifs
+  To replace repacked IFS:
+    data_mods/example/graphics/ver04/logo_j.ifs
+  To replace individual texture "warning":
+    data_mods/example/graphics/ver04/logo_j_ifs/tex/warning.png
+    or
+    data_mods/example/graphics/ver04/logo_j_ifs/warning.png
+
+Jubeat or Gitadora .bin textures:
+data/d3/model/tex_l44fo_continue.bin
+  To replace repacked .bin:
+    data_mods/example/d3/model/tex_l44fo_continue.bin
+  To replace individual texture "CTN_T0000"
+    data_mods/example/d3/model/tex_l44fo_continue/CTN_T0000.png
+
+XML files:
+data/others/music_db.xml
+  To replace the entire file:
+    data_mods/example/others/music_db.xml
+  To append to the file:
+    data_mods/example/others/music_db.merged.xml
+
+Games with a `data2` folder (Beatstream/Nostalgia)
+data/graphic/information.ifs
+  It's the same!
+    data_mods/example/graphic/information.ifs
+data2/graphic/information.ifs
+  It needs an extra subfolder:
+    data_mods/example/data2/graphic/information.ifs
+
+============= Detailed description =============
+
 Search order
   Alphabetical via mod folder name
   The first folder with a matching mod will be used for that file
