@@ -51,6 +51,8 @@ void default_log_body_fatal(const char *module, const char *fmt, ...) {
     va_start(args, fmt);
     log_to_file('F', fmt, args);
     va_end(args);
+
+    abort();
 }
 void default_log_body_warning(const char *module, const char *fmt, ...) {
     va_list args;
@@ -81,6 +83,8 @@ void stdout_log_body_fatal(const char *module, const char *fmt, ...) {
     va_start(args, fmt);
     stdout_log('F', fmt, args);
     va_end(args);
+
+    abort();
 }
 void stdout_log_body_warning(const char *module, const char *fmt, ...) {
     va_list args;

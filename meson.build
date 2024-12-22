@@ -38,6 +38,12 @@ third_party = static_library('3rd_party',
     cpp_args: '-w',
 )
 
+texbin_lib = static_library('texbin', 'src/texbin.cpp')
+texbin_verbose_lib = static_library('texbin_verbose',
+    'src/texbin.cpp',
+    cpp_args: '-DTEXBIN_VERBOSE'
+)
+
 layeredfs_lib = static_library('layeredfs',
     sources: [
         'src/avs.cpp',
@@ -46,7 +52,6 @@ layeredfs_lib = static_library('layeredfs',
         'src/log.cpp',
         'src/modpath_handler.cpp',
         'src/ramfs_demangler.cpp',
-        'src/texbin.cpp',
         'src/texture_packer.cpp',
         'src/utils.cpp',
     ],
@@ -64,13 +69,20 @@ layeredfs_cfg_dep = declare_dependency(
 executable('playpen',
     sources: 'src/playpen.cpp',
     build_by_default: false,
-    link_with: layeredfs_lib,
+    link_with: [layeredfs_lib, texbin_verbose_lib],
+    dependencies: layeredfs_cfg_dep,
+)
+
+executable('texbin_debug',
+    sources: 'src/texbin_debug.cpp',
+    build_by_default: false,
+    link_with: [layeredfs_lib, texbin_verbose_lib],
     dependencies: layeredfs_cfg_dep,
 )
 
 # "normal" hook
 shared_library('ifs_hook',
-    link_with: layeredfs_lib,
+    link_with: [layeredfs_lib, texbin_lib],
     dependencies: layeredfs_cfg_dep,
     name_prefix: '',
     install_dir: '/',
@@ -110,7 +122,7 @@ foreach cfg : special_cfgs
     endif
 
     shared_library('ifs_hook_' + folder_name,
-        link_with: layeredfs_lib,
+        link_with: [layeredfs_lib, texbin_lib],
         dependencies: layeredfs_cfg_dep,
         cpp_args: [defines, f'-DSPECIAL_VER="@folder_name@"'],
         name_prefix: '',

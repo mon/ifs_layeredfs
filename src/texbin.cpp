@@ -425,7 +425,10 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
 void Texbin::debug() {
     uint32_t total = 0;
     for(auto &[name, image] : images) {
-        VLOG("file: %s len %d fmt %s", name.c_str(), image.tex.size(), image.tex_type_str().c_str());
+        auto [w,h] = image.peek_dimensions();
+        VLOG("file: %s len %d fmt %s dims(%d,%d)",
+            name.c_str(), image.tex.size(), image.tex_type_str(false).c_str(),
+            w, h);
         total += (uint32_t)image.tex.size();
     }
 
@@ -721,8 +724,8 @@ enum TexFormat: uint8_t {
     DXT5        = 0x1A,
 };
 
-string ImageEntryParsed::tex_type_str() {
-    auto raw = texbin_lz77_decompress(tex, 0x40);
+string ImageEntryParsed::tex_type_str(bool debug_lz77) {
+    auto raw = texbin_lz77_decompress(tex, 0x40, debug_lz77);
     if(raw.size() < 0x40) {
         return "SHORT TEX " + to_string(raw.size());
     }
@@ -1002,13 +1005,15 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
     return output;
 }
 
-vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, size_t max_len) {
+vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, size_t max_len, bool debug) {
     size_t decomp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[0]);
     size_t comp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[4]);
     auto comp = &comp_with_hdr[8];
-    VLOG("%s: Comp sz %u decomp sz %u (clamp: %d)",
-        __FUNCTION__, comp_len, decomp_len, max_len
-    );
+    if(debug) {
+        VLOG("%s: Comp sz %u decomp sz %u (clamp: %d)",
+            __FUNCTION__, comp_len, decomp_len, max_len
+        );
+    }
     // optionally extract only the first n bytes
     if(max_len) {
         decomp_len = min(max_len, decomp_len);
