@@ -9,9 +9,6 @@
 
 #define DLL_TO_HOOK "ifs_hook.dll"
 //#define DO_LOG
-// it rewrites the path loader and needs "_dxgi.dll" copied out of system32
-// since the loader doesn't deal with full paths properly
-//#define BOMBERGIRL_BULLSHIT
 
 // leave a bunch of room in the string so aspiring modders can just hex edit the filename
 #define HELP "\0Hello hex editor - The DLL name + this message have 256 bytes allocated for them. You can change the DLL name if you want!"
@@ -119,6 +116,8 @@ void __cdecl onetime_setup(const char *fn_name) {
 		return;
 
 #ifdef BOMBERGIRL_BULLSHIT
+	// it rewrites the path loader and needs "_dxgi.dll" copied out of system32
+	// since the loader doesn't deal with full paths properly
 	HMODULE orig = LoadLibraryW(L"_" DLL_NAME);
 #else
 	wchar_t path[MAX_PATH];
@@ -127,7 +126,13 @@ void __cdecl onetime_setup(const char *fn_name) {
 		return;
 	}
 
-	wcscat_s(path, MAX_PATH, L"\\" DLL_NAME);
+	if (wcslen(path) + wcslen(L"\\" DLL_NAME) >= MAX_PATH) {
+		LOG("Original DLL path length exceeds MAX_PATH, enjoy your crash\n");
+		return;
+	}
+
+	// can't use wcscat_s, not available on XP
+	wcscat(path, L"\\" DLL_NAME);
 	HMODULE orig = LoadLibraryW(path);
 #endif
 
