@@ -425,7 +425,7 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
 void Texbin::debug() {
     uint32_t total = 0;
     for(auto &[name, image] : images) {
-        auto [w,h] = image.peek_dimensions();
+        [[maybe_unused]] auto [w,h] = image.peek_dimensions();
         VLOG("file: %s len %d fmt %s dims(%d,%d)",
             name.c_str(), image.tex.size(), image.tex_type_str(false).c_str(),
             w, h);
