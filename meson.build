@@ -1,6 +1,6 @@
 project('layeredfs', 'c', 'cpp', version: '3.4',
     default_options: [
-        'cpp_std=c++17',
+        'cpp_std=c++20',
         'buildtype=release',
         'strip=true',
         'werror=true',
@@ -66,10 +66,14 @@ layeredfs_cfg_dep = declare_dependency(
     ]
 )
 
+avs_standalone_lib = static_library('avs_standalone',
+    sources: 'src/avs_standalone.cpp'
+)
+
 executable('playpen',
     sources: 'src/playpen.cpp',
     build_by_default: false,
-    link_with: [layeredfs_lib, texbin_verbose_lib],
+    link_with: [layeredfs_lib, texbin_verbose_lib, avs_standalone_lib],
     dependencies: layeredfs_cfg_dep,
 )
 
@@ -80,17 +84,10 @@ executable('texbin_debug',
     dependencies: layeredfs_cfg_dep,
 )
 
-# "normal" hook
-shared_library('ifs_hook',
-    link_with: [layeredfs_lib, texbin_lib],
-    dependencies: layeredfs_cfg_dep,
-    name_prefix: '',
-    install_dir: '/',
-    install: true,
-)
-
 # pre-configured DLLs if you don't know how to (or can't) add cmdline args
 special_cfgs = [
+    # "normal" hook
+    ['', []],
     ['always_verbose', ['-DCFG_VERBOSE']],
     ['always_logs_to_file', ['-DCFG_LOGFILE']],
     ['always_verbose_and_logs_to_file', ['-DCFG_VERBOSE','-DCFG_LOGFILE']],
@@ -113,6 +110,8 @@ if host_machine.cpu_family() == 'x86'
     )
 endif
 
+python = import('python').find_installation()
+
 foreach cfg : special_cfgs
     folder_name = cfg[0]
     defines = cfg[1]
@@ -121,13 +120,31 @@ foreach cfg : special_cfgs
         continue
     endif
 
-    shared_library('ifs_hook_' + folder_name,
+    lib_name = 'ifs_hook_' + folder_name
+    special_defines = []
+    install_dir = '/special_builds' / folder_name
+    if folder_name == ''
+        lib_name = 'ifs_hook'
+        install_dir = '/'
+    else
+        special_defines = [f'-DSPECIAL_VER="@folder_name@"']
+    endif
+
+    ifs_dll = shared_library(lib_name,
         link_with: [layeredfs_lib, texbin_lib],
         dependencies: layeredfs_cfg_dep,
-        cpp_args: [defines, f'-DSPECIAL_VER="@folder_name@"'],
+        cpp_args: [defines, special_defines],
         name_prefix: '',
         install_dir: '/special_builds' / folder_name,
         install: true,
+    )
+    test(lib_name + '_is_xp',
+        python,
+        args: [
+            files('ensure_xp_compatible.py'),
+            ifs_dll,
+        ],
+        workdir: meson.current_source_dir(),
     )
 endforeach
 
@@ -165,3 +182,16 @@ foreach cfg : injector_cfgs
         install: true,
     )
 endforeach
+
+gtest_proj = subproject('gtest', required: false, default_options: {'default_library': 'static'})
+gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
+gmock_dep = gtest_proj.get_variable('gmock_dep')
+
+test('tests', executable('tests_bin',
+        sources: 'src/tests.cpp',
+        link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
+        dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
+        build_by_default: false,
+    ),
+    workdir: meson.current_source_dir(),
+)

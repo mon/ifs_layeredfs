@@ -64,7 +64,7 @@ static CriticalSectionLock mangling_mtx;
 static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path);
 
 void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
-	if (open_result < 0 || !string_ends_with(path.c_str(), ".ifs")) {
+	if (open_result < 0 || !path.ends_with(".ifs")) {
 		return;
 	}
 
@@ -162,12 +162,11 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 				cleanup->second.mounted_path = mountpoint;
 			}
 		}
-		else if(string_ends_with(fsroot, ".ifs")) {
+		else if(string root = fsroot; root.ends_with(".ifs")) {
 			// this fixes ifs-inside-ifs by demangling the root location too
-			string root = (string)fsroot;
 			ramfs_demangler_demangle_if_possible_nolock(root);
 			log_verbose("imagefs mount mapped to %s", root.c_str());
-			mangling_map[mountpoint] =  root;
+			mangling_map[mountpoint] = root;
 		}
 	}
 

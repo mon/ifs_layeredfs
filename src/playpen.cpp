@@ -9,27 +9,8 @@
 
 #include <fstream>
 
-void boot_avs(void);
-bool load_dll(void);
-LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo);
-
-typedef void (*avs_log_writer_t)(const char *chars, uint32_t nchars, void *ctx);
-
-#define FOREACH_EXTRA_FUNC(X) \
-X("XCgsqzn0000129", void,   avs_boot, node_t config, void *com_heap, size_t sz_com_heap, void *reserved, avs_log_writer_t log_writer, void *log_context) \
-X("XCgsqzn000012a", void,   avs_shutdown) \
-X("XCgsqzn00000a1", node_t, property_search, property_t prop, node_t node, const char *path) \
-X("XCgsqzn0000048", int, avs_fs_addfs, void* filesys) \
-X("XCgsqzn0000159", void*, avs_filesys_ramfs) \
-
-#define AVS_FUNC_PTR(obfus_name, ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
-FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
-
-static bool print_logs = true;
-
-#define QUIET_BOOT
-
 #include "texbin.hpp"
+#include "avs_standalone.hpp"
 
 #define log_assert(cond) if(!(cond)) {log_fatal("Assertion failed:" #cond);}
 
@@ -219,7 +200,7 @@ FAIL:
     if (prop_buffer)
         free(prop_buffer);*/
 
-    /*auto d = avs_fs_opendir(MOD_FOLDER);
+    /*auto d = avs_fs_opendir(config.mod_folder.c_str());
     if (!d) {
         log_warning("couldn't d");
         return;
@@ -296,125 +277,16 @@ void textypes() {
 }
 
 int main(int argc, char** argv) {
-    // textypes();
-    AddVectoredExceptionHandler(1, exc_handler);
-    log_to_stdout();
-    if(!load_dll()) {
-        log_fatal("DLL load failed");
+    if(!avs_standalone::boot(false)) {
+        log_fatal("avs_standalone boot failed");
         return 1;
     }
-    init_avs(); // fails because of Minhook not being initialised, don't care
-#ifdef QUIET_BOOT
-    print_logs = false;
-    boot_avs();
-    print_logs = true;
-#else
-    boot_avs();
-#endif
 
     init(); // this double-hooks some AVS funcs, don't care
 
     avs_playpen();
 
-    avs_shutdown();
+    avs_standalone::shutdown();
 
     return 0;
-}
-
-#define DEFAULT_HEAP_SIZE 16777216
-
-void log_writer(const char *chars, uint32_t nchars, void *ctx) {
-    // don't print noisy shutdown logs
-    auto prefix = "[----/--/-- --:--:--] ";
-    auto len = strlen(prefix);
-    if(strncmp(chars, prefix, len) == 0) {
-        return;
-    }
-
-    if(print_logs) {
-        fprintf(stderr, "%.*s", nchars, chars);
-    }
-}
-
-static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
-<config>
-  <fs>
-    <nr_filesys __type="u16">16</nr_filesys>
-    <nr_mountpoint __type="u16">1024</nr_mountpoint>
-    <nr_mounttable __type="u16">32</nr_mounttable>
-    <nr_filedesc __type="u16">4096</nr_filedesc>
-    <link_limit __type="u16">8</link_limit>
-    <root><device>.</device></root>
-    <mounttable>
-      <vfs name="boot" fstype="fs" src="dev/raw" dst="/dev/raw" opt="vf=1,posix=1"/>
-      <vfs name="boot" fstype="fs" src="dev/nvram" dst="/dev/nvram" opt="vf=0,posix=1"/>
-    </mounttable>
-  </fs>
-  <log><level>misc</level></log>
-  <sntp>
-    <ea_on __type="bool">0</ea_on>
-    <servers></servers>
-  </sntp>
-</config>
-)";
-
-static size_t off;
-static size_t read_str(int32_t context, void *dst_buf, size_t count) {
-    memcpy(dst_buf, &boot_cfg[off], count);
-    off += count;
-    return count;
-}
-
-#define LOAD_FUNC(obfus_name, ret_type, name, ...) \
-    if(!(name = (decltype(name))GetProcAddress(avs, obfus_name))) {\
-        log_fatal("Playpen: couldn't get " #name); \
-        return false; \
-    }
-
-bool load_dll(void) {
-    auto avs = LoadLibraryA("avs2-core.dll");
-    if(!avs) {
-        log_fatal("Playpen: Couldn't load avs dll");
-        return false;
-    }
-
-    FOREACH_EXTRA_FUNC(LOAD_FUNC);
-
-    return true;
-}
-
-void boot_avs(void) {
-    auto avs_heap = malloc(DEFAULT_HEAP_SIZE);
-
-    off = 0;
-    int prop_len = property_read_query_memsize(read_str, 0, 0, 0);
-    if (prop_len <= 0) {
-        log_fatal("error reading config (size <= 0)");
-        return;
-    }
-    auto buffer = malloc(prop_len);
-    auto avs_config = property_create(PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND, buffer, prop_len);
-    if (!avs_config) {
-        log_fatal("cannot create property");
-        return;
-    }
-    off = 0;
-    if (!property_insert_read(avs_config, 0, read_str, 0)) {
-        log_fatal("avs-core", "cannot read property");
-        return;
-    }
-
-    auto avs_config_root = property_search(avs_config, 0, "/config");
-    if(!avs_config_root) {
-        log_fatal("no root config node");
-        return;
-    }
-
-    avs_boot(avs_config_root, avs_heap, DEFAULT_HEAP_SIZE, NULL, log_writer, NULL);
-}
-
-LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo) {
-    fprintf(stderr, "Unhandled exception %lX\n", ExceptionInfo->ExceptionRecord->ExceptionCode);
-
-    return EXCEPTION_CONTINUE_SEARCH;
 }

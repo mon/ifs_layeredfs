@@ -14,9 +14,6 @@ using std::optional;
 using std::string;
 using std::vector;
 
-#define MOD_FOLDER "./data_mods"
-#define CACHE_FOLDER MOD_FOLDER "/_cache"
-
 void init_modpath_handler(void);
 void cache_mods(void);
 vector<string> available_mods();

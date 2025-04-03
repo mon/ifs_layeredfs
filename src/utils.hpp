@@ -12,8 +12,6 @@
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
 char* snprintf_auto(const char* fmt, ...);
-bool string_ends_with(const char * str, const char * suffix);
-bool string_ends_with(const std::string &str, const char * suffix);
 // case insensitive
 void string_replace(std::string &str, const char* from, const char* to);
 // // case insensitive
@@ -24,6 +22,11 @@ wchar_t *str_widen(const char *src);
 void str_toupper_inline(std::string &str);
 bool file_exists(const char* name);
 bool folder_exists(const char* name);
+// the given path:
+// -  must be known to exist
+// - must start with "/" or "./"
+// - must not end with "/"
+std::string path_to_actual_case(std::string path);
 std::vector<std::string> folders_in_folder(const char* root);
 uint64_t file_time(const char* path);
 LONG time(void);

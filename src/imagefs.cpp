@@ -39,7 +39,7 @@ typedef struct image {
     string ifs_mod_path;
     int width;
     int height;
-    const string cache_folder() { return CACHE_FOLDER "/" + ifs_mod_path;  }
+    const string cache_folder() { return CACHE_FOLDER + "/" + ifs_mod_path;  }
     const string cache_file() { return cache_folder() + "/" + name_md5; };
 } image_t;
 
@@ -296,7 +296,7 @@ void parse_texturelist(HookFile &file) {
     }
 
     if (prop_was_rewritten) {
-        string outfolder = CACHE_FOLDER "/" + ifs_mod_path;
+        string outfolder = CACHE_FOLDER + "/" + ifs_mod_path;
         if (!mkdir_p(outfolder)) {
             log_warning("Couldn't create cache folder");
         }
@@ -459,7 +459,7 @@ void merge_xmls(HookFile &file) {
         return;
 
     auto starting = file.get_path_to_open();
-    out = CACHE_FOLDER "/" + file.norm_path;
+    out = CACHE_FOLDER + "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 

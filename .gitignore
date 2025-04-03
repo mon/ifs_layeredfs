@@ -1,5 +1,6 @@
 *.zip
-*.dll
 build32/
 build64/
 dist/
+subprojects/googletest*
+subprojects/packagecache

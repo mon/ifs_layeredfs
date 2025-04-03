@@ -118,6 +118,9 @@ folder.
                   Folders cannot have "," in their name if using allow/blocklist
 --layered-logfile=filename.log
                   Use a custom, separate logfile instead of the game's log.
+--layered-data-mods-folder=./some_folder
+                  Use a custom mods folder instead of the default ./data_mods
+                  MUST start with "./" to avoid path weirdness.
 ```
 
 # Logs

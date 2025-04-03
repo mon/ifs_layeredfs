@@ -6,12 +6,13 @@
 #include "log.hpp"
 #include "utils.hpp"
 
-#define VERBOSE_FLAG   "--layered-verbose"
-#define DEVMODE_FLAG   "--layered-devmode"
-#define DISABLE_FLAG   "--layered-disable"
-#define ALLOWLIST_FLAG "--layered-allowlist"
-#define BLOCKLIST_FLAG "--layered-blocklist"
-#define LOGFILE_FLAG   "--layered-logfile"
+#define VERBOSE_FLAG    "--layered-verbose"
+#define DEVMODE_FLAG    "--layered-devmode"
+#define DISABLE_FLAG    "--layered-disable"
+#define ALLOWLIST_FLAG  "--layered-allowlist"
+#define BLOCKLIST_FLAG  "--layered-blocklist"
+#define LOGFILE_FLAG    "--layered-logfile"
+#define MOD_FOLDER_FLAG "--layered-data-mods-folder"
 
 config_t config;
 
@@ -46,6 +47,7 @@ void load_config(void) {
     config.disable = false;
     config.allowlist.clear();
     config.blocklist.clear();
+    config.mod_folder = DEFAULT_MOD_FOLDER;
 
 #ifdef CFG_VERBOSE
     config.verbose_logs = true;
@@ -91,16 +93,24 @@ void load_config(void) {
                 config.logfile = &path[1];
             }
         }
+        else if (strncmp(__argv[i], MOD_FOLDER_FLAG, strlen(MOD_FOLDER_FLAG)) == 0) {
+            std::string_view path = &__argv[i][strlen(MOD_FOLDER_FLAG)];
+            // correct format: --layered-data-mods-folder=./my_mods
+            if(path.starts_with("=./")) {
+                config.mod_folder = path.substr(1);
+            }
+        }
     }
 }
 
 void print_config(void) {
-    log_info("Options: %s=%d %s=%d %s=%d %s=%s %s=%s %s=%s",
+    log_info("Options: %s=%d %s=%d %s=%d %s=%s %s=%s %s=%s %s=%s",
         VERBOSE_FLAG, config.verbose_logs,
         DEVMODE_FLAG, config.developer_mode,
         DISABLE_FLAG, config.disable,
         LOGFILE_FLAG, config.logfile,
         ALLOWLIST_FLAG, allowlist,
-        BLOCKLIST_FLAG, blocklist
+        BLOCKLIST_FLAG, blocklist,
+        MOD_FOLDER_FLAG, config.mod_folder.c_str()
     );
 }

@@ -225,7 +225,7 @@ void handle_texbin(HookFile &file) {
     }
 
     auto starting = file.get_path_to_open();
-    string out = CACHE_FOLDER "/" + file.norm_path;
+    string out = CACHE_FOLDER + "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 
@@ -292,15 +292,15 @@ uint32_t handle_file_open(HookFile &file) {
         file.mod_path = find_first_modfile(norm_copy);
     }
 
-    if(string_ends_with(file.path, ".xml")) {
+    if(file.path.ends_with(".xml")) {
         merge_xmls(file);
     }
 
-    if(string_ends_with(file.path, ".bin")) {
+    if(file.path.ends_with(".bin")) {
         handle_texbin(file);
     }
 
-    if (string_ends_with(file.path, "texturelist.xml")) {
+    if (file.path.ends_with("texturelist.xml")) {
         parse_texturelist(file);
     }
     else {

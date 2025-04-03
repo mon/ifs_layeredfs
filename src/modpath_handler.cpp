@@ -125,7 +125,7 @@ optional<string> normalise_path(const string &_path) {
 
 vector<string> available_mods() {
     vector<string> ret;
-    string mod_root = MOD_FOLDER "/";
+    string mod_root = config.mod_folder + "/";
 
     // just pretend we have no mods at all
     if (config.disable) {
@@ -134,7 +134,7 @@ vector<string> available_mods() {
 
     if (config.developer_mode) {
         static bool first_search = true;
-        for (auto folder : folders_in_folder(MOD_FOLDER)) {
+        for (auto folder : folders_in_folder(config.mod_folder.c_str())) {
             if (!strcasecmp(folder.c_str(), "_cache")) {
                 continue;
             }
@@ -218,7 +218,7 @@ optional<string> find_first_modfile(const string &norm_path) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;
             if (file_exists(mod_path.c_str())) {
-                return mod_path;
+                return path_to_actual_case(mod_path);
             }
         }
     }
@@ -233,7 +233,7 @@ optional<string> find_first_modfolder(const string &norm_path) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;
             if (folder_exists(mod_path.c_str())) {
-                return mod_path;
+                return path_to_actual_case(mod_path) + "/";
             }
         }
     }

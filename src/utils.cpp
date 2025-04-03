@@ -19,19 +19,6 @@ char* snprintf_auto(const char* fmt, ...) {
     return s;
 }
 
-bool string_ends_with(const char * str, const char * suffix) {
-    size_t str_len = strlen(str);
-    size_t suffix_len = strlen(suffix);
-
-    return
-        (str_len >= suffix_len) &&
-        (0 == _stricmp(str + (str_len - suffix_len), suffix));
-}
-
-bool string_ends_with(const std::string &str, const char * suffix) {
-    return string_ends_with(str.c_str(), suffix);
-}
-
 void string_replace(std::string &str, const char* from, const char* to) {
     auto to_len = strlen(to);
     auto from_len = strlen(from);
@@ -117,6 +104,35 @@ bool folder_exists(const char* name) {
     }
     FindClose(hFind);
     return true;
+}
+
+std::string path_to_actual_case(std::string path) {
+    WIN32_FIND_DATAA ffd;
+    HANDLE hFind;
+    size_t start = std::string::npos;
+
+    while((start = path.rfind('/', start)) != string::npos) {
+        hFind = FindFirstFileA(path.c_str(), &ffd);
+        if (hFind == INVALID_HANDLE_VALUE) {
+            continue;
+        }
+        FindClose(hFind);
+
+        auto segment = &path[start+1];
+        size_t segment_len = strlen(segment);
+        if(strcasecmp(segment, ffd.cFileName) == 0)
+            memcpy(segment, ffd.cFileName, segment_len);
+
+        path[start] = '\0';
+    }
+
+    // restore slashes
+    for(auto& c: path) {
+        if(c == '\0')
+            c = '/';
+    }
+
+    return path;
 }
 
 void str_toupper_inline(std::string& str) {
