@@ -292,15 +292,15 @@ uint32_t handle_file_open(HookFile &file) {
         file.mod_path = find_first_modfile(norm_copy);
     }
 
-    if(file.path.ends_with(".xml")) {
+    if(string_ends_with(file.path, ".xml")) {
         merge_xmls(file);
     }
 
-    if(file.path.ends_with(".bin")) {
+    if(string_ends_with(file.path, ".bin")) {
         handle_texbin(file);
     }
 
-    if (file.path.ends_with("texturelist.xml")) {
+    if (string_ends_with(file.path, "texturelist.xml")) {
         parse_texturelist(file);
     }
     else {
