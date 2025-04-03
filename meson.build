@@ -135,7 +135,7 @@ foreach cfg : special_cfgs
         dependencies: layeredfs_cfg_dep,
         cpp_args: [defines, special_defines],
         name_prefix: '',
-        install_dir: '/special_builds' / folder_name,
+        install_dir: install_dir,
         install: true,
     )
     test(lib_name + '_is_xp',
