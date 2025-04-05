@@ -23,7 +23,7 @@ static void log_writer(const char *chars, uint32_t nchars, void *ctx);
     X("XCgsqzn0000159", void *, avs_filesys_ramfs)
 
 #define AVS_FUNC_PTR(obfus_name, ret_type, name, ...) ret_type (*name)(__VA_ARGS__);
-    FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
+FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
 
 static bool g_print_logs = true;
 static size_t g_boot_cfg_offset;

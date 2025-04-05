@@ -59,7 +59,7 @@ class AvsHookFile : public HookFile {
         }
     }
 };
-class AvsOpenHookFile : public AvsHookFile {
+class AvsOpenHookFile final : public AvsHookFile {
     private:
     uint16_t mode;
     int flags;
@@ -79,7 +79,7 @@ class AvsOpenHookFile : public AvsHookFile {
     }
 };
 
-class AvsLstatHookFile : public AvsHookFile {
+class AvsLstatHookFile final : public AvsHookFile {
     private:
     struct avs_stat *st;
 
@@ -95,7 +95,7 @@ class AvsLstatHookFile : public AvsHookFile {
     }
 };
 
-class AvsConvertPathHookFile : public AvsHookFile {
+class AvsConvertPathHookFile final : public AvsHookFile {
     private:
     char *dest_name;
 
@@ -111,7 +111,7 @@ class AvsConvertPathHookFile : public AvsHookFile {
     }
 };
 
-class PkfsHookFile : public HookFile {
+class PkfsHookFile final : public HookFile {
     public:
     PkfsHookFile(const std::string path, const std::string norm_path)
         : HookFile(path, norm_path)
@@ -302,9 +302,11 @@ uint32_t handle_file_open(HookFile &file) {
 
     if (string_ends_with(file.path, "texturelist.xml")) {
         parse_texturelist(file);
-    }
-    else {
+    } else if(string_ends_with(file.path, "afplist.xml")) {
+        parse_afplist(file);
+    } else {
         handle_texture(file);
+        handle_afp(file);
     }
 
     auto ret = file.call_real();

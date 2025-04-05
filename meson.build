@@ -1,4 +1,4 @@
-project('layeredfs', 'c', 'cpp', version: '3.5',
+project('layeredfs', 'c', 'cpp', version: '3.6_BETA',
     default_options: [
         'cpp_std=c++20',
         'buildtype=release',
