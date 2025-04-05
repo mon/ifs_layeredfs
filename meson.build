@@ -167,7 +167,7 @@ foreach cfg : injector_cfgs
         def_file = 'src_injector/dxgi.def'
     endif
 
-    shared_library(dll_name,
+    inject_dll = shared_library(dll_name,
         sources: 'src_injector/dllmain.cpp',
         vs_module_defs: def_file,
         cpp_args: define,
@@ -181,13 +181,22 @@ foreach cfg : injector_cfgs
         install_dir: '/automatic_injector_dlls',
         install: true,
     )
+
+    test(dll_name + '_is_xp',
+        python,
+        args: [
+            files('ensure_xp_compatible.py'),
+            inject_dll,
+        ],
+        workdir: meson.current_source_dir(),
+    )
 endforeach
 
 gtest_proj = subproject('gtest', required: false, default_options: {'default_library': 'static'})
 gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
 gmock_dep = gtest_proj.get_variable('gmock_dep')
 
-test('tests', executable('tests_bin',
+test('unit tests', executable('tests_bin',
         sources: 'src/tests.cpp',
         link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
         dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
