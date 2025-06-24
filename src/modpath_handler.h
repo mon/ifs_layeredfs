@@ -15,6 +15,7 @@ using std::string;
 using std::vector;
 
 void init_modpath_handler(void);
+void modpath_debug_add_folder(const string &folder);
 void cache_mods(void);
 vector<string> available_mods();
 // mutates source string to be all lowercase

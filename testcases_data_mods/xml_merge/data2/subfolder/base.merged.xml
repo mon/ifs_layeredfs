@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<afplist>
+  <afp name="hare2">
+    <geo __type="u16" __count="3">20 25 30</geo>
+  </afp>
+</afplist>

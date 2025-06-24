@@ -584,13 +584,16 @@ void merge_xmls(HookFile &file) {
     auto cache_hasher = CacheHasher(out_hashed);
 
     cache_hasher.add(starting); // don't forget to take the input into account
+    log_info("Merging into %s", starting.c_str());
     for (auto &path : to_merge) {
+        log_info("  %s", path.c_str());
         cache_hasher.add(path);
     }
     cache_hasher.finish();
 
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
     if(cache_hasher.matches()) {
+        log_info("Merged XML up to date");
         file.mod_path = out;
         return;
     }
@@ -601,9 +604,7 @@ void merge_xmls(HookFile &file) {
         return;
     }
 
-    log_info("Merging into %s", starting.c_str());
     for (auto &path : to_merge) {
-        log_info("  %s", path.c_str());
         rapidxml::xml_document<> rapid_to_merge;
         auto merge_load_result = rapidxml_from_avs_filepath(path, rapid_to_merge, merged_xml);
         if (!merge_load_result) {

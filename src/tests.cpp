@@ -149,3 +149,50 @@ TEST(ImageFs, MD5DemanglingWorks) {
 
    avs_fs_umount_by_desc(desc);
 }
+
+TEST(Xml, MergingWorks) {
+   modpath_debug_add_folder("data2"); // also test data2 handling for good measure
+   auto f = hook_avs_fs_open("data2/subfolder/base.xml", avs_open_mode_read(), 420);
+   ASSERT_GT(f, 0);
+
+   rapidxml::xml_document<> xml_doc;
+   auto xml_text = avs_file_to_string(f, xml_doc);
+
+   avs_fs_close(f);
+
+   xml_doc.parse<rapidxml::parse_no_utf8>(xml_text);
+
+   auto node = xml_doc.first_node();
+   ASSERT_TRUE(node);
+   EXPECT_STREQ(node->name(), "afplist");
+
+
+   node = node->first_node();
+   ASSERT_TRUE(node);
+   EXPECT_STREQ(node->name(), "afp");
+
+   auto attr = node->first_attribute("name");
+   ASSERT_TRUE(attr);
+   EXPECT_STREQ(attr->value(), "hare");
+
+   auto geo = node->first_node("geo");
+   ASSERT_TRUE(geo);
+   EXPECT_STREQ(geo->value(), "5 10 15");
+
+
+   node = node->next_sibling();
+   ASSERT_TRUE(node);
+   EXPECT_STREQ(node->name(), "afp");
+
+   attr = node->first_attribute("name");
+   ASSERT_TRUE(attr);
+   EXPECT_STREQ(attr->value(), "hare2");
+
+   geo = node->first_node("geo");
+   ASSERT_TRUE(geo);
+   EXPECT_STREQ(geo->value(), "20 25 30");
+
+
+   node = node->next_sibling();
+   ASSERT_FALSE(node);
+}

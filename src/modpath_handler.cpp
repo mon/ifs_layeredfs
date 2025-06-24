@@ -81,7 +81,10 @@ void cache_mods(void) {
 static vector<string> game_folders;
 
 void init_modpath_handler(void) {
+    log_verbose("Top level folders:");
     for (auto folder : folders_in_folder(".")) {
+        log_verbose("  %s", folder.c_str());
+
         // data is the normal case we transparently handle
         if (!strcasecmp(folder.c_str(), "data")) {
             continue;
@@ -89,6 +92,10 @@ void init_modpath_handler(void) {
 
         game_folders.push_back(folder + "/");
     }
+}
+
+void modpath_debug_add_folder(const string &folder) {
+    game_folders.push_back(folder + "/");
 }
 
 optional<string> normalise_path(const string &_path) {

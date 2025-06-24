@@ -4,3 +4,4 @@ build64/
 dist/
 subprojects/googletest*
 subprojects/packagecache
+testcases_data_mods/_cache/
