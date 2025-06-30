@@ -341,7 +341,7 @@ property_t prop_from_file_path(string const&path) {
 
 char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
     auto prop_size = property_query_size(prop);
-    char* xml = allocator.allocate_string(NULL, prop_size);
+    char* xml = allocator.allocate_string(NULL, prop_size + 1);
 
     auto written = property_mem_write(prop, xml, prop_size);
     if (written > 0) {
