@@ -134,7 +134,10 @@ static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
         <vfs name="boot" fstype="fs" src="dev/nvram" dst="/dev/nvram" opt="vf=0,posix=1"/>
     </mounttable>
     </fs>
-    <log><level>misc</level></log>
+    <log>
+        <level>misc</level>
+        <output_delay __type="u16">0</output_delay>
+    </log>
     <sntp>
     <ea_on __type="bool">0</ea_on>
     <servers></servers>
@@ -154,10 +157,14 @@ LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo) {
         case DBG_PRINTEXCEPTION_C:
             break;
         default:
-            fprintf(stderr, "Unhandled exception %lX\n", ExceptionInfo->ExceptionRecord->ExceptionCode);
+            log_warning("Unhandled exception code 0x%lX at %p\n",
+                ExceptionInfo->ExceptionRecord->ExceptionCode,
+                ExceptionInfo->ExceptionRecord->ExceptionAddress
+            );
             break;
     }
 
     return EXCEPTION_CONTINUE_SEARCH;
 }
-}
+
+} // namespace avs_standalone

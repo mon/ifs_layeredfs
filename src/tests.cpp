@@ -1,3 +1,4 @@
+#include <fstream>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -6,6 +7,8 @@
 #include "imagefs.hpp"
 #include "avs_standalone.hpp"
 #include "modpath_handler.h"
+
+#include "3rd_party/rapidxml_print.hpp"
 
 using ::testing::Contains;
 using ::testing::Optional;
@@ -156,43 +159,68 @@ TEST(Xml, MergingWorks) {
    ASSERT_GT(f, 0);
 
    rapidxml::xml_document<> xml_doc;
-   auto xml_text = avs_file_to_string(f, xml_doc);
-
-   avs_fs_close(f);
-
-   xml_doc.parse<rapidxml::parse_no_utf8>(xml_text);
+   bool res = rapidxml_from_avs_file<rapidxml::parse_no_utf8>(f, xml_doc, xml_doc);
+   ASSERT_TRUE(res);
 
    auto node = xml_doc.first_node();
-   ASSERT_TRUE(node);
+   ASSERT_NE(node, nullptr);
    EXPECT_STREQ(node->name(), "afplist");
 
 
    node = node->first_node();
-   ASSERT_TRUE(node);
+   ASSERT_NE(node, nullptr);
    EXPECT_STREQ(node->name(), "afp");
 
    auto attr = node->first_attribute("name");
-   ASSERT_TRUE(attr);
+   ASSERT_NE(attr, nullptr);
    EXPECT_STREQ(attr->value(), "hare");
 
    auto geo = node->first_node("geo");
-   ASSERT_TRUE(geo);
+   ASSERT_NE(geo, nullptr);
    EXPECT_STREQ(geo->value(), "5 10 15");
 
 
    node = node->next_sibling();
-   ASSERT_TRUE(node);
+   ASSERT_NE(node, nullptr);
    EXPECT_STREQ(node->name(), "afp");
 
    attr = node->first_attribute("name");
-   ASSERT_TRUE(attr);
+   ASSERT_NE(attr, nullptr);
    EXPECT_STREQ(attr->value(), "hare2");
 
    geo = node->first_node("geo");
-   ASSERT_TRUE(geo);
+   ASSERT_NE(geo, nullptr);
    EXPECT_STREQ(geo->value(), "20 25 30");
 
 
    node = node->next_sibling();
-   ASSERT_FALSE(node);
+   ASSERT_EQ(node, nullptr);
+}
+
+TEST(Regression, BeatStreamAfpXml) {
+   // M:mounting /data2/graphic/psd_result.ifs to /afp22/data2/graphic/psd_result.ifs with type imagefs and args (null)
+   int mnt = hook_avs_fs_mount("/afp22/data2/graphic/psd_result.ifs", "/data2/graphic/psd_result.ifs", "imagefs", nullptr);
+   ASSERT_GT(mnt, 0);
+
+   auto f = hook_avs_fs_open("/afp22/data2/graphic/psd_result.ifs/afp/afplist.xml", avs_open_mode_read(), 420);
+   ASSERT_GT(f, 0);
+   rapidxml::xml_document<> xml_doc;
+   bool res = rapidxml_from_avs_file<rapidxml::parse_no_utf8>(f, xml_doc, xml_doc);
+   ASSERT_TRUE(res);
+
+   auto node = xml_doc.first_node();
+   ASSERT_NE(node, nullptr);
+   EXPECT_STREQ(node->name(), "afplist");
+
+   node = node->last_node();
+   ASSERT_NE(node, nullptr);
+   EXPECT_STREQ(node->name(), "afp");
+
+   auto attr = node->first_attribute("name");
+   ASSERT_NE(attr, nullptr);
+   EXPECT_STREQ(attr->value(), "hare");
+
+   auto geo = node->first_node("geo");
+   ASSERT_NE(geo, nullptr);
+   EXPECT_STREQ(geo->value(), "5 10 15");
 }

@@ -6,6 +6,8 @@
 #include <vector>
 using std::string;
 
+#include "log.hpp"
+
 #include "3rd_party/rapidxml.hpp"
 
 /*
@@ -237,4 +239,43 @@ static inline uint16_t avs_open_mode_read() {
     } else {
         return 0;
     }
+}
+
+// just used by rapidxml_from_avs_file
+
+bool is_binary_prop(AVS_FILE f);
+char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator);
+
+// parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
+template<int Flags = rapidxml::parse_declaration_node | rapidxml::parse_no_utf8>
+bool rapidxml_from_avs_file(
+    AVS_FILE f,
+    rapidxml::xml_document<>& doc,
+    rapidxml::xml_document<>& doc_to_allocate_with
+) {
+    // if it's not binary, don't even bother parsing with avs
+    char* xml = NULL;
+    if (is_binary_prop(f)) {
+        auto prop = prop_from_file_handle(f);
+        if (!prop)
+            return false;
+
+        xml = prop_to_xml_string(prop, doc_to_allocate_with);
+        prop_free(prop);
+    }
+    else {
+        xml = avs_file_to_string(f, doc_to_allocate_with);
+    }
+    avs_fs_close(f);
+
+    try {
+        doc.parse<Flags>(xml);
+    } catch (const rapidxml::parse_error& e) {
+        log_warning("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
+        auto f = fopen("debug.xml", "wb");
+        fwrite(xml, strlen(xml), 1, f);
+        return false;
+    }
+
+    return true;
 }

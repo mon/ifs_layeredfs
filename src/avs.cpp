@@ -394,30 +394,7 @@ bool rapidxml_from_avs_filepath(
         return false;
     }
 
-    // if it's not binary, don't even bother parsing with avs
-    char* xml = NULL;
-    if (is_binary_prop(f)) {
-        auto prop = prop_from_file_handle(f);
-        if (!prop)
-            return false;
-
-        xml = prop_to_xml_string(prop, doc_to_allocate_with);
-        prop_free(prop);
-    }
-    else {
-        xml = avs_file_to_string(f, doc_to_allocate_with);
-    }
-    avs_fs_close(f);
-
-    try {
-        // parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
-        doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_utf8>(xml);
-    } catch (const rapidxml::parse_error& e) {
-        log_warning("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
-        return false;
-    }
-
-    return true;
+    return rapidxml_from_avs_file(f, doc, doc_to_allocate_with);
 }
 
 // the given property MUST have been created with an 8-byte aligned memory
