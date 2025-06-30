@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <winternl.h>
 
 #include "hook.h"
 
@@ -439,6 +440,18 @@ unsigned int hook_pkfs_open(const char *name) {
     return ret;
 }
 
+static void dump_loaded_dll_info() {
+    log_verbose("DLLs loaded:");
+    auto peb = NtCurrentTeb()->ProcessEnvironmentBlock;
+    auto head = peb->Ldr->InMemoryOrderModuleList.Flink;
+    bool first = true;
+    for(auto mod = head; mod && (first || mod != head); mod = mod->Flink) {
+        auto ldr = reinterpret_cast<PLDR_DATA_TABLE_ENTRY>(mod);
+        log_verbose("  %.*ls", ldr->FullDllName.Length, ldr->FullDllName.Buffer);
+        first = false;
+    }
+}
+
 extern "C" {
     __declspec(dllexport) int init(void) {
         // all logs up until init_avs succeeds will go to a file for debugging purposes
@@ -447,11 +460,13 @@ extern "C" {
         load_config();
 
         if (MH_Initialize() != MH_OK) {
+            dump_loaded_dll_info();
             log_fatal("Couldn't initialize MinHook");
             return 1;
         }
 
         if (!init_avs()) {
+            dump_loaded_dll_info();
             log_fatal("Couldn't find ifs operations in dll. Send avs dll (libavs-winxx.dll or avs2-core.dll) to mon.");
             return 2;
         }
@@ -474,6 +489,8 @@ extern "C" {
 #ifdef UNPAK
         log_info(".pak dumper mode enabled");
 #endif
+
+        dump_loaded_dll_info();
 
         init_modpath_handler();
         cache_mods();
