@@ -574,9 +574,15 @@ void merge_xmls(HookFile &file) {
     auto merge_path = file.norm_path;
     string_replace(merge_path, ".xml", ".merged.xml");
     auto to_merge = find_all_modfile(merge_path);
-    // nothing to do...
-    if (to_merge.size() == 0)
-        return;
+    if (to_merge.size() == 0) {
+        // handle merging XML inside .ifs
+        string_replace(merge_path, ".ifs", "_ifs");
+        to_merge = find_all_modfile(merge_path);
+
+        // nothing to do...
+        if (to_merge.size() == 0)
+            return;
+    }
 
     auto starting = file.get_path_to_open();
     out = CACHE_FOLDER + "/" + file.norm_path;
