@@ -3,6 +3,8 @@
 #include "hook.h"
 #include "utils.hpp"
 
+extern "C" __declspec(dllexport) const char __layeredfs_version[] = VER_STRING;
+
 HMODULE my_module;
 char dll_filename[MAX_PATH];
 uint64_t dll_time;
