@@ -1,369 +1,369 @@
 #define FOREACH_D3D_FUNC(X) \
-	X("1", GlmfBeginGlsBlock) \
-	X("2", GlmfCloseMetaFile) \
-	X("3", GlmfEndGlsBlock) \
-	X("4", GlmfEndPlayback) \
-	X("5", GlmfInitPlayback) \
-	X("6", GlmfPlayGlsRecord) \
-	X("7", glAccum) \
-	X("8", glAlphaFunc) \
-	X("9", glAreTexturesResident) \
-	X("10", glArrayElement) \
-	X("11", glBegin) \
-	X("12", glBindTexture) \
-	X("13", glBitmap) \
-	X("14", glBlendFunc) \
-	X("15", glCallList) \
-	X("16", glCallLists) \
-	X("17", glClear) \
-	X("18", glClearAccum) \
-	X("19", glClearColor) \
-	X("20", glClearDepth) \
-	X("21", glClearIndex) \
-	X("22", glClearStencil) \
-	X("23", glClipPlane) \
-	X("24", glColor3b) \
-	X("25", glColor3bv) \
-	X("26", glColor3d) \
-	X("27", glColor3dv) \
-	X("28", glColor3f) \
-	X("29", glColor3fv) \
-	X("30", glColor3i) \
-	X("31", glColor3iv) \
-	X("32", glColor3s) \
-	X("33", glColor3sv) \
-	X("34", glColor3ub) \
-	X("35", glColor3ubv) \
-	X("36", glColor3ui) \
-	X("37", glColor3uiv) \
-	X("38", glColor3us) \
-	X("39", glColor3usv) \
-	X("40", glColor4b) \
-	X("41", glColor4bv) \
-	X("42", glColor4d) \
-	X("43", glColor4dv) \
-	X("44", glColor4f) \
-	X("45", glColor4fv) \
-	X("46", glColor4i) \
-	X("47", glColor4iv) \
-	X("48", glColor4s) \
-	X("49", glColor4sv) \
-	X("50", glColor4ub) \
-	X("51", glColor4ubv) \
-	X("52", glColor4ui) \
-	X("53", glColor4uiv) \
-	X("54", glColor4us) \
-	X("55", glColor4usv) \
-	X("56", glColorMask) \
-	X("57", glColorMaterial) \
-	X("58", glColorPointer) \
-	X("59", glCopyPixels) \
-	X("60", glCopyTexImage1D) \
-	X("61", glCopyTexImage2D) \
-	X("62", glCopyTexSubImage1D) \
-	X("63", glCopyTexSubImage2D) \
-	X("64", glCullFace) \
-	X("65", glDebugEntry) \
-	X("66", glDeleteLists) \
-	X("67", glDeleteTextures) \
-	X("68", glDepthFunc) \
-	X("69", glDepthMask) \
-	X("70", glDepthRange) \
-	X("71", glDisable) \
-	X("72", glDisableClientState) \
-	X("73", glDrawArrays) \
-	X("74", glDrawBuffer) \
-	X("75", glDrawElements) \
-	X("76", glDrawPixels) \
-	X("77", glEdgeFlag) \
-	X("78", glEdgeFlagPointer) \
-	X("79", glEdgeFlagv) \
-	X("80", glEnable) \
-	X("81", glEnableClientState) \
-	X("82", glEnd) \
-	X("83", glEndList) \
-	X("84", glEvalCoord1d) \
-	X("85", glEvalCoord1dv) \
-	X("86", glEvalCoord1f) \
-	X("87", glEvalCoord1fv) \
-	X("88", glEvalCoord2d) \
-	X("89", glEvalCoord2dv) \
-	X("90", glEvalCoord2f) \
-	X("91", glEvalCoord2fv) \
-	X("92", glEvalMesh1) \
-	X("93", glEvalMesh2) \
-	X("94", glEvalPoint1) \
-	X("95", glEvalPoint2) \
-	X("96", glFeedbackBuffer) \
-	X("97", glFinish) \
-	X("98", glFlush) \
-	X("99", glFogf) \
-	X("100", glFogfv) \
-	X("101", glFogi) \
-	X("102", glFogiv) \
-	X("103", glFrontFace) \
-	X("104", glFrustum) \
-	X("105", glGenLists) \
-	X("106", glGenTextures) \
-	X("107", glGetBooleanv) \
-	X("108", glGetClipPlane) \
-	X("109", glGetDoublev) \
-	X("110", glGetError) \
-	X("111", glGetFloatv) \
-	X("112", glGetIntegerv) \
-	X("113", glGetLightfv) \
-	X("114", glGetLightiv) \
-	X("115", glGetMapdv) \
-	X("116", glGetMapfv) \
-	X("117", glGetMapiv) \
-	X("118", glGetMaterialfv) \
-	X("119", glGetMaterialiv) \
-	X("120", glGetPixelMapfv) \
-	X("121", glGetPixelMapuiv) \
-	X("122", glGetPixelMapusv) \
-	X("123", glGetPointerv) \
-	X("124", glGetPolygonStipple) \
-	X("125", glGetString) \
-	X("126", glGetTexEnvfv) \
-	X("127", glGetTexEnviv) \
-	X("128", glGetTexGendv) \
-	X("129", glGetTexGenfv) \
-	X("130", glGetTexGeniv) \
-	X("131", glGetTexImage) \
-	X("132", glGetTexLevelParameterfv) \
-	X("133", glGetTexLevelParameteriv) \
-	X("134", glGetTexParameterfv) \
-	X("135", glGetTexParameteriv) \
-	X("136", glHint) \
-	X("137", glIndexMask) \
-	X("138", glIndexPointer) \
-	X("139", glIndexd) \
-	X("140", glIndexdv) \
-	X("141", glIndexf) \
-	X("142", glIndexfv) \
-	X("143", glIndexi) \
-	X("144", glIndexiv) \
-	X("145", glIndexs) \
-	X("146", glIndexsv) \
-	X("147", glIndexub) \
-	X("148", glIndexubv) \
-	X("149", glInitNames) \
-	X("150", glInterleavedArrays) \
-	X("151", glIsEnabled) \
-	X("152", glIsList) \
-	X("153", glIsTexture) \
-	X("154", glLightModelf) \
-	X("155", glLightModelfv) \
-	X("156", glLightModeli) \
-	X("157", glLightModeliv) \
-	X("158", glLightf) \
-	X("159", glLightfv) \
-	X("160", glLighti) \
-	X("161", glLightiv) \
-	X("162", glLineStipple) \
-	X("163", glLineWidth) \
-	X("164", glListBase) \
-	X("165", glLoadIdentity) \
-	X("166", glLoadMatrixd) \
-	X("167", glLoadMatrixf) \
-	X("168", glLoadName) \
-	X("169", glLogicOp) \
-	X("170", glMap1d) \
-	X("171", glMap1f) \
-	X("172", glMap2d) \
-	X("173", glMap2f) \
-	X("174", glMapGrid1d) \
-	X("175", glMapGrid1f) \
-	X("176", glMapGrid2d) \
-	X("177", glMapGrid2f) \
-	X("178", glMaterialf) \
-	X("179", glMaterialfv) \
-	X("180", glMateriali) \
-	X("181", glMaterialiv) \
-	X("182", glMatrixMode) \
-	X("183", glMultMatrixd) \
-	X("184", glMultMatrixf) \
-	X("185", glNewList) \
-	X("186", glNormal3b) \
-	X("187", glNormal3bv) \
-	X("188", glNormal3d) \
-	X("189", glNormal3dv) \
-	X("190", glNormal3f) \
-	X("191", glNormal3fv) \
-	X("192", glNormal3i) \
-	X("193", glNormal3iv) \
-	X("194", glNormal3s) \
-	X("195", glNormal3sv) \
-	X("196", glNormalPointer) \
-	X("197", glOrtho) \
-	X("198", glPassThrough) \
-	X("199", glPixelMapfv) \
-	X("200", glPixelMapuiv) \
-	X("201", glPixelMapusv) \
-	X("202", glPixelStoref) \
-	X("203", glPixelStorei) \
-	X("204", glPixelTransferf) \
-	X("205", glPixelTransferi) \
-	X("206", glPixelZoom) \
-	X("207", glPointSize) \
-	X("208", glPolygonMode) \
-	X("209", glPolygonOffset) \
-	X("210", glPolygonStipple) \
-	X("211", glPopAttrib) \
-	X("212", glPopClientAttrib) \
-	X("213", glPopMatrix) \
-	X("214", glPopName) \
-	X("215", glPrioritizeTextures) \
-	X("216", glPushAttrib) \
-	X("217", glPushClientAttrib) \
-	X("218", glPushMatrix) \
-	X("219", glPushName) \
-	X("220", glRasterPos2d) \
-	X("221", glRasterPos2dv) \
-	X("222", glRasterPos2f) \
-	X("223", glRasterPos2fv) \
-	X("224", glRasterPos2i) \
-	X("225", glRasterPos2iv) \
-	X("226", glRasterPos2s) \
-	X("227", glRasterPos2sv) \
-	X("228", glRasterPos3d) \
-	X("229", glRasterPos3dv) \
-	X("230", glRasterPos3f) \
-	X("231", glRasterPos3fv) \
-	X("232", glRasterPos3i) \
-	X("233", glRasterPos3iv) \
-	X("234", glRasterPos3s) \
-	X("235", glRasterPos3sv) \
-	X("236", glRasterPos4d) \
-	X("237", glRasterPos4dv) \
-	X("238", glRasterPos4f) \
-	X("239", glRasterPos4fv) \
-	X("240", glRasterPos4i) \
-	X("241", glRasterPos4iv) \
-	X("242", glRasterPos4s) \
-	X("243", glRasterPos4sv) \
-	X("244", glReadBuffer) \
-	X("245", glReadPixels) \
-	X("246", glRectd) \
-	X("247", glRectdv) \
-	X("248", glRectf) \
-	X("249", glRectfv) \
-	X("250", glRecti) \
-	X("251", glRectiv) \
-	X("252", glRects) \
-	X("253", glRectsv) \
-	X("254", glRenderMode) \
-	X("255", glRotated) \
-	X("256", glRotatef) \
-	X("257", glScaled) \
-	X("258", glScalef) \
-	X("259", glScissor) \
-	X("260", glSelectBuffer) \
-	X("261", glShadeModel) \
-	X("262", glStencilFunc) \
-	X("263", glStencilMask) \
-	X("264", glStencilOp) \
-	X("265", glTexCoord1d) \
-	X("266", glTexCoord1dv) \
-	X("267", glTexCoord1f) \
-	X("268", glTexCoord1fv) \
-	X("269", glTexCoord1i) \
-	X("270", glTexCoord1iv) \
-	X("271", glTexCoord1s) \
-	X("272", glTexCoord1sv) \
-	X("273", glTexCoord2d) \
-	X("274", glTexCoord2dv) \
-	X("275", glTexCoord2f) \
-	X("276", glTexCoord2fv) \
-	X("277", glTexCoord2i) \
-	X("278", glTexCoord2iv) \
-	X("279", glTexCoord2s) \
-	X("280", glTexCoord2sv) \
-	X("281", glTexCoord3d) \
-	X("282", glTexCoord3dv) \
-	X("283", glTexCoord3f) \
-	X("284", glTexCoord3fv) \
-	X("285", glTexCoord3i) \
-	X("286", glTexCoord3iv) \
-	X("287", glTexCoord3s) \
-	X("288", glTexCoord3sv) \
-	X("289", glTexCoord4d) \
-	X("290", glTexCoord4dv) \
-	X("291", glTexCoord4f) \
-	X("292", glTexCoord4fv) \
-	X("293", glTexCoord4i) \
-	X("294", glTexCoord4iv) \
-	X("295", glTexCoord4s) \
-	X("296", glTexCoord4sv) \
-	X("297", glTexCoordPointer) \
-	X("298", glTexEnvf) \
-	X("299", glTexEnvfv) \
-	X("300", glTexEnvi) \
-	X("301", glTexEnviv) \
-	X("302", glTexGend) \
-	X("303", glTexGendv) \
-	X("304", glTexGenf) \
-	X("305", glTexGenfv) \
-	X("306", glTexGeni) \
-	X("307", glTexGeniv) \
-	X("308", glTexImage1D) \
-	X("309", glTexImage2D) \
-	X("310", glTexParameterf) \
-	X("311", glTexParameterfv) \
-	X("312", glTexParameteri) \
-	X("313", glTexParameteriv) \
-	X("314", glTexSubImage1D) \
-	X("315", glTexSubImage2D) \
-	X("316", glTranslated) \
-	X("317", glTranslatef) \
-	X("318", glVertex2d) \
-	X("319", glVertex2dv) \
-	X("320", glVertex2f) \
-	X("321", glVertex2fv) \
-	X("322", glVertex2i) \
-	X("323", glVertex2iv) \
-	X("324", glVertex2s) \
-	X("325", glVertex2sv) \
-	X("326", glVertex3d) \
-	X("327", glVertex3dv) \
-	X("328", glVertex3f) \
-	X("329", glVertex3fv) \
-	X("330", glVertex3i) \
-	X("331", glVertex3iv) \
-	X("332", glVertex3s) \
-	X("333", glVertex3sv) \
-	X("334", glVertex4d) \
-	X("335", glVertex4dv) \
-	X("336", glVertex4f) \
-	X("337", glVertex4fv) \
-	X("338", glVertex4i) \
-	X("339", glVertex4iv) \
-	X("340", glVertex4s) \
-	X("341", glVertex4sv) \
-	X("342", glVertexPointer) \
-	X("343", glViewport) \
-	X("344", wglChoosePixelFormat) \
-	X("345", wglCopyContext) \
-	X("346", wglCreateContext) \
-	X("347", wglCreateLayerContext) \
-	X("348", wglDeleteContext) \
-	X("349", wglDescribeLayerPlane) \
-	X("350", wglDescribePixelFormat) \
-	X("351", wglGetCurrentContext) \
-	X("352", wglGetCurrentDC) \
-	X("353", wglGetDefaultProcAddress) \
-	X("354", wglGetLayerPaletteEntries) \
-	X("355", wglGetPixelFormat) \
-	X("356", wglGetProcAddress) \
-	X("357", wglMakeCurrent) \
-	X("358", wglRealizeLayerPalette) \
-	X("359", wglSetLayerPaletteEntries) \
-	X("360", wglSetPixelFormat) \
-	X("361", wglShareLists) \
-	X("362", wglSwapBuffers) \
-	X("363", wglSwapLayerBuffers) \
-	X("364", wglSwapMultipleBuffers) \
-	X("365", wglUseFontBitmapsA) \
-	X("366", wglUseFontBitmapsW) \
-	X("367", wglUseFontOutlinesA) \
-	X("368", wglUseFontOutlinesW)
+	X(1, "", GlmfBeginGlsBlock) \
+	X(2, "", GlmfCloseMetaFile) \
+	X(3, "", GlmfEndGlsBlock) \
+	X(4, "", GlmfEndPlayback) \
+	X(5, "", GlmfInitPlayback) \
+	X(6, "", GlmfPlayGlsRecord) \
+	X(7, "", glAccum) \
+	X(8, "", glAlphaFunc) \
+	X(9, "", glAreTexturesResident) \
+	X(10, "", glArrayElement) \
+	X(11, "", glBegin) \
+	X(12, "", glBindTexture) \
+	X(13, "", glBitmap) \
+	X(14, "", glBlendFunc) \
+	X(15, "", glCallList) \
+	X(16, "", glCallLists) \
+	X(17, "", glClear) \
+	X(18, "", glClearAccum) \
+	X(19, "", glClearColor) \
+	X(20, "", glClearDepth) \
+	X(21, "", glClearIndex) \
+	X(22, "", glClearStencil) \
+	X(23, "", glClipPlane) \
+	X(24, "", glColor3b) \
+	X(25, "", glColor3bv) \
+	X(26, "", glColor3d) \
+	X(27, "", glColor3dv) \
+	X(28, "", glColor3f) \
+	X(29, "", glColor3fv) \
+	X(30, "", glColor3i) \
+	X(31, "", glColor3iv) \
+	X(32, "", glColor3s) \
+	X(33, "", glColor3sv) \
+	X(34, "", glColor3ub) \
+	X(35, "", glColor3ubv) \
+	X(36, "", glColor3ui) \
+	X(37, "", glColor3uiv) \
+	X(38, "", glColor3us) \
+	X(39, "", glColor3usv) \
+	X(40, "", glColor4b) \
+	X(41, "", glColor4bv) \
+	X(42, "", glColor4d) \
+	X(43, "", glColor4dv) \
+	X(44, "", glColor4f) \
+	X(45, "", glColor4fv) \
+	X(46, "", glColor4i) \
+	X(47, "", glColor4iv) \
+	X(48, "", glColor4s) \
+	X(49, "", glColor4sv) \
+	X(50, "", glColor4ub) \
+	X(51, "", glColor4ubv) \
+	X(52, "", glColor4ui) \
+	X(53, "", glColor4uiv) \
+	X(54, "", glColor4us) \
+	X(55, "", glColor4usv) \
+	X(56, "", glColorMask) \
+	X(57, "", glColorMaterial) \
+	X(58, "", glColorPointer) \
+	X(59, "", glCopyPixels) \
+	X(60, "", glCopyTexImage1D) \
+	X(61, "", glCopyTexImage2D) \
+	X(62, "", glCopyTexSubImage1D) \
+	X(63, "", glCopyTexSubImage2D) \
+	X(64, "", glCullFace) \
+	X(65, "", glDebugEntry) \
+	X(66, "", glDeleteLists) \
+	X(67, "", glDeleteTextures) \
+	X(68, "", glDepthFunc) \
+	X(69, "", glDepthMask) \
+	X(70, "", glDepthRange) \
+	X(71, "", glDisable) \
+	X(72, "", glDisableClientState) \
+	X(73, "", glDrawArrays) \
+	X(74, "", glDrawBuffer) \
+	X(75, "", glDrawElements) \
+	X(76, "", glDrawPixels) \
+	X(77, "", glEdgeFlag) \
+	X(78, "", glEdgeFlagPointer) \
+	X(79, "", glEdgeFlagv) \
+	X(80, "", glEnable) \
+	X(81, "", glEnableClientState) \
+	X(82, "", glEnd) \
+	X(83, "", glEndList) \
+	X(84, "", glEvalCoord1d) \
+	X(85, "", glEvalCoord1dv) \
+	X(86, "", glEvalCoord1f) \
+	X(87, "", glEvalCoord1fv) \
+	X(88, "", glEvalCoord2d) \
+	X(89, "", glEvalCoord2dv) \
+	X(90, "", glEvalCoord2f) \
+	X(91, "", glEvalCoord2fv) \
+	X(92, "", glEvalMesh1) \
+	X(93, "", glEvalMesh2) \
+	X(94, "", glEvalPoint1) \
+	X(95, "", glEvalPoint2) \
+	X(96, "", glFeedbackBuffer) \
+	X(97, "", glFinish) \
+	X(98, "", glFlush) \
+	X(99, "", glFogf) \
+	X(100, "", glFogfv) \
+	X(101, "", glFogi) \
+	X(102, "", glFogiv) \
+	X(103, "", glFrontFace) \
+	X(104, "", glFrustum) \
+	X(105, "", glGenLists) \
+	X(106, "", glGenTextures) \
+	X(107, "", glGetBooleanv) \
+	X(108, "", glGetClipPlane) \
+	X(109, "", glGetDoublev) \
+	X(110, "", glGetError) \
+	X(111, "", glGetFloatv) \
+	X(112, "", glGetIntegerv) \
+	X(113, "", glGetLightfv) \
+	X(114, "", glGetLightiv) \
+	X(115, "", glGetMapdv) \
+	X(116, "", glGetMapfv) \
+	X(117, "", glGetMapiv) \
+	X(118, "", glGetMaterialfv) \
+	X(119, "", glGetMaterialiv) \
+	X(120, "", glGetPixelMapfv) \
+	X(121, "", glGetPixelMapuiv) \
+	X(122, "", glGetPixelMapusv) \
+	X(123, "", glGetPointerv) \
+	X(124, "", glGetPolygonStipple) \
+	X(125, "", glGetString) \
+	X(126, "", glGetTexEnvfv) \
+	X(127, "", glGetTexEnviv) \
+	X(128, "", glGetTexGendv) \
+	X(129, "", glGetTexGenfv) \
+	X(130, "", glGetTexGeniv) \
+	X(131, "", glGetTexImage) \
+	X(132, "", glGetTexLevelParameterfv) \
+	X(133, "", glGetTexLevelParameteriv) \
+	X(134, "", glGetTexParameterfv) \
+	X(135, "", glGetTexParameteriv) \
+	X(136, "", glHint) \
+	X(137, "", glIndexMask) \
+	X(138, "", glIndexPointer) \
+	X(139, "", glIndexd) \
+	X(140, "", glIndexdv) \
+	X(141, "", glIndexf) \
+	X(142, "", glIndexfv) \
+	X(143, "", glIndexi) \
+	X(144, "", glIndexiv) \
+	X(145, "", glIndexs) \
+	X(146, "", glIndexsv) \
+	X(147, "", glIndexub) \
+	X(148, "", glIndexubv) \
+	X(149, "", glInitNames) \
+	X(150, "", glInterleavedArrays) \
+	X(151, "", glIsEnabled) \
+	X(152, "", glIsList) \
+	X(153, "", glIsTexture) \
+	X(154, "", glLightModelf) \
+	X(155, "", glLightModelfv) \
+	X(156, "", glLightModeli) \
+	X(157, "", glLightModeliv) \
+	X(158, "", glLightf) \
+	X(159, "", glLightfv) \
+	X(160, "", glLighti) \
+	X(161, "", glLightiv) \
+	X(162, "", glLineStipple) \
+	X(163, "", glLineWidth) \
+	X(164, "", glListBase) \
+	X(165, "", glLoadIdentity) \
+	X(166, "", glLoadMatrixd) \
+	X(167, "", glLoadMatrixf) \
+	X(168, "", glLoadName) \
+	X(169, "", glLogicOp) \
+	X(170, "", glMap1d) \
+	X(171, "", glMap1f) \
+	X(172, "", glMap2d) \
+	X(173, "", glMap2f) \
+	X(174, "", glMapGrid1d) \
+	X(175, "", glMapGrid1f) \
+	X(176, "", glMapGrid2d) \
+	X(177, "", glMapGrid2f) \
+	X(178, "", glMaterialf) \
+	X(179, "", glMaterialfv) \
+	X(180, "", glMateriali) \
+	X(181, "", glMaterialiv) \
+	X(182, "", glMatrixMode) \
+	X(183, "", glMultMatrixd) \
+	X(184, "", glMultMatrixf) \
+	X(185, "", glNewList) \
+	X(186, "", glNormal3b) \
+	X(187, "", glNormal3bv) \
+	X(188, "", glNormal3d) \
+	X(189, "", glNormal3dv) \
+	X(190, "", glNormal3f) \
+	X(191, "", glNormal3fv) \
+	X(192, "", glNormal3i) \
+	X(193, "", glNormal3iv) \
+	X(194, "", glNormal3s) \
+	X(195, "", glNormal3sv) \
+	X(196, "", glNormalPointer) \
+	X(197, "", glOrtho) \
+	X(198, "", glPassThrough) \
+	X(199, "", glPixelMapfv) \
+	X(200, "", glPixelMapuiv) \
+	X(201, "", glPixelMapusv) \
+	X(202, "", glPixelStoref) \
+	X(203, "", glPixelStorei) \
+	X(204, "", glPixelTransferf) \
+	X(205, "", glPixelTransferi) \
+	X(206, "", glPixelZoom) \
+	X(207, "", glPointSize) \
+	X(208, "", glPolygonMode) \
+	X(209, "", glPolygonOffset) \
+	X(210, "", glPolygonStipple) \
+	X(211, "", glPopAttrib) \
+	X(212, "", glPopClientAttrib) \
+	X(213, "", glPopMatrix) \
+	X(214, "", glPopName) \
+	X(215, "", glPrioritizeTextures) \
+	X(216, "", glPushAttrib) \
+	X(217, "", glPushClientAttrib) \
+	X(218, "", glPushMatrix) \
+	X(219, "", glPushName) \
+	X(220, "", glRasterPos2d) \
+	X(221, "", glRasterPos2dv) \
+	X(222, "", glRasterPos2f) \
+	X(223, "", glRasterPos2fv) \
+	X(224, "", glRasterPos2i) \
+	X(225, "", glRasterPos2iv) \
+	X(226, "", glRasterPos2s) \
+	X(227, "", glRasterPos2sv) \
+	X(228, "", glRasterPos3d) \
+	X(229, "", glRasterPos3dv) \
+	X(230, "", glRasterPos3f) \
+	X(231, "", glRasterPos3fv) \
+	X(232, "", glRasterPos3i) \
+	X(233, "", glRasterPos3iv) \
+	X(234, "", glRasterPos3s) \
+	X(235, "", glRasterPos3sv) \
+	X(236, "", glRasterPos4d) \
+	X(237, "", glRasterPos4dv) \
+	X(238, "", glRasterPos4f) \
+	X(239, "", glRasterPos4fv) \
+	X(240, "", glRasterPos4i) \
+	X(241, "", glRasterPos4iv) \
+	X(242, "", glRasterPos4s) \
+	X(243, "", glRasterPos4sv) \
+	X(244, "", glReadBuffer) \
+	X(245, "", glReadPixels) \
+	X(246, "", glRectd) \
+	X(247, "", glRectdv) \
+	X(248, "", glRectf) \
+	X(249, "", glRectfv) \
+	X(250, "", glRecti) \
+	X(251, "", glRectiv) \
+	X(252, "", glRects) \
+	X(253, "", glRectsv) \
+	X(254, "", glRenderMode) \
+	X(255, "", glRotated) \
+	X(256, "", glRotatef) \
+	X(257, "", glScaled) \
+	X(258, "", glScalef) \
+	X(259, "", glScissor) \
+	X(260, "", glSelectBuffer) \
+	X(261, "", glShadeModel) \
+	X(262, "", glStencilFunc) \
+	X(263, "", glStencilMask) \
+	X(264, "", glStencilOp) \
+	X(265, "", glTexCoord1d) \
+	X(266, "", glTexCoord1dv) \
+	X(267, "", glTexCoord1f) \
+	X(268, "", glTexCoord1fv) \
+	X(269, "", glTexCoord1i) \
+	X(270, "", glTexCoord1iv) \
+	X(271, "", glTexCoord1s) \
+	X(272, "", glTexCoord1sv) \
+	X(273, "", glTexCoord2d) \
+	X(274, "", glTexCoord2dv) \
+	X(275, "", glTexCoord2f) \
+	X(276, "", glTexCoord2fv) \
+	X(277, "", glTexCoord2i) \
+	X(278, "", glTexCoord2iv) \
+	X(279, "", glTexCoord2s) \
+	X(280, "", glTexCoord2sv) \
+	X(281, "", glTexCoord3d) \
+	X(282, "", glTexCoord3dv) \
+	X(283, "", glTexCoord3f) \
+	X(284, "", glTexCoord3fv) \
+	X(285, "", glTexCoord3i) \
+	X(286, "", glTexCoord3iv) \
+	X(287, "", glTexCoord3s) \
+	X(288, "", glTexCoord3sv) \
+	X(289, "", glTexCoord4d) \
+	X(290, "", glTexCoord4dv) \
+	X(291, "", glTexCoord4f) \
+	X(292, "", glTexCoord4fv) \
+	X(293, "", glTexCoord4i) \
+	X(294, "", glTexCoord4iv) \
+	X(295, "", glTexCoord4s) \
+	X(296, "", glTexCoord4sv) \
+	X(297, "", glTexCoordPointer) \
+	X(298, "", glTexEnvf) \
+	X(299, "", glTexEnvfv) \
+	X(300, "", glTexEnvi) \
+	X(301, "", glTexEnviv) \
+	X(302, "", glTexGend) \
+	X(303, "", glTexGendv) \
+	X(304, "", glTexGenf) \
+	X(305, "", glTexGenfv) \
+	X(306, "", glTexGeni) \
+	X(307, "", glTexGeniv) \
+	X(308, "", glTexImage1D) \
+	X(309, "", glTexImage2D) \
+	X(310, "", glTexParameterf) \
+	X(311, "", glTexParameterfv) \
+	X(312, "", glTexParameteri) \
+	X(313, "", glTexParameteriv) \
+	X(314, "", glTexSubImage1D) \
+	X(315, "", glTexSubImage2D) \
+	X(316, "", glTranslated) \
+	X(317, "", glTranslatef) \
+	X(318, "", glVertex2d) \
+	X(319, "", glVertex2dv) \
+	X(320, "", glVertex2f) \
+	X(321, "", glVertex2fv) \
+	X(322, "", glVertex2i) \
+	X(323, "", glVertex2iv) \
+	X(324, "", glVertex2s) \
+	X(325, "", glVertex2sv) \
+	X(326, "", glVertex3d) \
+	X(327, "", glVertex3dv) \
+	X(328, "", glVertex3f) \
+	X(329, "", glVertex3fv) \
+	X(330, "", glVertex3i) \
+	X(331, "", glVertex3iv) \
+	X(332, "", glVertex3s) \
+	X(333, "", glVertex3sv) \
+	X(334, "", glVertex4d) \
+	X(335, "", glVertex4dv) \
+	X(336, "", glVertex4f) \
+	X(337, "", glVertex4fv) \
+	X(338, "", glVertex4i) \
+	X(339, "", glVertex4iv) \
+	X(340, "", glVertex4s) \
+	X(341, "", glVertex4sv) \
+	X(342, "", glVertexPointer) \
+	X(343, "", glViewport) \
+	X(344, "", wglChoosePixelFormat) \
+	X(345, "", wglCopyContext) \
+	X(346, "", wglCreateContext) \
+	X(347, "", wglCreateLayerContext) \
+	X(348, "", wglDeleteContext) \
+	X(349, "", wglDescribeLayerPlane) \
+	X(350, "", wglDescribePixelFormat) \
+	X(351, "", wglGetCurrentContext) \
+	X(352, "", wglGetCurrentDC) \
+	X(353, "", wglGetDefaultProcAddress) \
+	X(354, "", wglGetLayerPaletteEntries) \
+	X(355, "", wglGetPixelFormat) \
+	X(356, "", wglGetProcAddress) \
+	X(357, "", wglMakeCurrent) \
+	X(358, "", wglRealizeLayerPalette) \
+	X(359, "", wglSetLayerPaletteEntries) \
+	X(360, "", wglSetPixelFormat) \
+	X(361, "", wglShareLists) \
+	X(362, "", wglSwapBuffers) \
+	X(363, "", wglSwapLayerBuffers) \
+	X(364, "", wglSwapMultipleBuffers) \
+	X(365, "", wglUseFontBitmapsA) \
+	X(366, "", wglUseFontBitmapsW) \
+	X(367, "", wglUseFontOutlinesA) \
+	X(368, "", wglUseFontOutlinesW)

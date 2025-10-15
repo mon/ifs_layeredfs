@@ -1,12 +1,15 @@
 EXPORTS
-    __ord16 @16,NONAME
-    __ord17 @17,NONAME
-    __ord18 @18,NONAME
-    __ord19 @19,NONAME
+    ; These are used by windows internals, don't hook them.
+    ; Specifically, @17 is called when "Disable fullscreen optimizations" is checked,
+    ; and this is done with the loader lock held, so the real system DLL loading fails
+    __ord16 = "C:\Windows\System32\d3d9.#16" @16,NONAME
+    __ord17 = "C:\Windows\System32\d3d9.#17" @17,NONAME
+    __ord18 = "C:\Windows\System32\d3d9.#18" @18,NONAME
+    __ord19 = "C:\Windows\System32\d3d9.#19" @19,NONAME
+    __ord22 = "C:\Windows\System32\d3d9.#22" @22,NONAME
+    __ord23 = "C:\Windows\System32\d3d9.#23" @23,NONAME
     Direct3DCreate9On12 @20
     Direct3DCreate9On12Ex @21
-    __ord22 @22,NONAME
-    __ord23 @23,NONAME
     Direct3DShaderValidatorCreate9 @24
     PSGPError @25
     PSGPSampleTexture @26

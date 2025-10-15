@@ -4,11 +4,12 @@
 // to name our functions identically to the real ones, which actually collides
 // with the real ones if we include <windows.h>. So instead, include these
 // lesser-used actual imports
+#include <errhandlingapi.h>
 #include <libloaderapi.h>
 #include <sysinfoapi.h>
 
 #define DLL_TO_HOOK "ifs_hook.dll"
-//#define DO_LOG
+// #define DO_LOG
 
 // leave a bunch of room in the string so aspiring modders can just hex edit the filename
 #define HELP "\0Hello hex editor - The DLL name + this message have 256 bytes allocated for them. You can change the DLL name if you want!"
@@ -18,53 +19,47 @@ const char DLL_TO_LOAD[256] = DLL_TO_HOOK HELP;
 	#define DLL_NAME L"d3d9.dll"
 
 	#define FOREACH_D3D_FUNC(X) \
-		X("16,NONAME", __ord16) \
-		X("17,NONAME", __ord17) \
-		X("18,NONAME", __ord18) \
-		X("19,NONAME", __ord19) \
-		X("20", Direct3DCreate9On12) \
-		X("21", Direct3DCreate9On12Ex) \
-		X("22,NONAME", __ord22) \
-		X("23,NONAME", __ord23) \
-		X("24", Direct3DShaderValidatorCreate9) \
-		X("25", PSGPError) \
-		X("26", PSGPSampleTexture) \
-		X("27", D3DPERF_BeginEvent) \
-		X("28", D3DPERF_EndEvent) \
-		X("29", D3DPERF_GetStatus) \
-		X("30", D3DPERF_QueryRepeatFrame) \
-		X("31", D3DPERF_SetMarker) \
-		X("32", D3DPERF_SetOptions) \
-		X("33", D3DPERF_SetRegion) \
-		X("34", DebugSetLevel) \
-		X("35", DebugSetMute) \
-		X("36", Direct3D9EnableMaximizedWindowedModeShim) \
-		X("37", Direct3DCreate9) \
-		X("38", Direct3DCreate9Ex) \
+		X(20, "", Direct3DCreate9On12) \
+		X(21, "", Direct3DCreate9On12Ex) \
+		X(24, "", Direct3DShaderValidatorCreate9) \
+		X(25, "", PSGPError) \
+		X(26, "", PSGPSampleTexture) \
+		X(27, "", D3DPERF_BeginEvent) \
+		X(28, "", D3DPERF_EndEvent) \
+		X(29, "", D3DPERF_GetStatus) \
+		X(30, "", D3DPERF_QueryRepeatFrame) \
+		X(31, "", D3DPERF_SetMarker) \
+		X(32, "", D3DPERF_SetOptions) \
+		X(33, "", D3DPERF_SetRegion) \
+		X(34, "", DebugSetLevel) \
+		X(35, "", DebugSetMute) \
+		X(36, "", Direct3D9EnableMaximizedWindowedModeShim) \
+		X(37, "", Direct3DCreate9) \
+		X(38, "", Direct3DCreate9Ex) \
 
 #elif defined(USE_DXGI) // Anything newer will include dxgi transitively, so D3d10/11/12 are all covered
 	#define DLL_NAME L"dxgi.dll"
 
 	#define FOREACH_D3D_FUNC(X) \
-		X("1", ApplyCompatResolutionQuirking) \
-		X("2", CompatString) \
-		X("3", CompatValue) \
-		X("4", DXGIDumpJournal) \
-		X("5", PIXBeginCapture) \
-		X("6", PIXEndCapture) \
-		X("7", PIXGetCaptureState) \
-		X("8", SetAppCompatStringPointer) \
-		X("9", UpdateHMDEmulationStatus) \
-		X("10", CreateDXGIFactory) \
-		X("11", CreateDXGIFactory1) \
-		X("12", CreateDXGIFactory2) \
-		X("13", DXGID3D10CreateDevice) \
-		X("14", DXGID3D10CreateLayeredDevice) \
-		X("15", DXGID3D10GetLayeredDeviceSize) \
-		X("16", DXGID3D10RegisterLayers) \
-		X("17", DXGIDeclareAdapterRemovalSupport) \
-		X("18", DXGIGetDebugInterface1) \
-		X("19", DXGIReportAdapterConfiguration) \
+		X(1, "", ApplyCompatResolutionQuirking) \
+		X(2, "", CompatString) \
+		X(3, "", CompatValue) \
+		X(4, "", DXGIDumpJournal) \
+		X(5, "", PIXBeginCapture) \
+		X(6, "", PIXEndCapture) \
+		X(7, "", PIXGetCaptureState) \
+		X(8, "", SetAppCompatStringPointer) \
+		X(9, "", UpdateHMDEmulationStatus) \
+		X(10, "", CreateDXGIFactory) \
+		X(11, "", CreateDXGIFactory1) \
+		X(12, "", CreateDXGIFactory2) \
+		X(13, "", DXGID3D10CreateDevice) \
+		X(14, "", DXGID3D10CreateLayeredDevice) \
+		X(15, "", DXGID3D10GetLayeredDeviceSize) \
+		X(16, "", DXGID3D10RegisterLayers) \
+		X(17, "", DXGIDeclareAdapterRemovalSupport) \
+		X(18, "", DXGIGetDebugInterface1) \
+		X(19, "", DXGIReportAdapterConfiguration) \
 
 #elif defined(USE_OGL) // OpenGL used by jubeat, older gfdm
     #define DLL_NAME L"opengl32.dll"
@@ -95,12 +90,12 @@ const char DLL_TO_LOAD[256] = DLL_TO_HOOK HELP;
 // If the function isn't stdcall or cdecl, you're out of luck, but I've
 // never seen a DLL do that so it Should Totes Be Fine Yo (TM).
 
-#define DECLARE_ORIGINAL(ordinal, name) void (WINAPI *real_ ## name)(void* a, void* b, void* c, void* d);
+#define DECLARE_ORIGINAL(ordinal, noname, name) void (WINAPI *real_ ## name)(void* a, void* b, void* c, void* d);
 FOREACH_D3D_FUNC(DECLARE_ORIGINAL);
 
 #ifdef DO_LOG
-FILE* log;
-#define LOG(...) if (log) fprintf(log, __VA_ARGS__); fflush(log);
+FILE* logfile;
+#define LOG(...) if (logfile) fprintf(logfile, __VA_ARGS__); fflush(logfile);
 
 #else
 #define LOG(...)
@@ -115,10 +110,16 @@ void __cdecl onetime_setup(const char *fn_name) {
 	if (setup_complete)
 		return;
 
+#ifdef DO_LOG
+	fopen_s(&logfile, "d3d_hook.log", "w");
+	LOG("Init via %s\n", fn_name);
+#endif
+
 #ifdef BOMBERGIRL_BULLSHIT
 	// it rewrites the path loader and needs "_dxgi.dll" copied out of system32
 	// since the loader doesn't deal with full paths properly
-	HMODULE orig = LoadLibraryW(L"_" DLL_NAME);
+	wchar_t path[] = L"_" DLL_NAME;
+	HMODULE orig = LoadLibraryW(path);
 #else
 	wchar_t path[MAX_PATH];
 	if (GetSystemDirectoryW(path, sizeof(path)) == 0) {
@@ -136,15 +137,15 @@ void __cdecl onetime_setup(const char *fn_name) {
 	HMODULE orig = LoadLibraryW(path);
 #endif
 
-#ifdef DO_LOG
-	fopen_s(&log, "d3d_hook.log", "w");
-#endif
-
 	if (!orig) {
-		LOG("Couldn't load original dll, enjoy your crash\n");
+		LOG("Couldn't load original dll at %ls, errno %d, enjoy your crash\n", path, (int)GetLastError());
 	}
 
-#define LOAD_ORIGINAL(ordinal, name) real_ ## name = (decltype(real_ ## name))GetProcAddress(orig, #name);
+#define LOAD_ORIGINAL(ordinal, noname, name) \
+	real_ ## name = (decltype(real_ ## name))GetProcAddress( \
+		orig, strlen(noname) == 0 ? #name : (const char*)ordinal); \
+	if(!real_ ## name) \
+		LOG("Couldn't load " #name " , enjoy your crash\n");
 
 	FOREACH_D3D_FUNC(LOAD_ORIGINAL);
 
@@ -152,15 +153,15 @@ void __cdecl onetime_setup(const char *fn_name) {
 	LoadLibraryA(DLL_TO_LOAD);
 	setup_complete = true;
 
-	LOG("Hook loaded!\n");
+	LOG("Hook init done\n");
 }
 
-#define REPLICATE_FUNC(ordinal, name) \
+#define REPLICATE_FUNC(ordinal, noname, name) \
 extern "C" void __stdcall name(void* a, void* b, void* c, void* d) { \
 /* Using this avoids name mangling for stdcall functions (which happens even with extern "C"!) */ \
 /* It also removes the need for a .def file */ \
 /* ...but only for MSVC. GCC's asm(".section .drectve") and -export directive does not work on ordinals, nor on mangled names */ \
-/*__pragma(comment(linker, "/EXPORT:" __FUNCTION__ "=" __FUNCDNAME__ ",@" ordinal))*/ \
+/*__pragma(comment(linker, "/EXPORT:" __FUNCTION__ "=" __FUNCDNAME__ ",@" #ordinal noname))*/ \
 	onetime_setup(__FUNCTION__); \
 	return real_ ## name(a,b,c,d); \
 }
@@ -175,3 +176,4 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     return TRUE;
 }
 
+extern "C" __declspec(dllexport) const char __layeredfs_version[] = VER_STRING;
