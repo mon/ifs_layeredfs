@@ -489,7 +489,7 @@ void parse_afplist(HookFile &file) {
         afp_md5_names_mtx.unlock();
     }
 
-    log_misc("Mapped %d AFP filenames", mapped);
+    log_verbose("Mapped %d AFP filenames", mapped);
 }
 
 std::optional<std::tuple<std::string, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile &file) {

@@ -59,7 +59,7 @@ class HookFile {
 
     void log_if_modfile() {
         if (mod_path) {
-            log_info("Using %s", mod_path->c_str());
+            log_verbose("Using %s", mod_path->c_str());
         }
     }
 

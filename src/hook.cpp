@@ -239,7 +239,7 @@ void handle_texbin(HookFile &file) {
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
     if(cache_hasher.matches()) {
         file.mod_path = out;
-        log_misc("texbin cache up to date, skip");
+        log_verbose("texbin cache up to date, skip");
         return;
     }
     log_verbose("Regenerating cache");
