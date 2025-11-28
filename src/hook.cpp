@@ -118,7 +118,7 @@ class PkfsHookFile final : public HookFile {
         : HookFile(path, norm_path)
     {}
 
-    bool ramfs_demangle() {return false;};
+    bool ramfs_demangle() override {return false;};
 
     uint32_t call_real() override {
         log_if_modfile();
