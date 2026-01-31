@@ -99,6 +99,33 @@ wchar_t *str_widen(const char *src)
     return result;
 }
 
+bool wstr_narrow(const wchar_t *src, char **dest)
+{
+    int nbytes;
+
+    nbytes = WideCharToMultiByte(CP_ACP, 0, src, -1, NULL, 0, NULL, NULL);
+
+    if (nbytes <= 0) {
+        goto size_fail;
+    }
+
+    *dest = (char*)malloc(nbytes);
+
+    if (WideCharToMultiByte(CP_ACP, 0, src, -1, *dest, nbytes, NULL, NULL) !=
+        nbytes) {
+        goto conv_fail;
+    }
+
+    return true;
+
+conv_fail:
+    free(*dest);
+    *dest = NULL;
+
+size_fail:
+    return false;
+}
+
 bool file_exists(const char* name) {
     // file_exists is only used by the modfile machinery, so use the easy
     // method, not avs_fs_open or avs_fs_lstat

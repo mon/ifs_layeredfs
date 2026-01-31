@@ -1,10 +1,11 @@
-project('layeredfs', 'c', 'cpp', version: '3.9',
+project('layeredfs', 'c', 'cpp', version: '3.10',
     default_options: [
         'cpp_std=c++20',
         'buildtype=release',
         'strip=true',
         'werror=true',
-    ]
+    ],
+    meson_version: '>=1.2.0',
 )
 
 add_project_link_arguments('-static', language: 'cpp')
@@ -203,4 +204,22 @@ test('unit tests', executable('tests_bin',
         build_by_default: false,
     ),
     workdir: meson.current_source_dir(),
+)
+
+test('commandline parsing test', executable('test_commandline',
+        sources: 'src/test_commandline.cpp',
+        link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
+        dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
+        build_by_default: false,
+    ),
+    workdir: meson.current_source_dir(),
+    args: [
+        '--layered-disable',
+        '--layered-verbose',
+        '--layered-devmode',
+        '--layered-allowlist=allowed,these folders',
+        '--layered-blocklist=blocked,these folders',
+        '--layered-logfile=some logfile.log',
+        '--layered-data-mods-folder=./some modfolder',
+    ]
 )

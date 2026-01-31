@@ -67,38 +67,54 @@ void load_config(void) {
     config.logfile = NULL;
 #endif
 
-    int i;
+    int argc;
+    auto argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) {
+        log_warning("Couldn't fetch commandline args!");
+        return;
+    }
+
+    char* arg;
 
     // so close to just pulling in a third party argparsing lib...
-    for (i = 0; i < __argc; i++) {
-        if (strcmp(__argv[i], VERBOSE_FLAG) == 0) {
+    for (int i = 0; i < argc; i++) {
+        if (!wstr_narrow(argv[i], &arg))
+            continue;
+
+        if (strcmp(arg, VERBOSE_FLAG) == 0) {
             config.verbose_logs = true;
+            free(arg);
         }
-        else if (strcmp(__argv[i], DEVMODE_FLAG) == 0) {
+        else if (strcmp(arg, DEVMODE_FLAG) == 0) {
             config.developer_mode = true;
+            free(arg);
         }
-        else if (strcmp(__argv[i], DISABLE_FLAG) == 0) {
+        else if (strcmp(arg, DISABLE_FLAG) == 0) {
             config.disable = true;
+            free(arg);
         }
-        else if (strncmp(__argv[i], ALLOWLIST_FLAG, strlen(ALLOWLIST_FLAG)) == 0) {
-            allowlist = parse_list(ALLOWLIST_FLAG, __argv[i], config.allowlist);
+        else if (strncmp(arg, ALLOWLIST_FLAG, strlen(ALLOWLIST_FLAG)) == 0) {
+            allowlist = parse_list(ALLOWLIST_FLAG, arg, config.allowlist);
         }
-        else if (strncmp(__argv[i], BLOCKLIST_FLAG, strlen(BLOCKLIST_FLAG)) == 0) {
-            blocklist = parse_list(BLOCKLIST_FLAG, __argv[i], config.blocklist);
+        else if (strncmp(arg, BLOCKLIST_FLAG, strlen(BLOCKLIST_FLAG)) == 0) {
+            blocklist = parse_list(BLOCKLIST_FLAG, arg, config.blocklist);
         }
-        else if (strncmp(__argv[i], LOGFILE_FLAG, strlen(LOGFILE_FLAG)) == 0) {
-            const char *path = &__argv[i][strlen(LOGFILE_FLAG)];
+        else if (strncmp(arg, LOGFILE_FLAG, strlen(LOGFILE_FLAG)) == 0) {
+            const char *path = &arg[strlen(LOGFILE_FLAG)];
             // correct format: --layered-logfile=whatever.log
             if(path[0] == '=' && path[1]) {
                 config.logfile = &path[1];
             }
         }
-        else if (strncmp(__argv[i], MOD_FOLDER_FLAG, strlen(MOD_FOLDER_FLAG)) == 0) {
-            std::string_view path = &__argv[i][strlen(MOD_FOLDER_FLAG)];
+        else if (strncmp(arg, MOD_FOLDER_FLAG, strlen(MOD_FOLDER_FLAG)) == 0) {
+            std::string_view path = &arg[strlen(MOD_FOLDER_FLAG)];
             // correct format: --layered-data-mods-folder=./my_mods
             if(path.starts_with("=./")) {
                 config.mod_folder = path.substr(1);
             }
+        }
+        else {
+            free(arg);
         }
     }
 }

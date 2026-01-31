@@ -21,6 +21,7 @@ bool string_replace_first(std::string &str, const char* from, const char* to);
 // Like string.find(), but case insensitive
 std::size_t string_find_icase(const std::string & strHaystack, const std::string & strNeedle, std::size_t off = 0);
 wchar_t *str_widen(const char *src);
+bool wstr_narrow(const wchar_t *src, char **dest);
 void str_toupper_inline(std::string &str);
 bool file_exists(const char* name);
 bool folder_exists(const char* name);
