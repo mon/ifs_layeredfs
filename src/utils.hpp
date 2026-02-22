@@ -9,6 +9,8 @@
 
 #include "3rd_party/md5.h"
 
+#define strcasecmp _stricmp
+
 #define lenof(x) (sizeof(x) / sizeof(*x))
 
 char* snprintf_auto(const char* fmt, ...);

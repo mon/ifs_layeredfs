@@ -1,6 +1,6 @@
 project('layeredfs', 'c', 'cpp', version: '3.10',
     default_options: [
-        'cpp_std=c++20',
+        'cpp_std=c++23',
         'buildtype=release',
         'strip=true',
         'werror=true',
@@ -193,33 +193,35 @@ foreach cfg : injector_cfgs
     )
 endforeach
 
-gtest_proj = subproject('gtest', required: false, default_options: {'default_library': 'static'})
-gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
-gmock_dep = gtest_proj.get_variable('gmock_dep')
+if host_machine.cpu_family() == 'x86_64'
+    gtest_proj = subproject('gtest', required: false, default_options: {'default_library': 'static'})
+    gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
+    gmock_dep = gtest_proj.get_variable('gmock_dep')
 
-test('unit tests', executable('tests_bin',
-        sources: 'src/tests.cpp',
-        link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
-        dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
-        build_by_default: false,
-    ),
-    workdir: meson.current_source_dir(),
-)
+    test('unit tests', executable('tests_bin',
+            sources: 'src/tests.cpp',
+            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
+            dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
+            build_by_default: false,
+        ),
+        workdir: meson.current_source_dir(),
+    )
 
-test('commandline parsing test', executable('test_commandline',
-        sources: 'src/test_commandline.cpp',
-        link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
-        dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
-        build_by_default: false,
-    ),
-    workdir: meson.current_source_dir(),
-    args: [
-        '--layered-disable',
-        '--layered-verbose',
-        '--layered-devmode',
-        '--layered-allowlist=allowed,these folders',
-        '--layered-blocklist=blocked,these folders',
-        '--layered-logfile=some logfile.log',
-        '--layered-data-mods-folder=./some modfolder',
-    ]
-)
+    test('commandline parsing test', executable('test_commandline',
+            sources: 'src/test_commandline.cpp',
+            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
+            dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
+            build_by_default: false,
+        ),
+        workdir: meson.current_source_dir(),
+        args: [
+            '--layered-disable',
+            '--layered-verbose',
+            '--layered-devmode',
+            '--layered-allowlist=allowed,these folders',
+            '--layered-blocklist=blocked,these folders',
+            '--layered-logfile=some logfile.log',
+            '--layered-data-mods-folder=./some modfolder',
+        ]
+    )
+endif

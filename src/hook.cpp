@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <windows.h>
 #include <winternl.h>
 
 #include "hook.h"

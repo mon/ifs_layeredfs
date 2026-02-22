@@ -64,12 +64,15 @@ ignore_functions = [
     b"RtlLookupFunctionEntry",
     b"RtlUnwindEx",
     b"RtlVirtualUnwind",
+    b"RtlRestoreContext",
     b"__C_specific_handler",
 ]
 
+exceptions = []
 for dll_name, imports in needed_functions.items():
     if (dll := available_functions.get(dll_name)) is None:
-        raise MissingDLL(f"Need {dll_name} but it's not in the XP DLLs folder")
+        exceptions.append(MissingDLL(f"Need {dll_name} but it's not in the XP DLLs folder"))
+        continue
 
     for name, ordinal in imports:
         if name is not None:
@@ -77,13 +80,18 @@ for dll_name, imports in needed_functions.items():
                 continue
 
             if next((fn for fn in dll if fn[0] == name), None) is None:
-                raise MissingFunction(f'Function "{name}" not present in XP {dll_name}')
+                exceptions.append(MissingFunction(f'Function "{name}" not present in XP {dll_name}'))
+                continue
         elif ordinal is not None:
             if next((fn for fn in dll if fn[1] == ordinal), None) is None:
-                raise MissingFunction(
+                exceptions.append(MissingFunction(
                     f"Function with ordinal {ordinal} not present in XP {dll_name}"
-                )
+                ))
+                continue
         else:
             raise RuntimeError("Import with no name or ordinal???")
+
+if exceptions:
+    raise ExceptionGroup("Failures", exceptions)
 
 print("All functions present!")
