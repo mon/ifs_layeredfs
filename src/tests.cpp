@@ -7,8 +7,10 @@
 #include "imagefs.hpp"
 #include "avs_standalone.hpp"
 #include "modpath_handler.h"
+#include "ramfs_demangler.h"
 
 #include "3rd_party/rapidxml_print.hpp"
+#include "src/utils.hpp"
 
 using ::testing::Contains;
 using ::testing::Optional;
@@ -195,6 +197,61 @@ TEST(Xml, MergingWorks) {
 
    node = node->next_sibling();
    ASSERT_EQ(node, nullptr);
+}
+
+TEST(RamFs, DemanglingWorks) {
+    AVS_FILE fake_handle = 9999;
+    uint8_t fake_buffer[1];
+
+    ramfs_demangler_on_fs_open("./data/test.ifs", fake_handle);
+
+    ramfs_demangler_on_fs_read(fake_handle, fake_buffer);
+    char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
+    ramfs_demangler_on_fs_mount("/sd0", "test.ifs", "ramfs", flags);
+    free(flags);
+
+    ramfs_demangler_on_fs_mount("/game/test", "/sd0/test.ifs", "imagefs", nullptr);
+
+    std::string path = "/game/test/somefile";
+    ramfs_demangler_demangle_if_possible(path);
+    EXPECT_EQ(path, "./data/test.ifs/somefile");
+
+    // re-open triggers cleanup, not explicit unmount
+    ramfs_demangler_on_fs_open("./data/test.ifs", fake_handle);
+
+    path = "/game/test/somefile";
+    ramfs_demangler_demangle_if_possible(path);
+    EXPECT_EQ(path, "/game/test/somefile");
+}
+
+TEST(RamFs, DemanglingWorksNabla) {
+   // Nabla has an extra indirection:
+   // M:opening /data/graphics/ver07/logo.ifs mode 1 flags 420
+   // M:mounting image.bin to /mnt/bm2d/rmp_89_2714881 with type ramfs and args base=0x00000000d2435060,size=0x8984f0,mode=ro
+   // M:ramfs mount mapped to /data/graphics/ver07/logo.ifs
+   // M:mounting /mnt/bm2d/rmp_89_2714881/image.bin to /mnt/bm2d/rfs88r89/logo.ifs with type link and args
+   // M:mounting /mnt/bm2d/rfs88r89/logo.ifs to /mnt/bm2d/ngp88/logo.ifs with type imagefs and args (null)
+   // M:imagefs mount mapped to /mnt/bm2d/rfs88r89/logo.ifs
+   // M:opening /mnt/bm2d/rfs88r89/logo.ifs mode 1 flags 420
+
+   AVS_FILE fake_handle = 9999;
+   uint8_t fake_buffer[1];
+
+   ramfs_demangler_on_fs_open("/data/graphics/ver07/logo.ifs", fake_handle);
+
+   ramfs_demangler_on_fs_read(fake_handle, fake_buffer);
+   char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
+   ramfs_demangler_on_fs_mount("/mnt/bm2d/rmp_89_2714881", "image.bin", "ramfs", flags);
+   free(flags);
+
+   ramfs_demangler_on_fs_mount("/mnt/bm2d/rfs88r89/logo.ifs", "/mnt/bm2d/rmp_89_2714881/image.bin", "link", "");
+   ramfs_demangler_on_fs_mount("/mnt/bm2d/ngp88/logo.ifs", "/mnt/bm2d/rfs88r89/logo.ifs", "imagefs", nullptr);
+
+   ramfs_demangler_on_fs_open("/mnt/bm2d/rfs88r89/logo.ifs", 9001);
+
+   std::string path = "/mnt/bm2d/ngp88/logo.ifs/tex/texturelist.xml";
+   ramfs_demangler_demangle_if_possible(path);
+   EXPECT_EQ(path, "/data/graphics/ver07/logo.ifs/tex/texturelist.xml");
 }
 
 TEST(Regression, BeatStreamAfpXml) {

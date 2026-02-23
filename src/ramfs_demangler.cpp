@@ -48,6 +48,7 @@ typedef struct {
 	AVS_FILE handle;
 	void* buffer;
 	optional<string> ramfs_path;
+	optional<string> link_path;
 	optional<string> mounted_path;
 } file_cleanup_info_t;
 
@@ -80,6 +81,9 @@ void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 		}
 		if (cleanup.ramfs_path) {
 			ramfs_map.erase(*cleanup.ramfs_path);
+		}
+		if (cleanup.link_path) {
+			ramfs_map.erase(*cleanup.link_path);
 		}
 		if (cleanup.mounted_path) {
 			mangling_map.erase(*cleanup.mounted_path);
@@ -147,6 +151,19 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			auto cleanup = cleanup_map.find(orig_path);
 			if (cleanup != cleanup_map.end()) {
 				cleanup->second.ramfs_path = mount_path;
+			}
+		}
+	}
+	else if (!strcmp(fstype, "link")) {
+		auto find = ramfs_map.find(fsroot);
+		if (find != ramfs_map.end()) {
+			auto orig_path = *find;
+			log_verbose("link mount mapped to %s", orig_path.c_str());
+			ramfs_map[mountpoint] = orig_path;
+
+			auto cleanup = cleanup_map.find(orig_path);
+			if (cleanup != cleanup_map.end()) {
+				cleanup->second.link_path = mountpoint;
 			}
 		}
 	}
