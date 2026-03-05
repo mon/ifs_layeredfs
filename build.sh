@@ -4,13 +4,16 @@ set -euxo pipefail
 
 rm -rf dist/
 
+CROSS_32="${CROSS_32:-cross-clang-mingw-32.ini}"
+CROSS_64="${CROSS_64:-cross-clang-mingw-64.ini}"
+
 # x86
-meson setup --cross-file cross-i686-w64-mingw32.txt build32
+meson setup --cross-file "$CROSS_32" build32
 # without `--tags runtime`, the .a files are also installed
 meson install  -C build32 --destdir ../dist/32bit --tags runtime,doc
 
 # x86_64
-meson setup --cross-file cross-x86_64-w64-mingw32.txt build64
+meson setup --cross-file "$CROSS_64" build64
 meson install  -C build64 --destdir ../dist/64bit --tags runtime,doc
 
 # docs

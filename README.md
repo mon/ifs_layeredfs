@@ -138,12 +138,18 @@ a lot to be desired. There are many vestigal remains of past AVS experiments.
 
 Prior to version 3.0, it was built with Visual Studio 2017 with the 141_xp
 toolchain. However, in VS 2019 16.7, they broke this (it pulls in Vista-only
-APIs), so I gave up and moved to mingw-w64. I currently just have that installed
-in an Ubuntu install in WSL. If it ever breaks, I'll make a docker or nix image
-or something... Feel free to open an issue if you're struggling to build it.
+APIs), so I gave up and moved to mingw-w64.
 
-As long as you have Meson and mingw-w64 installed, it should be as simple as
-running `build.sh`.
+Then, in 3.11, I decided that sticking to mingw gcc-11 (the last version that
+easily supported XP) was pain, and made a [custom LLVM toolchain](https://github.com/mon/llvm-mingw-xp)
+that supports XP, which lets me use C++23 features going forwards.
+
+If you want to build and have it support XP, the simplest approach is to run
+`./build_docker.sh` on a Linux system, which will use my customised toolchain.
+
+However, you can also build with any modern clang/gcc with `build.sh`, as long
+as you're OK with it only working on Windows 7 and up (and by the time you read
+this, probably Windows 10 and up).
 
 # Contributing
 
