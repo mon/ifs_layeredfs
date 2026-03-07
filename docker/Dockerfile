@@ -1,4 +1,4 @@
-FROM montymintypie/llvm-mingw-xp:21
+FROM montymintypie/llvm-mingw-xp:22
 
 RUN set -eux; \
     dpkg --add-architecture i386; \
