@@ -4,7 +4,7 @@ RUN set -eux; \
     dpkg --add-architecture i386; \
     apt-get update -qq; \
     DEBIAN_FRONTEND="noninteractive" apt-get install -qqy --no-install-recommends \
-        meson jq wine wine32; \
+        meson jq python3-pefile python3-requests wine wine32 wine64; \
     apt-get clean -y; \
     rm -rf /var/lib/apt/lists/*;
 
