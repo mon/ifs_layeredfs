@@ -13,16 +13,19 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Find build run for tag
+      - name: Wait for build to finish
         id: find-run
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run_id=$(gh run list -R "$GITHUB_REPOSITORY" -w Build --branch "${{ inputs.tag }}" --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          # Find the most recent build run for this tag
+          run_id=$(gh run list -R "$GITHUB_REPOSITORY" -w Build --branch "${{ inputs.tag }}" --limit 1 --json databaseId -q '.[0].databaseId')
           if [ -z "$run_id" ]; then
-            echo "No successful build found for tag ${{ inputs.tag }}"
+            echo "No build found for tag ${{ inputs.tag }}"
             exit 1
           fi
+          echo "Waiting for build run $run_id to complete..."
+          gh run watch "$run_id" -R "$GITHUB_REPOSITORY" --exit-status
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
