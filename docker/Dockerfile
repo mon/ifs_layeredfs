@@ -12,6 +12,14 @@ RUN set -eux; \
 # container run
 RUN wine wineboot --init
 
+RUN set -eux; \
+    curl -fsSL "https://api.github.com/repos/mon/windows-dll-compat-checker/releases/latest" \
+        | jq -r '.assets[] | select(.name | contains("linux-x86_64")) | .browser_download_url' \
+        | xargs curl -fsSL -o /tmp/dll_compat_checker.zip; \
+    unzip /tmp/dll_compat_checker.zip -d /usr/local/bin/; \
+    chmod +x /usr/local/bin/windows_dll_compat_checker; \
+    rm /tmp/dll_compat_checker.zip;
+
 ENV CROSS_32=/opt/llvm-mingw/toolchain-files/meson/i686-mingw32-clang.ini
 ENV CROSS_64=/opt/llvm-mingw/toolchain-files/meson/x86_64-mingw32-clang.ini
 

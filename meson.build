@@ -111,7 +111,12 @@ if host_machine.cpu_family() == 'x86'
     )
 endif
 
-python = import('python').find_installation()
+windows_dll_compat_checker = find_program('windows_dll_compat_checker', required: false)
+if host_machine.cpu_family() == 'x86_64'
+    xp_check_ini = 'PREMADE/winxp_x86_64.ini'
+else
+    xp_check_ini = 'PREMADE/winxp_x86_64_32bit_dlls.ini'
+endif
 
 foreach cfg : special_cfgs
     folder_name = cfg[0]
@@ -139,14 +144,16 @@ foreach cfg : special_cfgs
         install_dir: install_dir,
         install: true,
     )
-    test(lib_name + '_is_xp',
-        python,
-        args: [
-            files('ensure_xp_compatible.py'),
-            ifs_dll,
-        ],
-        workdir: meson.current_source_dir(),
-    )
+    if windows_dll_compat_checker.found()
+        test(lib_name + '_is_xp',
+            windows_dll_compat_checker,
+            args: [
+                ifs_dll,
+                '-s', xp_check_ini,
+            ],
+            workdir: meson.current_source_dir(),
+        )
+    endif
 endforeach
 
 injector_cfgs = [
@@ -183,14 +190,16 @@ foreach cfg : injector_cfgs
         install: true,
     )
 
-    test(dll_name + '_is_xp',
-        python,
-        args: [
-            files('ensure_xp_compatible.py'),
-            inject_dll,
-        ],
-        workdir: meson.current_source_dir(),
-    )
+    if windows_dll_compat_checker.found()
+        test(dll_name + '_is_xp',
+            windows_dll_compat_checker,
+            args: [
+                inject_dll,
+                '-s', xp_check_ini,
+            ],
+            workdir: meson.current_source_dir(),
+        )
+    endif
 endforeach
 
 if host_machine.cpu_family() == 'x86_64'
