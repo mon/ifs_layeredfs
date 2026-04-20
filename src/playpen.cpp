@@ -14,36 +14,6 @@
 
 #define log_assert(cond) if(!(cond)) {log_fatal("Assertion failed:" #cond);}
 
-// decompressed_length MUST be set and will be updated on finish
-unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length) {
-    auto compressor = cstream_create(AVS_DECOMPRESS_AVSLZ);
-    if (!compressor) {
-        log_warning("Couldn't create");
-        return NULL;
-    }
-    compressor->input_buffer = input;
-    compressor->input_size = (uint32_t)length; // may be -1 to auto-finish
-    auto decompress_buffer = (unsigned char*)malloc(*decompressed_length);
-    compressor->output_buffer = decompress_buffer;
-    compressor->output_size = (uint32_t)*decompressed_length;
-
-    cstream_operate(compressor);
-    compressor->input_buffer = NULL;
-    compressor->input_size = -1;
-    bool ret = cstream_operate(compressor);
-    if (!ret) {
-        log_warning("Couldn't operate");
-        return NULL;
-    }
-    if (cstream_finish(compressor)) {
-        log_warning("Couldn't finish");
-        return NULL;
-    }
-    *decompressed_length = *decompressed_length - compressor->output_size;
-    cstream_destroy(compressor);
-    return decompress_buffer;
-}
-
 void lz_unfuck(uint8_t *buf, size_t len) {
     int repl = 0;
     uint8_t *end = buf + len;

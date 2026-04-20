@@ -9,6 +9,7 @@ using std::string;
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -19,6 +20,7 @@ using std::string;
 #include "log.hpp"
 #include "imagefs.hpp"
 #include "texbin.hpp"
+#include "arc.hpp"
 #include "utils.hpp"
 #include "avs.h"
 #include "modpath_handler.h"
@@ -186,6 +188,111 @@ string_set list_pngs(string const&folder) {
     return ret;
 }
 
+static void list_files_onefolder(std::map<string, string> &out, string const& folder, string const& rel_prefix) {
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA((folder + "/*").c_str(), &fd);
+    if (hFind == INVALID_HANDLE_VALUE)
+        return;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            if (strcmp(fd.cFileName, ".") != 0 && strcmp(fd.cFileName, "..") != 0) {
+                list_files_onefolder(out,
+                    folder + "/" + fd.cFileName,
+                    rel_prefix + fd.cFileName + "/");
+            }
+        } else {
+            string rel = rel_prefix + fd.cFileName;
+            if (out.find(rel) == out.end())
+                out[rel] = folder + "/" + fd.cFileName;
+        }
+    } while (FindNextFileA(hFind, &fd));
+    FindClose(hFind);
+}
+
+static std::map<string, string> list_arc_files(string const& folder) {
+    std::map<string, string> ret;
+    for (auto &mod : available_mods()) {
+        list_files_onefolder(ret, mod + "/" + folder, "");
+    }
+    return ret;
+}
+
+void handle_arc(HookFile &file) {
+    auto start = time();
+
+    auto arc_mod_path = file.norm_path;
+    string_replace(arc_mod_path, ".arc", "_arc");
+
+    if (!find_first_modfolder(arc_mod_path)) {
+        return;
+    }
+
+    auto mod_files = list_arc_files(arc_mod_path);
+    if (mod_files.empty()) {
+        log_verbose("arc: mod folder has no files, skipping");
+        return;
+    }
+
+    string out = CACHE_FOLDER + "/" + file.norm_path;
+    auto out_hashed = out + ".hashed";
+    auto cache_hasher = CacheHasher(out_hashed);
+
+    auto starting = file.get_path_to_open();
+    cache_hasher.add(starting);
+    for (auto &[_, path] : mod_files) {
+        cache_hasher.add(path);
+    }
+    cache_hasher.finish();
+
+    if (cache_hasher.matches()) {
+        file.mod_path = out;
+        log_verbose("arc cache up to date, skip");
+        return;
+    }
+    log_verbose("arc: regenerating cache");
+
+    ArcArchive arc;
+    auto _orig_data = file.load_to_vec();
+    if (_orig_data) {
+        auto &orig_data = *_orig_data;
+        std::istringstream stream(string((char*)orig_data.data(), orig_data.size()));
+        auto _arc = ArcArchive::from_stream(stream);
+        if (!_arc) {
+            log_warning("arc: load failed, aborting modding");
+            return;
+        }
+        arc = std::move(*_arc);
+    } else {
+        log_info("arc: no original file, creating from scratch: \"%s\"", file.norm_path.c_str());
+    }
+
+    auto out_folder = out.substr(0, out.rfind("/"));
+    if (!mkdir_p(out_folder)) {
+        log_warning("arc: couldn't create output cache folder");
+        return;
+    }
+
+    for (auto &[name, path] : mod_files) {
+        std::ifstream f(path, std::ios::binary);
+        if (!f) {
+            log_warning("arc: couldn't read mod file '%s'", path.c_str());
+            continue;
+        }
+        std::vector<uint8_t> data(std::istreambuf_iterator<char>(f), {});
+        arc.add_or_replace(name, std::move(data));
+    }
+
+    if (!arc.save(out.c_str())) {
+        log_warning("arc: couldn't write output");
+        return;
+    }
+
+    cache_hasher.commit();
+    file.mod_path = out;
+
+    log_misc("arc generation took %d ms", time() - start);
+}
+
 void handle_texbin(HookFile &file) {
     auto start = time();
 
@@ -300,6 +407,10 @@ uint32_t handle_file_open(HookFile &file) {
 
     if(string_ends_with(file.path, ".bin")) {
         handle_texbin(file);
+    }
+
+    if(string_ends_with(file.path, ".arc")) {
+        handle_arc(file);
     }
 
     if (string_ends_with(file.path, "texturelist.xml")) {

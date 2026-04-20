@@ -11,6 +11,7 @@
 
 #include "3rd_party/rapidxml_print.hpp"
 #include "src/utils.hpp"
+#include "arc.hpp"
 
 using ::testing::Contains;
 using ::testing::Optional;
@@ -252,6 +253,73 @@ TEST(RamFs, DemanglingWorksNabla) {
    std::string path = "/mnt/bm2d/ngp88/logo.ifs/tex/texturelist.xml";
    ramfs_demangler_demangle_if_possible(path);
    EXPECT_EQ(path, "/data/graphics/ver07/logo.ifs/tex/texturelist.xml");
+}
+
+class ArcTestHookFile final : public HookFile {
+    std::optional<std::vector<uint8_t>> original;
+public:
+    ArcTestHookFile(std::string path, std::string norm_path,
+                    std::optional<std::vector<uint8_t>> original = std::nullopt)
+        : HookFile(path, norm_path), original(std::move(original)) {}
+
+    uint32_t call_real() override { return 0; }
+    std::optional<std::vector<uint8_t>> load_to_vec() override { return original; }
+};
+
+static std::vector<uint8_t> read_arc_file(std::string const& arc_path, std::string const& name) {
+    std::ifstream f(arc_path, std::ios::binary);
+    if (!f) return {};
+    auto arc = ArcArchive::from_stream(f);
+    if (!arc) return {};
+    auto it = arc->files.find(name);
+    if (it == arc->files.end()) return {};
+    auto &entry = it->second;
+    if (entry.packed_data.size() == entry.unpacked_size) {
+        return entry.packed_data;
+    }
+    size_t out_size = entry.unpacked_size;
+    auto decompressed = lz_decompress(entry.packed_data.data(), entry.packed_data.size(), &out_size);
+    if (!decompressed) return {};
+    std::vector<uint8_t> result(decompressed, decompressed + out_size);
+    free(decompressed);
+    return result;
+}
+
+TEST(ArcArchive, ScratchFromTwoMods) {
+    ArcTestHookFile file("scratch.arc", "scratch.arc");
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    std::vector<uint8_t> expected_a = {'h','e','l','l','o','_','a'};
+    std::vector<uint8_t> expected_b = {'h','e','l','l','o','_','b'};
+    EXPECT_EQ(read_arc_file(*file.mod_path, "file_a"), expected_a);
+    EXPECT_EQ(read_arc_file(*file.mod_path, "file_b"), expected_b);
+}
+
+TEST(ArcArchive, OverlayWithTwoMods) {
+    // Build original arc in memory: has "original_file" and "override_file"
+    ArcArchive orig;
+    orig.add_or_replace("original_file", {'o','r','i','g','i','n','a','l'});
+    orig.add_or_replace("override_file", {'o','l','d'});
+
+    std::string tmp_path = std::string(config.mod_folder) + "/_cache/overlay_test_orig.arc";
+    mkdir_p(std::string(config.mod_folder) + "/_cache");
+    ASSERT_TRUE(orig.save(tmp_path.c_str()));
+
+    std::ifstream f(tmp_path, std::ios::binary);
+    ASSERT_TRUE(f.good());
+    std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
+
+    ArcTestHookFile file("overlay_test.arc", "overlay_test.arc", std::move(orig_bytes));
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    std::vector<uint8_t> expected_orig    = {'o','r','i','g','i','n','a','l'};
+    std::vector<uint8_t> expected_replace = {'r','e','p','l','a','c','e','d'};
+    std::vector<uint8_t> expected_new     = {'n','e','w'};
+    EXPECT_EQ(read_arc_file(*file.mod_path, "original_file"), expected_orig);
+    EXPECT_EQ(read_arc_file(*file.mod_path, "override_file"), expected_replace);
+    EXPECT_EQ(read_arc_file(*file.mod_path, "new_file"), expected_new);
 }
 
 TEST(Regression, BeatStreamAfpXml) {

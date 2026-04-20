@@ -74,3 +74,5 @@ class HookFile {
     {}
     virtual ~HookFile() {}
 };
+
+void handle_arc(HookFile &file);

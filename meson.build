@@ -47,6 +47,7 @@ texbin_verbose_lib = static_library('texbin_verbose',
 
 layeredfs_lib = static_library('layeredfs',
     sources: [
+        'src/arc.cpp',
         'src/avs.cpp',
         'src/dllmain.cpp',
         'src/imagefs.cpp',
