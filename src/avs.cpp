@@ -414,7 +414,7 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
     compressor->input_buffer = input;
     compressor->input_size = (uint32_t)length;
     // worst case, for every 8 bytes there will be an extra flag byte
-    auto to_add = std::max(length / 8, (size_t)1);
+    auto to_add = std::max((length + 7) / 8, (size_t)1);
     auto compress_size = length + to_add;
     auto compress_buffer = (unsigned char*)malloc(compress_size);
     compressor->output_buffer = compress_buffer;
@@ -438,6 +438,41 @@ unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compress
     *compressed_length = compress_size - compressor->output_size;
     cstream_destroy(compressor);
     return compress_buffer;
+}
+
+unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length) {
+    auto decompressor = cstream_create(AVS_DECOMPRESS_AVSLZ);
+    if (!decompressor) {
+        log_warning("Couldn't create decompressor");
+        return NULL;
+    }
+    auto decompress_buffer = (unsigned char*)malloc(*decompressed_length);
+    decompressor->input_buffer = input;
+    decompressor->input_size = (uint32_t)length;
+    decompressor->output_buffer = decompress_buffer;
+    decompressor->output_size = (uint32_t)*decompressed_length;
+
+    bool ret = cstream_operate(decompressor);
+    if (!ret && !decompressor->input_size) {
+        decompressor->input_buffer = NULL;
+        decompressor->input_size = -1;
+        ret = cstream_operate(decompressor);
+    }
+    if (!ret) {
+        log_warning("Couldn't decompress");
+        free(decompress_buffer);
+        cstream_destroy(decompressor);
+        return NULL;
+    }
+    if (cstream_finish(decompressor)) {
+        log_warning("Couldn't finish decompression");
+        free(decompress_buffer);
+        cstream_destroy(decompressor);
+        return NULL;
+    }
+    *decompressed_length = *decompressed_length - decompressor->output_size;
+    cstream_destroy(decompressor);
+    return decompress_buffer;
 }
 
 typedef struct {
