@@ -188,31 +188,45 @@ string_set list_pngs(string const&folder) {
     return ret;
 }
 
-static void list_files_onefolder(std::map<string, string> &out, string const& folder, string const& rel_prefix) {
+struct ArcModScan {
+    // Per-entry overrides. Keyed by relative path within the arc, e.g. "shader/foo.bin".
+    std::map<string, string> files;
+    // True if any directory ending in "_ifs" was seen anywhere in the mod tree.
+    // Such directories represent inner ifs files we want demangled at runtime,
+    // not flattened back into the arc — but their presence still forces a
+    // repack so the demangler has known offsets to work from.
+    bool has_ifs_subtree = false;
+};
+
+static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string const& rel_prefix) {
     WIN32_FIND_DATAA fd;
     HANDLE hFind = FindFirstFileA((folder + "/*").c_str(), &fd);
     if (hFind == INVALID_HANDLE_VALUE)
         return;
     do {
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (strcmp(fd.cFileName, ".") != 0 && strcmp(fd.cFileName, "..") != 0) {
-                list_files_onefolder(out,
-                    folder + "/" + fd.cFileName,
-                    rel_prefix + fd.cFileName + "/");
+            if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+                continue;
+            if (string_ends_with(fd.cFileName, "_ifs")) {
+                out.has_ifs_subtree = true;
+                continue;
             }
+            scan_arc_mod_onefolder(out,
+                folder + "/" + fd.cFileName,
+                rel_prefix + fd.cFileName + "/");
         } else {
             string rel = rel_prefix + fd.cFileName;
-            if (out.find(rel) == out.end())
-                out[rel] = folder + "/" + fd.cFileName;
+            if (out.files.find(rel) == out.files.end())
+                out.files[rel] = folder + "/" + fd.cFileName;
         }
     } while (FindNextFileA(hFind, &fd));
     FindClose(hFind);
 }
 
-static std::map<string, string> list_arc_files(string const& folder) {
-    std::map<string, string> ret;
+static ArcModScan scan_arc_mod_folder(string const& folder) {
+    ArcModScan ret;
     for (auto &mod : available_mods()) {
-        list_files_onefolder(ret, mod + "/" + folder, "");
+        scan_arc_mod_onefolder(ret, mod + "/" + folder, "");
     }
     return ret;
 }
@@ -227,8 +241,11 @@ void handle_arc(HookFile &file) {
         return;
     }
 
-    auto mod_files = list_arc_files(arc_mod_path);
-    if (mod_files.empty()) {
+    auto scan = scan_arc_mod_folder(arc_mod_path);
+    // Either per-entry overrides or an _ifs subtree triggers a repack. _ifs alone
+    // produces a byte-for-byte (uncompressed) copy of the original so the demangler
+    // can resolve inner-ifs reads at known offsets.
+    if (scan.files.empty() && !scan.has_ifs_subtree) {
         log_verbose("arc: mod folder has no files, skipping");
         return;
     }
@@ -239,13 +256,21 @@ void handle_arc(HookFile &file) {
 
     auto starting = file.get_path_to_open();
     cache_hasher.add(starting);
-    for (auto &[_, path] : mod_files) {
+    for (auto &[_, path] : scan.files) {
         cache_hasher.add(path);
+    }
+    // _ifs presence affects whether we repack at all, so make it part of the key
+    if (scan.has_ifs_subtree) {
+        string ifs_marker = "_ifs_subtree";
+        cache_hasher.add(ifs_marker);
     }
     cache_hasher.finish();
 
     if (cache_hasher.matches()) {
         file.mod_path = out;
+        if (scan.has_ifs_subtree) {
+            ramfs_demangler_register_arc_repack(file.path);
+        }
         log_verbose("arc cache up to date, skip");
         return;
     }
@@ -272,7 +297,7 @@ void handle_arc(HookFile &file) {
         return;
     }
 
-    for (auto &[name, path] : mod_files) {
+    for (auto &[name, path] : scan.files) {
         std::ifstream f(path, std::ios::binary);
         if (!f) {
             log_warning("arc: couldn't read mod file '%s'", path.c_str());
@@ -289,6 +314,9 @@ void handle_arc(HookFile &file) {
 
     cache_hasher.commit();
     file.mod_path = out;
+    if (scan.has_ifs_subtree) {
+        ramfs_demangler_register_arc_repack(file.path);
+    }
 
     log_misc("arc generation took %d ms", time() - start);
 }
@@ -481,8 +509,9 @@ int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fs
 }
 
 size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
-    ramfs_demangler_on_fs_read(context, bytes);
-    return avs_fs_read(context, bytes, nbytes);
+    auto ret = avs_fs_read(context, bytes, nbytes);
+    ramfs_demangler_on_fs_read(context, bytes, ret);
+    return ret;
 }
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {

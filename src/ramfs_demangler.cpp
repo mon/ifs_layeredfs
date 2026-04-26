@@ -31,12 +31,15 @@
 */
 
 #include <algorithm>
+#include <cstring>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <optional>
 
 #include "3rd_party/hat-trie/htrie_map.h"
 
+#include "arc.hpp"
 #include "ramfs_demangler.h"
 #include "log.hpp"
 #include "utils.hpp"
@@ -58,6 +61,9 @@ static unordered_map<void*, string> ram_load_map;
 // using tries for fast prefix matches on our mangled names
 static tsl::htrie_map<char, string> ramfs_map;
 static tsl::htrie_map<char, string> mangling_map;
+// Set of original game-side paths whose .arc has been repacked uncompressed.
+// Only these arcs get their inner .ifs files registered into ram_load_map.
+static unordered_set<string> repacked_arcs;
 
 static CriticalSectionLock mangling_mtx;
 
@@ -65,7 +71,9 @@ static CriticalSectionLock mangling_mtx;
 static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path);
 
 void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
-	if (open_result < 0 || !string_ends_with(path.c_str(), ".ifs")) {
+	if (open_result < 0
+		|| (!string_ends_with(path.c_str(), ".ifs")
+			&& !string_ends_with(path.c_str(), ".arc"))) {
 		return;
 	}
 
@@ -102,19 +110,66 @@ void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 	mangling_mtx.unlock();
 }
 
-void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
+void ramfs_demangler_register_arc_repack(const std::string& original_path) {
+	mangling_mtx.lock();
+	repacked_arcs.insert(original_path);
+	mangling_mtx.unlock();
+}
+
+// Walk the directory of a repacked uncompressed arc and register each inner
+// .ifs at (buffer + entry.file_offset) so a later ramfs mount with that base
+// pointer is demangled to "<arc_path>/<inner.ifs>". Only inner files ending
+// in .ifs are tracked; everything else is noise we'd never demangle.
+static void register_arc_inner_ifs_nolock(const std::string& arc_path, void* dest, size_t nbytes) {
+	if (dest == nullptr || nbytes < sizeof(ArcHeader)) {
+		return;
+	}
+	auto* hdr = reinterpret_cast<const ArcHeader*>(dest);
+	if (hdr->magic != ARC_MAGIC || hdr->compression != ARC_COMPRESSION_NONE) {
+		log_warning("arc demangle: %s missing/compressed header (magic=%08x compression=%u), skipping",
+			arc_path.c_str(), hdr->magic, hdr->compression);
+		return;
+	}
+
+	size_t entries_end = sizeof(ArcHeader) + (size_t)hdr->filecount * sizeof(ArcEntry);
+	if (entries_end > nbytes) {
+		return;
+	}
+
+	auto* entries = reinterpret_cast<const ArcEntry*>(
+		reinterpret_cast<const uint8_t*>(dest) + sizeof(ArcHeader));
+	auto* base = reinterpret_cast<uint8_t*>(dest);
+
+	for (uint32_t i = 0; i < hdr->filecount; i++) {
+		const auto& e = entries[i];
+		if (e.str_offset >= nbytes) continue;
+		const char* name = reinterpret_cast<const char*>(base + e.str_offset);
+		if (memchr(name, 0, nbytes - e.str_offset) == nullptr) continue;
+		if (!string_ends_with(name, ".ifs")) continue;
+		if ((size_t)e.file_offset + e.packed_size > nbytes) continue;
+
+		void* inner = base + e.file_offset;
+		string inner_path = arc_path + "/" + name;
+		ram_load_map[inner] = inner_path;
+		log_verbose("arc inner mapped %p -> %s", inner, inner_path.c_str());
+	}
+}
+
+void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest, size_t nbytes) {
 	mangling_mtx.lock();
 
 	auto find = open_file_map.find(context);
 	if (find != open_file_map.end()) {
 		auto path = find->second;
-		// even this is too verbose
-		//log_verbose("Mapped %p to %s", dest, path.c_str());
 		ram_load_map[dest] = path;
 
 		auto cleanup = cleanup_map.find(path);
 		if (cleanup != cleanup_map.end()) {
 			cleanup->second.buffer = dest;
+		}
+
+		if (repacked_arcs.count(path)) {
+			register_arc_inner_ifs_nolock(path, dest, nbytes);
 		}
 	}
 
