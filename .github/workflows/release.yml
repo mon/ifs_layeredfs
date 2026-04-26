@@ -28,7 +28,7 @@ jobs:
           gh run watch "$run_id" -R "$GITHUB_REPOSITORY" --exit-status
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist

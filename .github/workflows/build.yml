@@ -2,19 +2,19 @@ name: Build
 
 on:
   push:
-    branches: [master]
-    tags: ['*']
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_SUMMARY: false
         with:
           context: docker
           load: true
@@ -28,7 +28,7 @@ jobs:
       - name: Test
         run: docker run --rm -v "$PWD:/work" layeredfs/deps bash test.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: dist/*.zip
