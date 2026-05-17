@@ -255,16 +255,16 @@ void handle_arc(HookFile &file) {
 
     // Register inner-ifs basenames with the demangler. The game extracts each
     // inner ifs into a ramfs whose mountpoint/fsroot carries only the basename;
-    // demangler then re-qualifies it as "<arc.path>/<inner.ifs>/..." (with .arc
-    // pre-substituted to _arc), and normalise_path -> mod lookup applies the
-    // .ifs -> _ifs transform afterwards. Use file.path (raw) so the demangled
-    // result still contains the game-folder prefix normalise_path looks for.
-    string arc_raw_underscored = file.path;
-    string_replace(arc_raw_underscored, ".arc", "_arc");
+    // demangler then re-qualifies it as "data/<arc.path>/<inner.ifs>/..." (with
+    // .arc pre-substituted to _arc), and normalise_path -> mod lookup applies
+    // the .ifs -> _ifs transform afterwards. Build off norm_path with an
+    // explicit "data/" so the registration is stable regardless of which AVS
+    // drive prefix the game opened the arc through (otherwise the same arc
+    // reached via "data/" and "/local/data/" produces a basename collision).
     for (auto const& inner_rel : scan.inner_ifs_paths) {
         auto pos = inner_rel.rfind('/');
         string basename = (pos == string::npos) ? inner_rel : inner_rel.substr(pos + 1);
-        string demangled = arc_raw_underscored + "/" + inner_rel;
+        string demangled = "data/" + arc_mod_path + "/" + inner_rel;
         ramfs_demangler_register_arc_inner_ifs(basename, demangled);
     }
 

@@ -303,7 +303,7 @@ static void exercise_inner_ifs_demangle(std::string const& arc_path) {
     ramfs_demangler_demangle_if_possible(p);
     std::string expected_arc = arc_path;
     string_replace(expected_arc, ".arc", "_arc");
-    EXPECT_EQ(p, expected_arc + "/inner.ifs/some_subfile");
+    EXPECT_EQ(p, "data/" + expected_arc + "/inner.ifs/some_subfile");
 }
 
 TEST(ArcArchive, IfsOnlySubtreeSkipsRepack) {
