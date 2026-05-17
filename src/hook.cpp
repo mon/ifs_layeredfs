@@ -11,6 +11,8 @@ using std::string;
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <set>
 #include <sstream>
 
 #include "3rd_party/MinHook.h"
@@ -191,11 +193,13 @@ string_set list_pngs(string const&folder) {
 struct ArcModScan {
     // Per-entry overrides. Keyed by relative path within the arc, e.g. "shader/foo.bin".
     std::map<string, string> files;
-    // True if any directory ending in "_ifs" was seen anywhere in the mod tree.
-    // Such directories represent inner ifs files we want demangled at runtime,
-    // not flattened back into the arc — but their presence still forces a
-    // repack so the demangler has known offsets to work from.
-    bool has_ifs_subtree = false;
+    // Inner-ifs paths inside the arc, derived from "*_ifs" mod subdirs. Paths
+    // are arc-relative with the dot restored: a mod dir "sub/inner_ifs/" yields
+    // "sub/inner.ifs". These get registered with the demangler so the game's
+    // ramfs mount of the extracted inner ifs maps back to the arc-qualified
+    // path our mod-folder lookup expects. Set, so multiple mods declaring the
+    // same inner ifs dedupe.
+    std::set<string> inner_ifs_paths;
 };
 
 static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string const& rel_prefix) {
@@ -208,7 +212,9 @@ static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string
             if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
                 continue;
             if (string_ends_with(fd.cFileName, "_ifs")) {
-                out.has_ifs_subtree = true;
+                string name = fd.cFileName;
+                name.replace(name.size() - 4, 4, ".ifs");
+                out.inner_ifs_paths.insert(rel_prefix + name);
                 continue;
             }
             scan_arc_mod_onefolder(out,
@@ -242,11 +248,27 @@ void handle_arc(HookFile &file) {
     }
 
     auto scan = scan_arc_mod_folder(arc_mod_path);
-    // Either per-entry overrides or an _ifs subtree triggers a repack. _ifs alone
-    // produces a byte-for-byte (uncompressed) copy of the original so the demangler
-    // can resolve inner-ifs reads at known offsets.
-    if (scan.files.empty() && !scan.has_ifs_subtree) {
+    if (scan.files.empty() && scan.inner_ifs_paths.empty()) {
         log_verbose("arc: mod folder has no files, skipping");
+        return;
+    }
+
+    // Register inner-ifs basenames with the demangler. The game extracts each
+    // inner ifs into a ramfs whose mountpoint/fsroot carries only the basename;
+    // demangler then re-qualifies it as "<arc.path>/<inner.ifs>/..." (with .arc
+    // pre-substituted to _arc), and normalise_path -> mod lookup applies the
+    // .ifs -> _ifs transform afterwards. Use file.path (raw) so the demangled
+    // result still contains the game-folder prefix normalise_path looks for.
+    string arc_raw_underscored = file.path;
+    string_replace(arc_raw_underscored, ".arc", "_arc");
+    for (auto const& inner_rel : scan.inner_ifs_paths) {
+        auto pos = inner_rel.rfind('/');
+        string basename = (pos == string::npos) ? inner_rel : inner_rel.substr(pos + 1);
+        string demangled = arc_raw_underscored + "/" + inner_rel;
+        ramfs_demangler_register_arc_inner_ifs(basename, demangled);
+    }
+
+    if (scan.files.empty()) {
         return;
     }
 
@@ -259,18 +281,10 @@ void handle_arc(HookFile &file) {
     for (auto &[_, path] : scan.files) {
         cache_hasher.add(path);
     }
-    // _ifs presence affects whether we repack at all, so make it part of the key
-    if (scan.has_ifs_subtree) {
-        string ifs_marker = "_ifs_subtree";
-        cache_hasher.add(ifs_marker);
-    }
     cache_hasher.finish();
 
     if (cache_hasher.matches()) {
         file.mod_path = out;
-        if (scan.has_ifs_subtree) {
-            ramfs_demangler_register_arc_repack(file.path);
-        }
         log_verbose("arc cache up to date, skip");
         return;
     }
@@ -314,9 +328,6 @@ void handle_arc(HookFile &file) {
 
     cache_hasher.commit();
     file.mod_path = out;
-    if (scan.has_ifs_subtree) {
-        ramfs_demangler_register_arc_repack(file.path);
-    }
 
     log_misc("arc generation took %d ms", time() - start);
 }

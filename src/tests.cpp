@@ -287,70 +287,34 @@ TEST(ArcArchive, ScratchFromTwoMods) {
     EXPECT_EQ(read_arc_file(*file.mod_path, "file_b"), expected_b);
 }
 
-// Drives the demangler chain end-to-end given a repacked-arc on disk: simulates
-// the avs_fs_open / read / mount sequence and asserts that a path inside the
-// inner ifs's imagefs mountpoint demangles back to "<arc_path>/inner.ifs/<file>".
-static void exercise_inner_ifs_demangle(std::string const& arc_path, std::string const& mod_arc_on_disk) {
-    std::ifstream arc_f(mod_arc_on_disk, std::ios::binary);
-    ASSERT_TRUE(arc_f.good());
-    std::vector<uint8_t> arc_buf(std::istreambuf_iterator<char>(arc_f), {});
-
-    // Walk the repacked directory to find inner.ifs's offset within the buffer
-    ASSERT_GE(arc_buf.size(), sizeof(ArcHeader));
-    auto* hdr = reinterpret_cast<const ArcHeader*>(arc_buf.data());
-    ASSERT_EQ(hdr->magic, ARC_MAGIC);
-    ASSERT_EQ(hdr->compression, ARC_COMPRESSION_NONE);
-
-    auto* entries = reinterpret_cast<const ArcEntry*>(arc_buf.data() + sizeof(ArcHeader));
-    const uint8_t* inner_ifs_ptr = nullptr;
-    for (uint32_t i = 0; i < hdr->filecount; i++) {
-        const char* name = (const char*)arc_buf.data() + entries[i].str_offset;
-        if (std::string(name) == "inner.ifs") {
-            inner_ifs_ptr = arc_buf.data() + entries[i].file_offset;
-            break;
-        }
-    }
-    ASSERT_NE(inner_ifs_ptr, nullptr);
-
-    AVS_FILE fake_handle = 8888;
-    ramfs_demangler_on_fs_open(arc_path, fake_handle);
-    ramfs_demangler_on_fs_read(fake_handle, arc_buf.data(), arc_buf.size());
-
-    char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)inner_ifs_ptr);
+// Drives the demangler mount chain end-to-end after handle_arc has registered
+// the inner-ifs basename: simulates the ramfs/imagefs mount sequence and
+// asserts that a path inside the inner ifs's imagefs mountpoint demangles back
+// to "<arc_path with .arc->_arc>/inner.ifs/<file>".
+static void exercise_inner_ifs_demangle(std::string const& arc_path) {
+    // The buffer pointer doesn't matter — basename lookup is the fallback path
+    uint8_t fake_buffer[1];
+    char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
     ramfs_demangler_on_fs_mount("/sd9", "inner.ifs", "ramfs", flags);
     free(flags);
     ramfs_demangler_on_fs_mount("/game/inner_test", "/sd9/inner.ifs", "imagefs", nullptr);
 
     std::string p = "/game/inner_test/some_subfile";
     ramfs_demangler_demangle_if_possible(p);
-    EXPECT_EQ(p, arc_path + "/inner.ifs/some_subfile");
+    std::string expected_arc = arc_path;
+    string_replace(expected_arc, ".arc", "_arc");
+    EXPECT_EQ(p, expected_arc + "/inner.ifs/some_subfile");
 }
 
-TEST(ArcArchive, IfsOnlyForcesUncompressedRepack) {
-    // Original arc has inner.ifs and an unrelated entry; mod folder has only
-    // an _ifs subtree (no per-entry overrides). The arc must still be repacked
-    // uncompressed so the demangler can find inner.ifs at a known offset.
-    ArcArchive orig;
-    std::vector<uint8_t> inner_ifs_bytes(64, 'I');
-    std::vector<uint8_t> other_bin_bytes = {'o','r','i','g','_','o','t','h','e','r'};
-    orig.add_or_replace("inner.ifs", inner_ifs_bytes);
-    orig.add_or_replace("other.bin", other_bin_bytes);
-
-    std::string tmp_path = std::string(config.mod_folder) + "/_cache/ifs_only_orig.arc";
-    mkdir_p(std::string(config.mod_folder) + "/_cache");
-    ASSERT_TRUE(orig.save(tmp_path.c_str()));
-    std::ifstream f(tmp_path, std::ios::binary);
-    std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
-
-    ArcTestHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc", std::move(orig_bytes));
+TEST(ArcArchive, IfsOnlySubtreeSkipsRepack) {
+    // Mod folder has only an _ifs subtree (no per-entry overrides). No repack
+    // should happen — the original arc is left alone — but the inner-ifs
+    // basename still gets registered with the demangler.
+    ArcTestHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc");
     handle_arc(file);
-    ASSERT_TRUE(file.mod_path.has_value());
+    EXPECT_FALSE(file.mod_path.has_value());
 
-    // Both entries preserved unchanged
-    EXPECT_EQ(read_arc_file(*file.mod_path, "inner.ifs"), inner_ifs_bytes);
-    EXPECT_EQ(read_arc_file(*file.mod_path, "other.bin"), other_bin_bytes);
-
-    exercise_inner_ifs_demangle(file.path, *file.mod_path);
+    exercise_inner_ifs_demangle(file.path);
 }
 
 TEST(ArcArchive, IfsWithExtraOverrides) {
@@ -375,7 +339,7 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     std::vector<uint8_t> expected_override = {'o','v','e','r','r','i','d','d','e','n','_','o','t','h','e','r','_','d','a','t','a'};
     EXPECT_EQ(read_arc_file(*file.mod_path, "other.bin"), expected_override);
 
-    exercise_inner_ifs_demangle(file.path, *file.mod_path);
+    exercise_inner_ifs_demangle(file.path);
 }
 
 TEST(ArcArchive, OverlayWithTwoMods) {

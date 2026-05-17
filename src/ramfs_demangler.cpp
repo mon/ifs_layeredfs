@@ -34,12 +34,10 @@
 #include <cstring>
 #include <map>
 #include <unordered_map>
-#include <unordered_set>
 #include <optional>
 
 #include "3rd_party/hat-trie/htrie_map.h"
 
-#include "arc.hpp"
 #include "ramfs_demangler.h"
 #include "log.hpp"
 #include "utils.hpp"
@@ -61,9 +59,14 @@ static unordered_map<void*, string> ram_load_map;
 // using tries for fast prefix matches on our mangled names
 static tsl::htrie_map<char, string> ramfs_map;
 static tsl::htrie_map<char, string> mangling_map;
-// Set of original game-side paths whose .arc has been repacked uncompressed.
-// Only these arcs get their inner .ifs files registered into ram_load_map.
-static unordered_set<string> repacked_arcs;
+// Basename ("foo.ifs") -> demangled inner path ("arc/.../foo_arc/.../foo.ifs").
+// Pointer tracking through ram_load_map doesn't work for arcs: games like
+// DDR A3 copy the inner-ifs window into the mount buffer through their own
+// filesystem virtualisation, never via avs_fs_read. The mountpoint
+// (eg "/dev/ram/foo.ifs/") or fsroot ("foo.ifs") carries the basename, so we
+// fall back to that. Populated eagerly by hook.cpp from the mod folder's
+// _ifs subdirs — we never read the arc itself for this.
+static unordered_map<string, string> arc_inner_by_basename;
 
 static CriticalSectionLock mangling_mtx;
 
@@ -110,52 +113,20 @@ void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 	mangling_mtx.unlock();
 }
 
-void ramfs_demangler_register_arc_repack(const std::string& original_path) {
+void ramfs_demangler_register_arc_inner_ifs(const std::string& basename, const std::string& demangled_path) {
 	mangling_mtx.lock();
-	repacked_arcs.insert(original_path);
+	auto existing = arc_inner_by_basename.find(basename);
+	if (existing != arc_inner_by_basename.end() && existing->second != demangled_path) {
+		log_warning("arc demangle: basename collision for '%s' (%s vs %s), later one wins",
+			basename.c_str(), existing->second.c_str(), demangled_path.c_str());
+	}
+	arc_inner_by_basename[basename] = demangled_path;
+	log_verbose("arc inner basename '%s' -> %s", basename.c_str(), demangled_path.c_str());
 	mangling_mtx.unlock();
 }
 
-// Walk the directory of a repacked uncompressed arc and register each inner
-// .ifs at (buffer + entry.file_offset) so a later ramfs mount with that base
-// pointer is demangled to "<arc_path>/<inner.ifs>". Only inner files ending
-// in .ifs are tracked; everything else is noise we'd never demangle.
-static void register_arc_inner_ifs_nolock(const std::string& arc_path, void* dest, size_t nbytes) {
-	if (dest == nullptr || nbytes < sizeof(ArcHeader)) {
-		return;
-	}
-	auto* hdr = reinterpret_cast<const ArcHeader*>(dest);
-	if (hdr->magic != ARC_MAGIC || hdr->compression != ARC_COMPRESSION_NONE) {
-		log_warning("arc demangle: %s missing/compressed header (magic=%08x compression=%u), skipping",
-			arc_path.c_str(), hdr->magic, hdr->compression);
-		return;
-	}
-
-	size_t entries_end = sizeof(ArcHeader) + (size_t)hdr->filecount * sizeof(ArcEntry);
-	if (entries_end > nbytes) {
-		return;
-	}
-
-	auto* entries = reinterpret_cast<const ArcEntry*>(
-		reinterpret_cast<const uint8_t*>(dest) + sizeof(ArcHeader));
-	auto* base = reinterpret_cast<uint8_t*>(dest);
-
-	for (uint32_t i = 0; i < hdr->filecount; i++) {
-		const auto& e = entries[i];
-		if (e.str_offset >= nbytes) continue;
-		const char* name = reinterpret_cast<const char*>(base + e.str_offset);
-		if (memchr(name, 0, nbytes - e.str_offset) == nullptr) continue;
-		if (!string_ends_with(name, ".ifs")) continue;
-		if ((size_t)e.file_offset + e.packed_size > nbytes) continue;
-
-		void* inner = base + e.file_offset;
-		string inner_path = arc_path + "/" + name;
-		ram_load_map[inner] = inner_path;
-		log_verbose("arc inner mapped %p -> %s", inner, inner_path.c_str());
-	}
-}
-
 void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest, size_t nbytes) {
+	(void)nbytes;
 	mangling_mtx.lock();
 
 	auto find = open_file_map.find(context);
@@ -166,10 +137,6 @@ void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest, size_t nbytes) {
 		auto cleanup = cleanup_map.find(path);
 		if (cleanup != cleanup_map.end()) {
 			cleanup->second.buffer = dest;
-		}
-
-		if (repacked_arcs.count(path)) {
-			register_arc_inner_ifs_nolock(path, dest, nbytes);
 		}
 	}
 
@@ -196,16 +163,46 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 
 		buffer = (void*)strtoull(baseptr + strlen("base="), NULL, 0);
 
+		// strip trailing '/' on mountpoint — DDR uses "/dev/ram/foo.ifs/" and a
+		// naive join produces "//" which won't match the link mount's
+		// single-slashed fsroot lookup later.
+		string mp_trim = mountpoint;
+		while (!mp_trim.empty() && mp_trim.back() == '/') mp_trim.pop_back();
+		string mount_path = mp_trim + "/" + fsroot;
+
 		auto find = ram_load_map.find(buffer);
 		if (find != ram_load_map.end()) {
 			auto orig_path = find->second;
 			log_verbose("ramfs mount mapped to %s", orig_path.c_str());
-			string mount_path = (string)mountpoint + "/" + fsroot;
 			ramfs_map[mount_path.c_str()] =  orig_path;
 
 			auto cleanup = cleanup_map.find(orig_path);
 			if (cleanup != cleanup_map.end()) {
 				cleanup->second.ramfs_path = mount_path;
+			}
+		} else {
+			// Pointer miss. Inner-ifs files inside arcs reach the mount buffer
+			// through a path that doesn't touch any of our hooks, so the buffer
+			// pointer is unknown. The ifs basename is in either mountpoint
+			// ("/dev/ram/foo.ifs/") or fsroot ("foo.ifs") depending on the game.
+			auto basename_of = [](const char* path) -> string {
+				if (!path) return "";
+				string s = path;
+				while (!s.empty() && s.back() == '/') s.pop_back();
+				auto pos = s.rfind('/');
+				string bn = (pos == string::npos) ? s : s.substr(pos + 1);
+				return string_ends_with(bn.c_str(), ".ifs") ? bn : string();
+			};
+			string bn = basename_of(mountpoint);
+			if (bn.empty()) bn = basename_of(fsroot);
+
+			auto by_name = bn.empty() ? arc_inner_by_basename.end()
+			                          : arc_inner_by_basename.find(bn);
+			if (by_name != arc_inner_by_basename.end()) {
+				auto orig_path = by_name->second;
+				log_verbose("ramfs mount basename '%s' mapped to %s", bn.c_str(), orig_path.c_str());
+				ramfs_map[mount_path.c_str()] = orig_path;
+				// No cleanup_map entry: we never saw the open for this inner ifs.
 			}
 		}
 	}
