@@ -232,11 +232,16 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			}
 		}
 		else if(string_ends_with(fsroot, ".ifs")) {
-			// this fixes ifs-inside-ifs by demangling the root location too
+			// ifs-inside-ifs: only useful if the outer ifs is itself demangled.
+			// Without that, we'd just self-map mountpoint -> raw ramfs path and
+			// lie in the log about having "mapped" it.
 			string root = (string)fsroot;
+			string before = root;
 			ramfs_demangler_demangle_if_possible_nolock(root);
-			log_verbose("imagefs mount mapped to %s", root.c_str());
-			mangling_map[mountpoint] = root;
+			if (root != before) {
+				log_verbose("imagefs mount mapped to %s", root.c_str());
+				mangling_map[mountpoint] = root;
+			}
 		}
 	}
 
