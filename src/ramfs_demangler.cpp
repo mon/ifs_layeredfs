@@ -40,6 +40,7 @@
 
 #include "ramfs_demangler.h"
 #include "log.hpp"
+#include "modpath_handler.h"
 #include "utils.hpp"
 #include "winxp_mutex.hpp"
 
@@ -232,13 +233,18 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			}
 		}
 		else if(string_ends_with(fsroot, ".ifs")) {
-			// ifs-inside-ifs: only useful if the outer ifs is itself demangled.
-			// Without that, we'd just self-map mountpoint -> raw ramfs path and
-			// lie in the log about having "mapped" it.
+			// Two scenarios reach here:
+			//  (1) imagefs mounted directly from a real file path (eg
+			//      ./data/foo.ifs). mountpoint -> fsroot is what makes
+			//      paths under the mountpoint normalise back to data-relative.
+			//  (2) ifs-inside-ifs where the inner ifs is opaque/virtual
+			//      (no ramfs_map entry and not a real path) - registering
+			//      would lie about a mapping we don't actually have.
+			// Demangle first to handle ifs-inside-real-ifs, then check that
+			// the result is something normalise_path can use.
 			string root = (string)fsroot;
-			string before = root;
 			ramfs_demangler_demangle_if_possible_nolock(root);
-			if (root != before) {
+			if (normalise_path(root)) {
 				log_verbose("imagefs mount mapped to %s", root.c_str());
 				mangling_map[mountpoint] = root;
 			}
