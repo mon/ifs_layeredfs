@@ -525,6 +525,29 @@ size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
     return ret;
 }
 
+static DWORD (WINAPI *real_GetLongPathNameA)(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer);
+
+DWORD WINAPI hook_GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer) {
+    // have seen massive paths in DDR World ifs-in-arc cases, e.g:
+    // ./data_mods/_cache/arc/custom/background/background_0001_arc/data/custom/background/background_0001_ifs/ebb521b5f25bf88e09dbd3aa19a48c60
+    //
+    // AVS has a 128 char buffer that it gives to GetLongPathNameA:
+    // If it succeeds, it does a strcmp against the original path (sure, I guess?).
+    // If it fails, it compares against ERROR_FILE_NOT_FOUND and
+    // ERROR_PATH_NOT_FOUND and if it's one of those it just falls through to
+    // CreateFileA with the original arg. So because we're succeeding with a buffer
+    // too large, the strcmp fails, so we pretend it failed and do the fallthru.
+
+    DWORD ret = real_GetLongPathNameA(lpszShortPath, lpszLongPath, cchBuffer);
+
+    if(cchBuffer == 0x80 && ret > cchBuffer && strstr(lpszShortPath, config.get_mod_folder_native().c_str()) != nullptr) {
+        SetLastError(ERROR_FILE_NOT_FOUND);
+        return 0;
+    }
+
+    return ret;
+}
+
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if(name == NULL || inside_pkfs_hook)
         return avs_fs_open(name, mode, flags);
@@ -669,6 +692,10 @@ extern "C" {
             } else {
                 log_fatal("Couldn't fully init pkfs hook - open an issue!");
             }
+        }
+
+        if (MH_CreateHookApi(L"kernel32.dll", "GetLongPathNameA", (LPVOID)&hook_GetLongPathNameA, (LPVOID*)&real_GetLongPathNameA) != MH_OK) {
+            log_warning("Couldn't hook GetLongPathNameA");
         }
 
         if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {

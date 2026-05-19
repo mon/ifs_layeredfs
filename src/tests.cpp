@@ -40,12 +40,12 @@ class Environment : public ::testing::Environment {
 
         ASSERT_EQ(init(), 0);
 
-        config.mod_folder = "./testcases_data_mods";
+        config.set_mod_folder("./testcases_data_mods");
         config.verbose_logs = true;
         print_config();
         cache_mods();
 
-        ASSERT_THAT(available_mods(), Contains(config.mod_folder + "/empty"));
+        ASSERT_THAT(available_mods(), Contains(config.get_mod_folder() + "/empty"));
      }
 
      // Override this to define how to tear down the environment.
@@ -88,13 +88,13 @@ TEST_P(DevModeOnOff, MissingFileNullopt) {
 }
 
 TEST_P(DevModeOnOff, CaseInsensitiveFiles) {
-   EXPECT_THAT(find_first_modfile("OhNo/oWo"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/oWo"));
-   EXPECT_THAT(find_first_modfile("ohno/owo"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/oWo"));
+   EXPECT_THAT(find_first_modfile("OhNo/oWo"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/oWo"));
+   EXPECT_THAT(find_first_modfile("ohno/owo"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/oWo"));
 }
 
 TEST_P(DevModeOnOff, CaseInsensitiveFolders) {
-   EXPECT_THAT(find_first_modfolder("OhNO"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/"));
-   EXPECT_THAT(find_first_modfolder("ohno"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/"));
+   EXPECT_THAT(find_first_modfolder("OhNO"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/"));
+   EXPECT_THAT(find_first_modfolder("ohno"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/"));
 }
 
 TEST(ImageFs, MD5DemanglingWorks) {
@@ -146,12 +146,12 @@ TEST(ImageFs, MD5DemanglingWorks) {
       return *lookup;
    };
 
-   EXPECT_EQ(lookup_tex("tex", "inner"),               config.mod_folder + "/md5_lookup/test_ifs/tex/inner.png");
-   EXPECT_EQ(lookup_tex("tex", "outer"),               config.mod_folder + "/md5_lookup/test_ifs/outer.png");
-   EXPECT_EQ(lookup_afp("afp", "confirm_all"),         config.mod_folder + "/md5_lookup/test_ifs/afp/confirm_all");
-   EXPECT_EQ(lookup_afp("afp/bsi", "confirm_all"),     config.mod_folder + "/md5_lookup/test_ifs/afp/bsi/confirm_all");
-   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape5"),  config.mod_folder + "/md5_lookup/test_ifs/geo/confirm_all_shape5");
-   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape11"), config.mod_folder + "/md5_lookup/test_ifs/geo/confirm_all_shape11");
+   EXPECT_EQ(lookup_tex("tex", "inner"),               config.get_mod_folder() + "/md5_lookup/test_ifs/tex/inner.png");
+   EXPECT_EQ(lookup_tex("tex", "outer"),               config.get_mod_folder() + "/md5_lookup/test_ifs/outer.png");
+   EXPECT_EQ(lookup_afp("afp", "confirm_all"),         config.get_mod_folder() + "/md5_lookup/test_ifs/afp/confirm_all");
+   EXPECT_EQ(lookup_afp("afp/bsi", "confirm_all"),     config.get_mod_folder() + "/md5_lookup/test_ifs/afp/bsi/confirm_all");
+   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape5"),  config.get_mod_folder() + "/md5_lookup/test_ifs/geo/confirm_all_shape5");
+   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape11"), config.get_mod_folder() + "/md5_lookup/test_ifs/geo/confirm_all_shape11");
 
    avs_fs_umount_by_desc(desc);
 }
@@ -324,8 +324,8 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     orig.add_or_replace("inner.ifs", inner_ifs_bytes);
     orig.add_or_replace("other.bin", other_bin_bytes);
 
-    std::string tmp_path = std::string(config.mod_folder) + "/_cache/ifs_with_extras_orig.arc";
-    mkdir_p(std::string(config.mod_folder) + "/_cache");
+    std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/ifs_with_extras_orig.arc";
+    mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
     std::ifstream f(tmp_path, std::ios::binary);
     std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
@@ -348,8 +348,8 @@ TEST(ArcArchive, OverlayWithTwoMods) {
     orig.add_or_replace("original_file", {'o','r','i','g','i','n','a','l'});
     orig.add_or_replace("override_file", {'o','l','d'});
 
-    std::string tmp_path = std::string(config.mod_folder) + "/_cache/overlay_test_orig.arc";
-    mkdir_p(std::string(config.mod_folder) + "/_cache");
+    std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/overlay_test_orig.arc";
+    mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
     std::ifstream f(tmp_path, std::ios::binary);

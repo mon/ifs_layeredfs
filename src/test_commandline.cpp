@@ -16,5 +16,6 @@ TEST(Cmdline, ConfigParsingWorks) {
    EXPECT_STREQ(config.logfile, "some logfile.log");
    EXPECT_THAT(config.allowlist, ElementsAre("allowed", "these folders"));
    EXPECT_THAT(config.blocklist, ElementsAre("blocked", "these folders"));
-   EXPECT_EQ(config.mod_folder, "./some modfolder");
+   EXPECT_EQ(config.get_mod_folder(), "./some modfolder");
+   EXPECT_EQ(config.get_mod_folder_native(), ".\\some modfolder");
 }

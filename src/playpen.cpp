@@ -170,7 +170,7 @@ FAIL:
     if (prop_buffer)
         free(prop_buffer);*/
 
-    /*auto d = avs_fs_opendir(config.mod_folder.c_str());
+    /*auto d = avs_fs_opendir(config.get_mod_folder().c_str());
     if (!d) {
         log_warning("couldn't d");
         return;
