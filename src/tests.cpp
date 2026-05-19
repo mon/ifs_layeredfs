@@ -200,6 +200,17 @@ TEST(Xml, MergingWorks) {
    ASSERT_EQ(node, nullptr);
 }
 
+TEST(LongPath, AvsFsOpenOver128Chars) {
+   std::string subpath = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bin";
+
+   std::string avs_path = "/data/" + subpath;
+   ASSERT_GT(avs_path.size(), 128u);
+   auto f = hook_avs_fs_open(avs_path.c_str(), avs_open_mode_read(), 420);
+   EXPECT_GT(f, 0);
+   if(f > 0)
+      avs_fs_close(f);
+}
+
 TEST(RamFs, DemanglingWorks) {
     AVS_FILE fake_handle = 9999;
     uint8_t fake_buffer[1];
