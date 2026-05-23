@@ -312,12 +312,18 @@ void handle_arc(HookFile &file) {
     }
 
     for (auto &[name, path] : scan.files) {
-        std::ifstream f(path, std::ios::binary);
+        std::ifstream f(path, std::ios::binary | std::ios::ate);
         if (!f) {
+            log_warning("arc: couldn't open mod file '%s'", path.c_str());
+            continue;
+        }
+        auto size = f.tellg();
+        f.seekg(0);
+        std::vector<uint8_t> data(size);
+        if (!f.read(reinterpret_cast<char*>(data.data()), size)) {
             log_warning("arc: couldn't read mod file '%s'", path.c_str());
             continue;
         }
-        std::vector<uint8_t> data(std::istreambuf_iterator<char>(f), {});
         arc.add_or_replace(name, std::move(data));
     }
 
