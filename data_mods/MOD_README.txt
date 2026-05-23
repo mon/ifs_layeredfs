@@ -21,6 +21,16 @@ data/d3/model/tex_l44fo_continue.bin
   To replace individual texture "CTN_T0000"
     data_mods/example/d3/model/tex_l44fo_continue/CTN_T0000.png
 
+DDR .arc archives
+
+data/arc/bm2d/demo_logo_v3.arc which has an IFS inside data/bm2d/demo_logo_v3.ifs
+  To replace repacked .arc:
+    data_mods/example/arc/bm2d/demo_logo_v3.arc
+  To replace .ifs inside .arc:
+    data_mods/example/arc/bm2d/demo_logo_v3_arc/data/bm2d/demo_logo_v3.ifs
+  To replace texture inside .ifs inside .arc:
+    data_mods/example/arc/bm2d/demo_logo_v3_arc/data/bm2d/demo_logo_v3_ifs/delo_logo_rsa_ja.png
+
 XML files:
 data/others/music_db.xml
   To replace the entire file:
@@ -78,8 +88,12 @@ Special case: "texbin" files (.bin textures from Jubeat and Gitadora)
   Images that do not exist in the original .bin will be added to its texture list
   Gitadora's fancy texture packing/arrangement is handled automatically
 
-Special case: "texbin" files that do not exist
-  Unlike IFS files, LayeredFS will create a .bin file for you even if the original
+Special case: ARC archives
+  ARC file contents can be modded by replacing ".arc" with "_arc" and creating a folder.
+  For any IFS files inside ARC files, use the same structure as mentioned above.
+
+Special case: "texbin"/ARC files that do not exist
+  Unlike IFS files, LayeredFS will create a .bin/.arc file for you even if the original
   does not exist!
 
 Special case: XML files

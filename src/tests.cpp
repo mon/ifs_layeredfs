@@ -11,6 +11,7 @@
 
 #include "3rd_party/rapidxml_print.hpp"
 #include "src/utils.hpp"
+#include "arc.hpp"
 
 using ::testing::Contains;
 using ::testing::Optional;
@@ -39,12 +40,12 @@ class Environment : public ::testing::Environment {
 
         ASSERT_EQ(init(), 0);
 
-        config.mod_folder = "./testcases_data_mods";
+        config.set_mod_folder("./testcases_data_mods");
         config.verbose_logs = true;
         print_config();
         cache_mods();
 
-        ASSERT_THAT(available_mods(), Contains(config.mod_folder + "/empty"));
+        ASSERT_THAT(available_mods(), Contains(config.get_mod_folder() + "/empty"));
      }
 
      // Override this to define how to tear down the environment.
@@ -87,13 +88,13 @@ TEST_P(DevModeOnOff, MissingFileNullopt) {
 }
 
 TEST_P(DevModeOnOff, CaseInsensitiveFiles) {
-   EXPECT_THAT(find_first_modfile("OhNo/oWo"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/oWo"));
-   EXPECT_THAT(find_first_modfile("ohno/owo"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/oWo"));
+   EXPECT_THAT(find_first_modfile("OhNo/oWo"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/oWo"));
+   EXPECT_THAT(find_first_modfile("ohno/owo"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/oWo"));
 }
 
 TEST_P(DevModeOnOff, CaseInsensitiveFolders) {
-   EXPECT_THAT(find_first_modfolder("OhNO"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/"));
-   EXPECT_THAT(find_first_modfolder("ohno"), Optional(config.mod_folder + "/Case_Sensitive/OhNO/"));
+   EXPECT_THAT(find_first_modfolder("OhNO"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/"));
+   EXPECT_THAT(find_first_modfolder("ohno"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/"));
 }
 
 TEST(ImageFs, MD5DemanglingWorks) {
@@ -145,12 +146,12 @@ TEST(ImageFs, MD5DemanglingWorks) {
       return *lookup;
    };
 
-   EXPECT_EQ(lookup_tex("tex", "inner"),               config.mod_folder + "/md5_lookup/test_ifs/tex/inner.png");
-   EXPECT_EQ(lookup_tex("tex", "outer"),               config.mod_folder + "/md5_lookup/test_ifs/outer.png");
-   EXPECT_EQ(lookup_afp("afp", "confirm_all"),         config.mod_folder + "/md5_lookup/test_ifs/afp/confirm_all");
-   EXPECT_EQ(lookup_afp("afp/bsi", "confirm_all"),     config.mod_folder + "/md5_lookup/test_ifs/afp/bsi/confirm_all");
-   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape5"),  config.mod_folder + "/md5_lookup/test_ifs/geo/confirm_all_shape5");
-   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape11"), config.mod_folder + "/md5_lookup/test_ifs/geo/confirm_all_shape11");
+   EXPECT_EQ(lookup_tex("tex", "inner"),               config.get_mod_folder() + "/md5_lookup/test_ifs/tex/inner.png");
+   EXPECT_EQ(lookup_tex("tex", "outer"),               config.get_mod_folder() + "/md5_lookup/test_ifs/outer.png");
+   EXPECT_EQ(lookup_afp("afp", "confirm_all"),         config.get_mod_folder() + "/md5_lookup/test_ifs/afp/confirm_all");
+   EXPECT_EQ(lookup_afp("afp/bsi", "confirm_all"),     config.get_mod_folder() + "/md5_lookup/test_ifs/afp/bsi/confirm_all");
+   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape5"),  config.get_mod_folder() + "/md5_lookup/test_ifs/geo/confirm_all_shape5");
+   EXPECT_EQ(lookup_afp("geo", "confirm_all_shape11"), config.get_mod_folder() + "/md5_lookup/test_ifs/geo/confirm_all_shape11");
 
    avs_fs_umount_by_desc(desc);
 }
@@ -197,6 +198,17 @@ TEST(Xml, MergingWorks) {
 
    node = node->next_sibling();
    ASSERT_EQ(node, nullptr);
+}
+
+TEST(LongPath, AvsFsOpenOver128Chars) {
+   std::string subpath = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bin";
+
+   std::string avs_path = "/data/" + subpath;
+   ASSERT_GT(avs_path.size(), 128u);
+   auto f = hook_avs_fs_open(avs_path.c_str(), avs_open_mode_read(), 420);
+   EXPECT_GT(f, 0);
+   if(f > 0)
+      avs_fs_close(f);
 }
 
 TEST(RamFs, DemanglingWorks) {
@@ -252,6 +264,119 @@ TEST(RamFs, DemanglingWorksNabla) {
    std::string path = "/mnt/bm2d/ngp88/logo.ifs/tex/texturelist.xml";
    ramfs_demangler_demangle_if_possible(path);
    EXPECT_EQ(path, "/data/graphics/ver07/logo.ifs/tex/texturelist.xml");
+}
+
+class ArcTestHookFile final : public HookFile {
+    std::optional<std::vector<uint8_t>> original;
+public:
+    ArcTestHookFile(std::string path, std::string norm_path,
+                    std::optional<std::vector<uint8_t>> original = std::nullopt)
+        : HookFile(path, norm_path), original(std::move(original)) {}
+
+    uint32_t call_real() override { return 0; }
+    std::optional<std::vector<uint8_t>> load_to_vec() override { return original; }
+};
+
+static std::vector<uint8_t> read_arc_file(std::string const& arc_path, std::string const& name) {
+    std::ifstream f(arc_path, std::ios::binary);
+    if (!f) return {};
+    auto arc = ArcArchive::from_stream(f);
+    if (!arc) return {};
+    auto it = arc->files.find(name);
+    if (it == arc->files.end()) return {};
+    return it->second;
+}
+
+TEST(ArcArchive, ScratchFromTwoMods) {
+    ArcTestHookFile file("scratch.arc", "scratch.arc");
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    std::vector<uint8_t> expected_a = {'h','e','l','l','o','_','a'};
+    std::vector<uint8_t> expected_b = {'h','e','l','l','o','_','b'};
+    EXPECT_EQ(read_arc_file(*file.mod_path, "file_a"), expected_a);
+    EXPECT_EQ(read_arc_file(*file.mod_path, "file_b"), expected_b);
+}
+
+// Drives the demangler mount chain end-to-end after handle_arc has registered
+// the inner-ifs basename: simulates the ramfs/imagefs mount sequence and
+// asserts that a path inside the inner ifs's imagefs mountpoint demangles back
+// to "<arc_path with .arc->_arc>/inner.ifs/<file>".
+static void exercise_inner_ifs_demangle(std::string const& arc_path) {
+    // The buffer pointer doesn't matter — basename lookup is the fallback path
+    uint8_t fake_buffer[1];
+    char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
+    ramfs_demangler_on_fs_mount("/sd9", "inner.ifs", "ramfs", flags);
+    free(flags);
+    ramfs_demangler_on_fs_mount("/game/inner_test", "/sd9/inner.ifs", "imagefs", nullptr);
+
+    std::string p = "/game/inner_test/some_subfile";
+    ramfs_demangler_demangle_if_possible(p);
+    std::string expected_arc = arc_path;
+    string_replace(expected_arc, ".arc", "_arc");
+    EXPECT_EQ(p, "data/" + expected_arc + "/inner.ifs/some_subfile");
+}
+
+TEST(ArcArchive, IfsOnlySubtreeSkipsRepack) {
+    // Mod folder has only an _ifs subtree (no per-entry overrides). No repack
+    // should happen — the original arc is left alone — but the inner-ifs
+    // basename still gets registered with the demangler.
+    ArcTestHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc");
+    handle_arc(file);
+    EXPECT_FALSE(file.mod_path.has_value());
+
+    exercise_inner_ifs_demangle(file.path);
+}
+
+TEST(ArcArchive, IfsWithExtraOverrides) {
+    ArcArchive orig;
+    std::vector<uint8_t> inner_ifs_bytes(64, 'I');
+    std::vector<uint8_t> other_bin_bytes = {'o','r','i','g','_','o','t','h','e','r'};
+    orig.add_or_replace("inner.ifs", inner_ifs_bytes);
+    orig.add_or_replace("other.bin", other_bin_bytes);
+
+    std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/ifs_with_extras_orig.arc";
+    mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
+    ASSERT_TRUE(orig.save(tmp_path.c_str()));
+    std::ifstream f(tmp_path, std::ios::binary);
+    std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
+
+    ArcTestHookFile file("ifs_with_extras.arc", "ifs_with_extras.arc", std::move(orig_bytes));
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    // inner.ifs unchanged, other.bin replaced from the mod
+    EXPECT_EQ(read_arc_file(*file.mod_path, "inner.ifs"), inner_ifs_bytes);
+    std::vector<uint8_t> expected_override = {'o','v','e','r','r','i','d','d','e','n','_','o','t','h','e','r','_','d','a','t','a'};
+    EXPECT_EQ(read_arc_file(*file.mod_path, "other.bin"), expected_override);
+
+    exercise_inner_ifs_demangle(file.path);
+}
+
+TEST(ArcArchive, OverlayWithTwoMods) {
+    // Build original arc in memory: has "original_file" and "override_file"
+    ArcArchive orig;
+    orig.add_or_replace("original_file", {'o','r','i','g','i','n','a','l'});
+    orig.add_or_replace("override_file", {'o','l','d'});
+
+    std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/overlay_test_orig.arc";
+    mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
+    ASSERT_TRUE(orig.save(tmp_path.c_str()));
+
+    std::ifstream f(tmp_path, std::ios::binary);
+    ASSERT_TRUE(f.good());
+    std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
+
+    ArcTestHookFile file("overlay_test.arc", "overlay_test.arc", std::move(orig_bytes));
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    std::vector<uint8_t> expected_orig    = {'o','r','i','g','i','n','a','l'};
+    std::vector<uint8_t> expected_replace = {'r','e','p','l','a','c','e','d'};
+    std::vector<uint8_t> expected_new     = {'n','e','w'};
+    EXPECT_EQ(read_arc_file(*file.mod_path, "original_file"), expected_orig);
+    EXPECT_EQ(read_arc_file(*file.mod_path, "override_file"), expected_replace);
+    EXPECT_EQ(read_arc_file(*file.mod_path, "new_file"), expected_new);
 }
 
 TEST(Regression, BeatStreamAfpXml) {

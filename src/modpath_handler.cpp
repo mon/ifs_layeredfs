@@ -132,7 +132,7 @@ optional<string> normalise_path(const string &_path) {
 
 vector<string> available_mods() {
     vector<string> ret;
-    string mod_root = config.mod_folder + "/";
+    string mod_root = config.get_mod_folder() + "/";
 
     // just pretend we have no mods at all
     if (config.disable) {
@@ -141,7 +141,7 @@ vector<string> available_mods() {
 
     if (config.developer_mode) {
         static bool first_search = true;
-        for (auto folder : folders_in_folder(config.mod_folder.c_str())) {
+        for (auto folder : folders_in_folder(config.get_mod_folder().c_str())) {
             if (!strcasecmp(folder.c_str(), "_cache")) {
                 continue;
             }

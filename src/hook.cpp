@@ -9,7 +9,10 @@ using std::string;
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
+#include <fstream>
 #include <iostream>
+#include <map>
+#include <set>
 #include <sstream>
 
 #include "3rd_party/MinHook.h"
@@ -19,6 +22,7 @@ using std::string;
 #include "log.hpp"
 #include "imagefs.hpp"
 #include "texbin.hpp"
+#include "arc.hpp"
 #include "utils.hpp"
 #include "avs.h"
 #include "modpath_handler.h"
@@ -186,6 +190,146 @@ string_set list_pngs(string const&folder) {
     return ret;
 }
 
+struct ArcModScan {
+    // Per-entry overrides. Keyed by relative path within the arc, e.g. "shader/foo.bin".
+    std::map<string, string> files;
+    // Inner-ifs paths inside the arc, derived from "*_ifs" mod subdirs. Paths
+    // are arc-relative with the dot restored: a mod dir "sub/inner_ifs/" yields
+    // "sub/inner.ifs". These get registered with the demangler so the game's
+    // ramfs mount of the extracted inner ifs maps back to the arc-qualified
+    // path our mod-folder lookup expects. Set, so multiple mods declaring the
+    // same inner ifs dedupe.
+    std::set<string> inner_ifs_paths;
+};
+
+static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string const& rel_prefix) {
+    WIN32_FIND_DATAA fd;
+    HANDLE hFind = FindFirstFileA((folder + "/*").c_str(), &fd);
+    if (hFind == INVALID_HANDLE_VALUE)
+        return;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+                continue;
+            if (string_ends_with(fd.cFileName, "_ifs")) {
+                string name = fd.cFileName;
+                name.replace(name.size() - 4, 4, ".ifs");
+                out.inner_ifs_paths.insert(rel_prefix + name);
+                continue;
+            }
+            scan_arc_mod_onefolder(out,
+                folder + "/" + fd.cFileName,
+                rel_prefix + fd.cFileName + "/");
+        } else {
+            string rel = rel_prefix + fd.cFileName;
+            if (out.files.find(rel) == out.files.end())
+                out.files[rel] = folder + "/" + fd.cFileName;
+        }
+    } while (FindNextFileA(hFind, &fd));
+    FindClose(hFind);
+}
+
+static ArcModScan scan_arc_mod_folder(string const& folder) {
+    ArcModScan ret;
+    for (auto &mod : available_mods()) {
+        scan_arc_mod_onefolder(ret, mod + "/" + folder, "");
+    }
+    return ret;
+}
+
+void handle_arc(HookFile &file) {
+    auto start = time();
+
+    auto arc_mod_path = file.norm_path;
+    string_replace(arc_mod_path, ".arc", "_arc");
+
+    if (!find_first_modfolder(arc_mod_path)) {
+        return;
+    }
+
+    auto scan = scan_arc_mod_folder(arc_mod_path);
+    if (scan.files.empty() && scan.inner_ifs_paths.empty()) {
+        log_verbose("arc: mod folder has no files, skipping");
+        return;
+    }
+
+    for (auto const& inner_rel : scan.inner_ifs_paths) {
+        auto pos = inner_rel.rfind('/');
+        string basename = (pos == string::npos) ? inner_rel : inner_rel.substr(pos + 1);
+        string demangled = "data/" + arc_mod_path + "/" + inner_rel;
+        ramfs_demangler_register_arc_inner_ifs(basename, demangled);
+    }
+
+    if (scan.files.empty()) {
+        return;
+    }
+
+    string out = CACHE_FOLDER + "/" + file.norm_path;
+    auto out_hashed = out + ".hashed";
+    auto cache_hasher = CacheHasher(out_hashed);
+
+    auto starting = file.get_path_to_open();
+    cache_hasher.add(starting);
+    for (auto &[_, path] : scan.files) {
+        cache_hasher.add(path);
+    }
+    cache_hasher.finish();
+
+    if (cache_hasher.matches()) {
+        file.mod_path = out;
+        log_verbose("arc cache up to date, skip");
+        return;
+    }
+    log_verbose("arc: regenerating cache");
+
+    ArcArchive arc;
+    auto _orig_data = file.load_to_vec();
+    if (_orig_data) {
+        auto &orig_data = *_orig_data;
+        std::istringstream stream(string((char*)orig_data.data(), orig_data.size()));
+        auto _arc = ArcArchive::from_stream(stream);
+        if (!_arc) {
+            log_warning("arc: load failed, aborting modding");
+            return;
+        }
+        arc = std::move(*_arc);
+    } else {
+        log_info("arc: no original file, creating from scratch: \"%s\"", file.norm_path.c_str());
+    }
+
+    auto out_folder = out.substr(0, out.rfind("/"));
+    if (!mkdir_p(out_folder)) {
+        log_warning("arc: couldn't create output cache folder");
+        return;
+    }
+
+    for (auto &[name, path] : scan.files) {
+        std::ifstream f(path, std::ios::binary | std::ios::ate);
+        if (!f) {
+            log_warning("arc: couldn't open mod file '%s'", path.c_str());
+            continue;
+        }
+        auto size = f.tellg();
+        f.seekg(0);
+        std::vector<uint8_t> data(size);
+        if (!f.read(reinterpret_cast<char*>(data.data()), size)) {
+            log_warning("arc: couldn't read mod file '%s'", path.c_str());
+            continue;
+        }
+        arc.add_or_replace(name, std::move(data));
+    }
+
+    if (!arc.save(out.c_str())) {
+        log_warning("arc: couldn't write output");
+        return;
+    }
+
+    cache_hasher.commit();
+    file.mod_path = out;
+
+    log_misc("arc generation took %d ms", time() - start);
+}
+
 void handle_texbin(HookFile &file) {
     auto start = time();
 
@@ -302,6 +446,10 @@ uint32_t handle_file_open(HookFile &file) {
         handle_texbin(file);
     }
 
+    if(string_ends_with(file.path, ".arc")) {
+        handle_arc(file);
+    }
+
     if (string_ends_with(file.path, "texturelist.xml")) {
         parse_texturelist(file);
     } else if(string_ends_with(file.path, "afplist.xml")) {
@@ -372,6 +520,29 @@ int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fs
 size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
     ramfs_demangler_on_fs_read(context, bytes);
     return avs_fs_read(context, bytes, nbytes);
+}
+
+static DWORD (WINAPI *real_GetLongPathNameA)(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer);
+
+DWORD WINAPI hook_GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer) {
+    // have seen massive paths in DDR World ifs-in-arc cases, e.g:
+    // ./data_mods/_cache/arc/custom/background/background_0001_arc/data/custom/background/background_0001_ifs/ebb521b5f25bf88e09dbd3aa19a48c60
+    //
+    // AVS has a 128 char buffer that it gives to GetLongPathNameA:
+    // If it succeeds, it does a strcmp against the original path (sure, I guess?).
+    // If it fails, it compares against ERROR_FILE_NOT_FOUND and
+    // ERROR_PATH_NOT_FOUND and if it's one of those it just falls through to
+    // CreateFileA with the original arg. So because we're succeeding with a buffer
+    // too large, the strcmp fails, so we pretend it failed and do the fallthru.
+
+    DWORD ret = real_GetLongPathNameA(lpszShortPath, lpszLongPath, cchBuffer);
+
+    if(cchBuffer == 0x80 && ret > cchBuffer && strstr(lpszShortPath, config.get_mod_folder_native().c_str()) != nullptr) {
+        SetLastError(ERROR_FILE_NOT_FOUND);
+        return 0;
+    }
+
+    return ret;
 }
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
@@ -518,6 +689,10 @@ extern "C" {
             } else {
                 log_fatal("Couldn't fully init pkfs hook - open an issue!");
             }
+        }
+
+        if (MH_CreateHookApi(L"kernel32.dll", "GetLongPathNameA", (LPVOID)&hook_GetLongPathNameA, (LPVOID*)&real_GetLongPathNameA) != MH_OK) {
+            log_warning("Couldn't hook GetLongPathNameA");
         }
 
         if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {

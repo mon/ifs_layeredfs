@@ -47,7 +47,7 @@ void load_config(void) {
     config.disable = false;
     config.allowlist.clear();
     config.blocklist.clear();
-    config.mod_folder = DEFAULT_MOD_FOLDER;
+    config.set_mod_folder(DEFAULT_MOD_FOLDER);
 
 #ifdef CFG_VERBOSE
     config.verbose_logs = true;
@@ -110,7 +110,7 @@ void load_config(void) {
             std::string_view path = &arg[strlen(MOD_FOLDER_FLAG)];
             // correct format: --layered-data-mods-folder=./my_mods
             if(path.starts_with("=./")) {
-                config.mod_folder = path.substr(1);
+                config.set_mod_folder(std::string(path.substr(1)));
             }
         }
         else {
@@ -127,6 +127,6 @@ void print_config(void) {
         LOGFILE_FLAG, config.logfile,
         ALLOWLIST_FLAG, allowlist,
         BLOCKLIST_FLAG, blocklist,
-        MOD_FOLDER_FLAG, config.mod_folder.c_str()
+        MOD_FOLDER_FLAG, config.get_mod_folder().c_str()
     );
 }

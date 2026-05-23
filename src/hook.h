@@ -74,3 +74,6 @@ class HookFile {
     {}
     virtual ~HookFile() {}
 };
+
+// for the tests
+void handle_arc(HookFile &file);

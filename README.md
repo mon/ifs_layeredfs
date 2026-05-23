@@ -82,6 +82,13 @@ Here are some examples of the correct path to use for your mod:
 - To replace repacked .bin: `data_mods/example/d3/model/tex_l44fo_continue.bin`
 - To replace individual texture "CTN_T0000": `data_mods/example/d3/model/tex_l44fo_continue/CTN_T0000.png`
 
+### DDR .arc archives
+
+`data/arc/bm2d/demo_logo_v3.arc` which has an IFS inside `data/bm2d/demo_logo_v3.ifs`
+- To replace repacked .arc: `data_mods/example/arc/bm2d/demo_logo_v3.arc`
+- To replace .ifs inside .arc: `data_mods/example/arc/bm2d/demo_logo_v3_arc/data/bm2d/demo_logo_v3.ifs`
+- To replace texture inside .ifs inside .arc: `data_mods/example/arc/bm2d/demo_logo_v3_arc/data/bm2d/demo_logo_v3_ifs/delo_logo_rsa_ja.png`
+
 ### XML files
 
 `data/others/music_db.xml`
