@@ -266,7 +266,7 @@ CacheHasher::CacheHasher(std::string hash_file): hash_file(hash_file) {
     }
 }
 
-void CacheHasher::add(std::string &path) {
+void CacheHasher::add(const std::string &path) {
     digest.add(path.c_str(), path.length());
 
     auto ts = file_time(path.c_str());

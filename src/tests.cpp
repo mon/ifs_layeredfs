@@ -26,12 +26,24 @@ FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
 #define LOAD_FUNC(obfus_name, ret_type, name, ...)                 \
    ASSERT_TRUE((name = (decltype(name))GetProcAddress(avs, obfus_name))); \
 
+class LogTestName : public testing::EmptyTestEventListener {
+    void OnTestStart(const testing::TestInfo& info) override {
+        log_misc("--------- Running %s.%s", info.test_suite_name(), info.name());
+    }
+};
+
 class Environment : public ::testing::Environment {
     public:
      ~Environment() override {}
 
      // Override this to define how to set up the environment.
      void SetUp() override {
+        testing::UnitTest::GetInstance()->listeners().Append(new LogTestName);
+
+        char exe_path[MAX_PATH];
+        ASSERT_TRUE(GetModuleFileNameA(NULL, exe_path, MAX_PATH));
+        dll_time = file_time(exe_path);
+
         ASSERT_TRUE(avs_standalone::boot(false));
 
         auto avs = GetModuleHandleA("avs2-core.dll");
@@ -266,17 +278,6 @@ TEST(RamFs, DemanglingWorksNabla) {
    EXPECT_EQ(path, "/data/graphics/ver07/logo.ifs/tex/texturelist.xml");
 }
 
-class ArcTestHookFile final : public HookFile {
-    std::optional<std::vector<uint8_t>> original;
-public:
-    ArcTestHookFile(std::string path, std::string norm_path,
-                    std::optional<std::vector<uint8_t>> original = std::nullopt)
-        : HookFile(path, norm_path), original(std::move(original)) {}
-
-    uint32_t call_real() override { return 0; }
-    std::optional<std::vector<uint8_t>> load_to_vec() override { return original; }
-};
-
 static std::vector<uint8_t> read_arc_file(std::string const& arc_path, std::string const& name) {
     std::ifstream f(arc_path, std::ios::binary);
     if (!f) return {};
@@ -288,7 +289,7 @@ static std::vector<uint8_t> read_arc_file(std::string const& arc_path, std::stri
 }
 
 TEST(ArcArchive, ScratchFromTwoMods) {
-    ArcTestHookFile file("scratch.arc", "scratch.arc");
+    AvsOpenHookFile file("scratch.arc", "scratch.arc", avs_open_mode_read(), 420);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 
@@ -296,6 +297,82 @@ TEST(ArcArchive, ScratchFromTwoMods) {
     std::vector<uint8_t> expected_b = {'h','e','l','l','o','_','b'};
     EXPECT_EQ(read_arc_file(*file.mod_path, "file_a"), expected_a);
     EXPECT_EQ(read_arc_file(*file.mod_path, "file_b"), expected_b);
+}
+
+TEST(ArcArchive, MergedXmlInsideArc) {
+    AvsOpenHookFile file("xml_merge.arc", "xml_merge.arc", avs_open_mode_read(), 42);
+    // note: only two tests where we have an original .arc so we need a tiny bit of
+    // copied extra work from handle_file
+    auto norm_copy = file.norm_path;
+    file.mod_path = find_first_modfile(norm_copy);
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    auto base_xml = read_arc_file(*file.mod_path, "merged/base.xml");
+    ASSERT_FALSE(base_xml.empty());
+    EXPECT_TRUE(read_arc_file(*file.mod_path, "merged/base.merged.xml").empty());
+
+    base_xml.push_back('\0');
+    rapidxml::xml_document<> xml_doc;
+    xml_doc.parse<rapidxml::parse_no_utf8>((char*)base_xml.data());
+
+    auto node = xml_doc.first_node();
+    ASSERT_NE(node, nullptr);
+    EXPECT_STREQ(node->name(), "afplist");
+
+    node = node->first_node();
+    ASSERT_NE(node, nullptr);
+    EXPECT_STREQ(node->name(), "afp");
+    auto attr = node->first_attribute("name");
+    ASSERT_NE(attr, nullptr);
+    EXPECT_STREQ(attr->value(), "hare");
+
+    node = node->next_sibling();
+    ASSERT_NE(node, nullptr);
+    EXPECT_STREQ(node->name(), "afp");
+    attr = node->first_attribute("name");
+    ASSERT_NE(attr, nullptr);
+    EXPECT_STREQ(attr->value(), "hare2");
+
+    EXPECT_EQ(node->next_sibling(), nullptr);
+}
+
+TEST(ArcArchive, MergedXmlInsideArcWithOriginalInsideArc) {
+    AvsOpenHookFile file("xml_merge.arc", "xml_merge.arc", avs_open_mode_read(), 42);
+    // note: only two tests where we have an original .arc so we need a tiny bit of
+    // copied extra work from handle_file
+    auto norm_copy = file.norm_path;
+    file.mod_path = find_first_modfile(norm_copy);
+    handle_arc(file);
+    ASSERT_TRUE(file.mod_path.has_value());
+
+    auto base_xml = read_arc_file(*file.mod_path, "merged_only/base.xml");
+    ASSERT_FALSE(base_xml.empty());
+    EXPECT_TRUE(read_arc_file(*file.mod_path, "merged_only/base.merged.xml").empty());
+
+    base_xml.push_back('\0');
+    rapidxml::xml_document<> xml_doc;
+    xml_doc.parse<rapidxml::parse_no_utf8>((char*)base_xml.data());
+
+    auto node = xml_doc.first_node();
+    ASSERT_NE(node, nullptr);
+    EXPECT_STREQ(node->name(), "afplist");
+
+    node = node->first_node();
+    ASSERT_NE(node, nullptr);
+    EXPECT_STREQ(node->name(), "afp");
+    auto attr = node->first_attribute("name");
+    ASSERT_NE(attr, nullptr);
+    EXPECT_STREQ(attr->value(), "hare");
+
+    node = node->next_sibling();
+    ASSERT_NE(node, nullptr);
+    EXPECT_STREQ(node->name(), "afp");
+    attr = node->first_attribute("name");
+    ASSERT_NE(attr, nullptr);
+    EXPECT_STREQ(attr->value(), "hare2");
+
+    EXPECT_EQ(node->next_sibling(), nullptr);
 }
 
 // Drives the demangler mount chain end-to-end after handle_arc has registered
@@ -321,11 +398,11 @@ TEST(ArcArchive, IfsOnlySubtreeSkipsRepack) {
     // Mod folder has only an _ifs subtree (no per-entry overrides). No repack
     // should happen — the original arc is left alone — but the inner-ifs
     // basename still gets registered with the demangler.
-    ArcTestHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc");
+    AvsOpenHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc", avs_open_mode_read(), 42);
     handle_arc(file);
     EXPECT_FALSE(file.mod_path.has_value());
 
-    exercise_inner_ifs_demangle(file.path);
+    exercise_inner_ifs_demangle(file.norm_path);
 }
 
 TEST(ArcArchive, IfsWithExtraOverrides) {
@@ -338,10 +415,8 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/ifs_with_extras_orig.arc";
     mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
-    std::ifstream f(tmp_path, std::ios::binary);
-    std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
 
-    ArcTestHookFile file("ifs_with_extras.arc", "ifs_with_extras.arc", std::move(orig_bytes));
+    AvsOpenHookFile file(tmp_path, "ifs_with_extras.arc", avs_open_mode_read(), 42);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 
@@ -350,7 +425,7 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     std::vector<uint8_t> expected_override = {'o','v','e','r','r','i','d','d','e','n','_','o','t','h','e','r','_','d','a','t','a'};
     EXPECT_EQ(read_arc_file(*file.mod_path, "other.bin"), expected_override);
 
-    exercise_inner_ifs_demangle(file.path);
+    exercise_inner_ifs_demangle(file.norm_path);
 }
 
 TEST(ArcArchive, OverlayWithTwoMods) {
@@ -363,11 +438,7 @@ TEST(ArcArchive, OverlayWithTwoMods) {
     mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
-    std::ifstream f(tmp_path, std::ios::binary);
-    ASSERT_TRUE(f.good());
-    std::vector<uint8_t> orig_bytes(std::istreambuf_iterator<char>(f), {});
-
-    ArcTestHookFile file("overlay_test.arc", "overlay_test.arc", std::move(orig_bytes));
+    AvsOpenHookFile file(tmp_path, "overlay_test.arc", avs_open_mode_read(), 42);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 

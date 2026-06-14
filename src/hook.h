@@ -75,5 +75,72 @@ class HookFile {
     virtual ~HookFile() {}
 };
 
+class AvsHookFile : public HookFile {
+    using HookFile::HookFile;
+
+    public:
+    std::optional<std::vector<uint8_t>> load_to_vec() override {
+        AVS_FILE f = avs_fs_open(get_path_to_open().c_str(), avs_open_mode_read(), 420);
+        if (f >= 0) {
+            auto ret = avs_file_to_vec(f);
+            avs_fs_close(f);
+            return ret;
+        } else {
+            return std::nullopt;
+        }
+    }
+};
+class AvsOpenHookFile final : public AvsHookFile {
+    private:
+    uint16_t mode;
+    int flags;
+
+    public:
+    AvsOpenHookFile(const std::string path, const std::string norm_path, uint16_t mode, int flags)
+        : AvsHookFile(path, norm_path)
+        , mode(mode)
+        , flags(flags)
+    {}
+
+    bool ramfs_demangle() override {return true;};
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        return (uint32_t)avs_fs_open(get_path_to_open().c_str(), mode, flags);
+    }
+};
+
+class AvsLstatHookFile final : public AvsHookFile {
+    private:
+    struct avs_stat *st;
+
+    public:
+    AvsLstatHookFile(const std::string path, const std::string norm_path, struct avs_stat *st)
+        : AvsHookFile(path, norm_path)
+        , st(st)
+    {}
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        return (uint32_t)avs_fs_lstat(get_path_to_open().c_str(), st);
+    }
+};
+
+class AvsConvertPathHookFile final : public AvsHookFile {
+    private:
+    char *dest_name;
+
+    public:
+    AvsConvertPathHookFile(const std::string path, const std::string norm_path, char *dest_name)
+        : AvsHookFile(path, norm_path)
+        , dest_name(dest_name)
+    {}
+
+    uint32_t call_real() override {
+        log_if_modfile();
+        return (uint32_t)avs_fs_convert_path(dest_name, get_path_to_open().c_str());
+    }
+};
+
 // for the tests
 void handle_arc(HookFile &file);

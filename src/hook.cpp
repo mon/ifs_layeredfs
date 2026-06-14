@@ -51,72 +51,6 @@ unsigned int (*pkfs_fs_read)(unsigned int f, void *buf, int sz);
 unsigned int (*pkfs_fs_close)(unsigned int f);
 void (*pkfs_clear_hdd_error)();
 
-class AvsHookFile : public HookFile {
-    using HookFile::HookFile;
-
-    std::optional<std::vector<uint8_t>> load_to_vec() override {
-        AVS_FILE f = avs_fs_open(get_path_to_open().c_str(), avs_open_mode_read(), 420);
-        if (f >= 0) {
-            auto ret = avs_file_to_vec(f);
-            avs_fs_close(f);
-            return ret;
-        } else {
-            return nullopt;
-        }
-    }
-};
-class AvsOpenHookFile final : public AvsHookFile {
-    private:
-    uint16_t mode;
-    int flags;
-
-    public:
-    AvsOpenHookFile(const std::string path, const std::string norm_path, uint16_t mode, int flags)
-        : AvsHookFile(path, norm_path)
-        , mode(mode)
-        , flags(flags)
-    {}
-
-    bool ramfs_demangle() override {return true;};
-
-    uint32_t call_real() override {
-        log_if_modfile();
-        return (uint32_t)avs_fs_open(get_path_to_open().c_str(), mode, flags);
-    }
-};
-
-class AvsLstatHookFile final : public AvsHookFile {
-    private:
-    struct avs_stat *st;
-
-    public:
-    AvsLstatHookFile(const std::string path, const std::string norm_path, struct avs_stat *st)
-        : AvsHookFile(path, norm_path)
-        , st(st)
-    {}
-
-    uint32_t call_real() override {
-        log_if_modfile();
-        return (uint32_t)avs_fs_lstat(get_path_to_open().c_str(), st);
-    }
-};
-
-class AvsConvertPathHookFile final : public AvsHookFile {
-    private:
-    char *dest_name;
-
-    public:
-    AvsConvertPathHookFile(const std::string path, const std::string norm_path, char *dest_name)
-        : AvsHookFile(path, norm_path)
-        , dest_name(dest_name)
-    {}
-
-    uint32_t call_real() override {
-        log_if_modfile();
-        return (uint32_t)avs_fs_convert_path(dest_name, get_path_to_open().c_str());
-    }
-};
-
 class PkfsHookFile final : public HookFile {
     public:
     PkfsHookFile(const std::string path, const std::string norm_path)
@@ -192,7 +126,8 @@ string_set list_pngs(string const&folder) {
 
 struct ArcModScan {
     // Per-entry overrides. Keyed by relative path within the arc, e.g. "shader/foo.bin".
-    std::map<string, string> files;
+    // Tuple of actual path / norm path
+    std::map<string, std::pair<string, string>> files;
     // Inner-ifs paths inside the arc, derived from "*_ifs" mod subdirs. Paths
     // are arc-relative with the dot restored: a mod dir "sub/inner_ifs/" yields
     // "sub/inner.ifs". These get registered with the demangler so the game's
@@ -202,9 +137,9 @@ struct ArcModScan {
     std::set<string> inner_ifs_paths;
 };
 
-static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string const& rel_prefix) {
+static void scan_arc_mod_onefolder(ArcModScan &out, string const& mod_folder, string const& folder, string const& rel_prefix) {
     WIN32_FIND_DATAA fd;
-    HANDLE hFind = FindFirstFileA((folder + "/*").c_str(), &fd);
+    HANDLE hFind = FindFirstFileA((mod_folder + "/" + folder + "/*").c_str(), &fd);
     if (hFind == INVALID_HANDLE_VALUE)
         return;
     do {
@@ -218,12 +153,16 @@ static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string
                 continue;
             }
             scan_arc_mod_onefolder(out,
+                mod_folder,
                 folder + "/" + fd.cFileName,
                 rel_prefix + fd.cFileName + "/");
         } else {
             string rel = rel_prefix + fd.cFileName;
             if (out.files.find(rel) == out.files.end())
-                out.files[rel] = folder + "/" + fd.cFileName;
+                out.files[rel] = std::make_pair(
+                    mod_folder + "/" + folder + "/" + fd.cFileName,
+                    folder + "/" + fd.cFileName
+                );
         }
     } while (FindNextFileA(hFind, &fd));
     FindClose(hFind);
@@ -232,7 +171,7 @@ static void scan_arc_mod_onefolder(ArcModScan &out, string const& folder, string
 static ArcModScan scan_arc_mod_folder(string const& folder) {
     ArcModScan ret;
     for (auto &mod : available_mods()) {
-        scan_arc_mod_onefolder(ret, mod + "/" + folder, "");
+        scan_arc_mod_onefolder(ret, mod, folder, "");
     }
     return ret;
 }
@@ -271,7 +210,7 @@ void handle_arc(HookFile &file) {
     auto starting = file.get_path_to_open();
     cache_hasher.add(starting);
     for (auto &[_, path] : scan.files) {
-        cache_hasher.add(path);
+        cache_hasher.add(path.first);
     }
     cache_hasher.finish();
 
@@ -303,20 +242,92 @@ void handle_arc(HookFile &file) {
         return;
     }
 
+    // TODO: this is a terrible hack really. XML merging assumes the file
+    // exists on disk, so we need to make it so if it only exists inside of
+    // the original .arc file
+    for (const auto &arc_file : arc.files) {
+        if (!string_ends_with(arc_file.first, ".xml")) {
+            continue;
+        }
+
+        // do we have an overlaid base xml? If so, nothing to do
+        bool found = false;
+        for (auto &[name, path] : scan.files) {
+            // TODO: more hacks, make these paths less insane
+            auto parent_pos = path.second.find("/");
+            if (parent_pos == path.second.npos) {
+                continue;
+            }
+            auto path_noparent = path.second.substr(parent_pos + 1);
+
+            if (_stricmp(arc_file.first.c_str(), path_noparent.c_str())) {
+                continue;
+            }
+            found = true;
+        }
+
+        if (found)
+            continue;
+
+
+        // Do we have XMLs to merge? Only then, extract to cache and add a fake
+        // extra entry. We don't need to add this particular file to the cache
+        // because it gets its key off the original .arc file
+        string merged_fname = arc_file.first;
+        string_replace(merged_fname, ".xml", ".merged.xml");
+        decltype(scan.files) extra_files;
+        for (auto &[name, path] : scan.files) {
+            // TODO: more hacks, make these paths less insane
+            auto parent_pos = path.second.find("/");
+            if (parent_pos == path.second.npos) {
+                continue;
+            }
+            auto path_noparent = path.second.substr(parent_pos + 1);
+            auto path_justparent = path.second.substr(0, parent_pos);
+
+            if (_stricmp(merged_fname.c_str(), path_noparent.c_str())) {
+                continue;
+            }
+
+            auto xml_orig = CACHE_FOLDER + "/" + file.norm_path + "/" + arc_file.first + ".orig";
+            auto xml_orig_norm = file.norm_path + "/" + arc_file.first;
+            string_replace(xml_orig, ".arc", "_arc");
+            string_replace(xml_orig_norm, ".arc", "_arc");
+
+            auto out_folder = xml_orig.substr(0, xml_orig.rfind("/"));
+            if (!mkdir_p(out_folder)) {
+                log_warning("Couldn't create arc xml cache folder %s", out_folder.c_str());
+                continue;
+            }
+
+            FILE *f = fopen(xml_orig.c_str(), "wb");
+            if (!f) {
+                log_warning("Couldn't create arc xml base at %s", xml_orig.c_str());
+                continue;
+            }
+            fwrite(arc_file.second.data(), 1, arc_file.second.size(), f);
+            fclose(f);
+            extra_files.emplace(arc_file.first, std::make_pair(xml_orig, xml_orig_norm));
+        }
+        for (auto &[name, path] : extra_files)
+            scan.files.emplace(name, std::move(path));
+    }
+
     for (auto &[name, path] : scan.files) {
-        std::ifstream f(path, std::ios::binary | std::ios::ate);
-        if (!f) {
-            log_warning("arc: couldn't open mod file '%s'", path.c_str());
+        if (string_ends_with(name, ".merged.xml"))
+            continue;
+
+        AvsOpenHookFile f(path.first, path.second, 0, 0);
+
+        if (string_ends_with(name, ".xml"))
+            merge_xmls(f);
+
+        auto data = f.load_to_vec();
+        if (!data) {
+            log_warning("arc: couldn't load mod file '%s'", path.first.c_str());
             continue;
         }
-        auto size = f.tellg();
-        f.seekg(0);
-        std::vector<uint8_t> data(size);
-        if (!f.read(reinterpret_cast<char*>(data.data()), size)) {
-            log_warning("arc: couldn't read mod file '%s'", path.c_str());
-            continue;
-        }
-        arc.add_or_replace(name, std::move(data));
+        arc.add_or_replace(name, std::move(*data));
     }
 
     if (!arc.save(out.c_str())) {

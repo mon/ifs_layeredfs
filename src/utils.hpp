@@ -43,7 +43,7 @@ class CacheHasher {
     public:
     CacheHasher(std::string hash_file);
     // add a path and its timestamp to the hash. Should not be called after `finish`
-    void add(std::string &path);
+    void add(const std::string &path);
     // complete the hashing op
     void finish();
     // check if the hashfile matches
