@@ -1,8 +1,8 @@
+#include <mutex>
 #include <stdio.h>
 
 #include "config.hpp"
 #include "log.hpp"
-#include "winxp_mutex.hpp"
 
 #define SUPPRESS_PRINTF
 
@@ -13,7 +13,7 @@ void stdout_log(char level, const char *fmt, va_list args) {
 }
 
 static void log_to_file(char level, const char* fmt, va_list args) {
-    static CriticalSectionLock log_mutex;
+    static std::mutex log_mutex;
     static FILE* logfile = NULL;
     static bool tried_to_open = false;
 #ifndef SUPPRESS_PRINTF
@@ -21,7 +21,7 @@ static void log_to_file(char level, const char* fmt, va_list args) {
 #endif
     // don't reopen every time: slow as shit
     if (!tried_to_open) {
-        log_mutex.lock();
+        std::lock_guard lock(log_mutex);
 
         if (!logfile) {
             // default to ifs_hook.log because we need *something* in the case
@@ -30,10 +30,9 @@ static void log_to_file(char level, const char* fmt, va_list args) {
             logfile = fopen(path, "w");
         }
         tried_to_open = true;
-        log_mutex.unlock();
     }
     if (logfile) {
-        log_mutex.lock();
+        std::lock_guard lock(log_mutex);
 
         fprintf(logfile, "%c:", level);
         vfprintf(logfile, fmt, args);
@@ -41,8 +40,6 @@ static void log_to_file(char level, const char* fmt, va_list args) {
 
         if(config.developer_mode || level == 'F')
             fflush(logfile);
-
-        log_mutex.unlock();
     }
 }
 

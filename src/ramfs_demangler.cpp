@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <unordered_map>
 #include <optional>
 
@@ -42,7 +43,6 @@
 #include "log.hpp"
 #include "modpath_handler.h"
 #include "utils.hpp"
-#include "winxp_mutex.hpp"
 
 using namespace std;
 
@@ -63,7 +63,7 @@ static tsl::htrie_map<char, string> mangling_map;
 // Basename ("foo.ifs") -> demangled inner path ("arc/.../foo_arc/.../foo.ifs")
 static unordered_map<string, string> arc_inner_by_basename;
 
-static CriticalSectionLock mangling_mtx;
+static std::mutex mangling_mtx;
 
 // since we call this from a function that is already taking the lock
 static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path);
@@ -75,7 +75,7 @@ void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 		return;
 	}
 
-	mangling_mtx.lock();
+	std::lock_guard lock(mangling_mtx);
 
 	auto existing_info = cleanup_map.find(path);
 	if (existing_info != cleanup_map.end()) {
@@ -104,12 +104,10 @@ void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 	};
 	cleanup_map[path] = cleanup;
 	open_file_map[open_result] = path;
-
-	mangling_mtx.unlock();
 }
 
 void ramfs_demangler_register_arc_inner_ifs(const std::string& basename, const std::string& demangled_path) {
-	mangling_mtx.lock();
+	std::lock_guard lock(mangling_mtx);
 	auto existing = arc_inner_by_basename.find(basename);
 	if (existing != arc_inner_by_basename.end() && existing->second != demangled_path) {
 		log_warning("arc demangle: basename collision for '%s' (%s vs %s), later one wins",
@@ -117,11 +115,10 @@ void ramfs_demangler_register_arc_inner_ifs(const std::string& basename, const s
 	}
 	arc_inner_by_basename[basename] = demangled_path;
 	log_verbose("arc inner basename '%s' -> %s", basename.c_str(), demangled_path.c_str());
-	mangling_mtx.unlock();
 }
 
 void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
-	mangling_mtx.lock();
+	std::lock_guard lock(mangling_mtx);
 
 	auto find = open_file_map.find(context);
 	if (find != open_file_map.end()) {
@@ -135,25 +132,21 @@ void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
 			cleanup->second.buffer = dest;
 		}
 	}
-
-	mangling_mtx.unlock();
 }
 
 void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* flags) {
-	mangling_mtx.lock();
+	std::lock_guard lock(mangling_mtx);
 
 	if (!strcmp(fstype, "ramfs")) {
 		void* buffer;
 
 		if (!flags) {
 			log_verbose("ramfs has no flags?");
-			mangling_mtx.unlock();
 			return;
 		}
 		const char* baseptr = strstr(flags, "base=");
 		if (!baseptr) {
 			log_verbose("ramfs has no base pointer?");
-			mangling_mtx.unlock();
 			return;
 		}
 
@@ -234,26 +227,22 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			// the result is something normalise_path can use.
 			string root = (string)fsroot;
 			ramfs_demangler_demangle_if_possible_nolock(root);
-			if (normalise_path(root)) {
+			if (normalise_path(root, /* demangle */ false)) {
 				log_verbose("imagefs mount mapped to %s", root.c_str());
 				mangling_map[mountpoint] = root;
 			}
 		}
 	}
-
-	mangling_mtx.unlock();
 }
 
 void ramfs_demangler_demangle_if_possible(std::string& raw_path) {
-	mangling_mtx.lock();
+	std::lock_guard lock(mangling_mtx);
 
 	auto search = mangling_map.longest_prefix(raw_path);
 	if (search != mangling_map.end()) {
 		// log_verbose("can demangle %s to %s", search.key().c_str(), search->c_str());
 		string_replace(raw_path, search.key().c_str(), search->c_str());
 	}
-
-	mangling_mtx.unlock();
 }
 
 static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path) {

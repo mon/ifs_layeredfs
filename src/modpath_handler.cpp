@@ -9,7 +9,6 @@
 #include "log.hpp"
 #include "utils.hpp"
 #include "avs.h"
-#include "winxp_mutex.hpp"
 
 using std::nullopt;
 
@@ -98,9 +97,10 @@ void modpath_debug_add_folder(const string &folder) {
     game_folders.push_back(folder + "/");
 }
 
-optional<string> normalise_path(const string &_path) {
+optional<string> normalise_path(const string &_path, bool demangle) {
     auto path = _path;
-    ramfs_demangler_demangle_if_possible(path);
+    if (demangle)
+        ramfs_demangler_demangle_if_possible(path);
 
     auto data_pos = string_find_icase(path, "data/");
     auto other_pos = string::npos;

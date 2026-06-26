@@ -4,6 +4,7 @@
 #include <map>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <sstream>
 
 #include "3rd_party/lodepng.h"
@@ -17,7 +18,6 @@
 #include "modpath_handler.h"
 #include "texture_packer.h"
 #include "utils.hpp"
-#include "winxp_mutex.hpp"
 
 using std::string;
 
@@ -51,10 +51,10 @@ typedef struct afp {
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
 static std::map<string, std::shared_ptr<image_t>, CaseInsensitiveCompare> ifs_textures;
-static CriticalSectionLock ifs_textures_mtx;
+static std::mutex ifs_textures_mtx;
 
 static std::map<std::string, std::shared_ptr<afp_t>, CaseInsensitiveCompare> afp_md5_names;
-static CriticalSectionLock afp_md5_names_mtx;
+static std::mutex afp_md5_names_mtx;
 
 
 void rapidxml_dump_to_file(const string& out, const rapidxml::xml_document<> &xml) {
@@ -182,9 +182,8 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
             image_info.height = texture->height;
 
             auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
-            ifs_textures_mtx.lock();
+            std::lock_guard lock(ifs_textures_mtx);
             ifs_textures[md5_path] = std::make_shared<image_t>(std::move(image_info));
-            ifs_textures_mtx.unlock();
         }
     }
 
@@ -293,9 +292,8 @@ void parse_texturelist(HookFile &file) {
             extra_pngs.erase(image_info.name);
 
             auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
-            ifs_textures_mtx.lock();
+            std::lock_guard lock(ifs_textures_mtx);
             ifs_textures[md5_path] = std::make_shared<image_t>(std::move(image_info));
-            ifs_textures_mtx.unlock();
         }
     }
 
@@ -474,7 +472,7 @@ void parse_afplist(HookFile &file) {
             // log_info("AFP %s -> %s", md5_path.c_str(), (ifs_mod_path + folder + file).c_str());
         };
 
-        afp_md5_names_mtx.lock();
+        std::lock_guard lock(afp_md5_names_mtx);
 
         add_mapping("/afp/", name->value());
         add_mapping("/afp/bsi/", name->value());
@@ -485,24 +483,21 @@ void parse_afplist(HookFile &file) {
         while(ss >> index) {
             add_mapping("/geo/", std::string(name->value()) + "_shape" + index);
         }
-
-        afp_md5_names_mtx.unlock();
     }
 
     log_verbose("Mapped %d AFP filenames", mapped);
 }
 
 std::optional<std::tuple<std::string, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile &file) {
-    ifs_textures_mtx.lock();
+    std::unique_lock lock(ifs_textures_mtx);
     auto tex_search = ifs_textures.find(file.norm_path);
     if (tex_search == ifs_textures.end()) {
-        ifs_textures_mtx.unlock();
         return std::nullopt;
     }
 
     //log_misc("Mapped file %s is found!", norm_path.c_str());
     auto tex = tex_search->second;
-    ifs_textures_mtx.unlock(); // is it safe to unlock this early? Time will tell...
+    lock.unlock(); // is it safe to unlock this early? Time will tell...
 
     // remove the /tex/, it's nicer to navigate
     auto png_path = find_first_modfile(tex->ifs_mod_path + "/" + tex->name + ".png");
@@ -540,16 +535,15 @@ void handle_texture(HookFile &file) {
 }
 
 std::optional<std::string> lookup_afp_from_md5(HookFile &file) {
-    afp_md5_names_mtx.lock();
+    std::unique_lock lock(afp_md5_names_mtx);
     auto afp_search = afp_md5_names.find(file.norm_path);
     if (afp_search == afp_md5_names.end()) {
-        afp_md5_names_mtx.unlock();
         return std::nullopt;
     }
 
     //log_misc("Mapped file %s is found!", norm_path.c_str());
     auto afp = afp_search->second;
-    afp_md5_names_mtx.unlock(); // is it safe to unlock this early? Time will tell...
+    lock.unlock(); // is it safe to unlock this early? Time will tell...
 
     return find_first_modfile(afp->mod_path);
 }
