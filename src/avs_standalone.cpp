@@ -157,7 +157,7 @@ LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo) {
         case DBG_PRINTEXCEPTION_C:
             break;
         default:
-            log_warning("Unhandled exception code 0x%lX at %p\n",
+            log_warning("Unhandled exception code {:#x} at {:p}",
                 ExceptionInfo->ExceptionRecord->ExceptionCode,
                 ExceptionInfo->ExceptionRecord->ExceptionAddress
             );

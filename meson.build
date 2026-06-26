@@ -1,6 +1,6 @@
 project('layeredfs', 'c', 'cpp', version: '4.1',
     default_options: [
-        'cpp_std=c++23',
+        'cpp_std=c++26',
         'buildtype=release',
         'strip=true',
         'werror=true',

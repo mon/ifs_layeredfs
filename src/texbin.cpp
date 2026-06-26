@@ -50,12 +50,12 @@ class TexbinHdr {
     void debug() {
         log_misc("texbin hdr");
 
-        log_misc("  archive size:      %" PRId32, archive_size);
-        log_misc("  file count:        %" PRId32, file_count);
-        log_misc("  data offset:       %" PRId32, data_offset);
-        log_misc("  rect offset:       %" PRId32, rect_offset);
-        log_misc("  name offset:       %" PRId32, name_offset);
-        log_misc("  data entry offset: %" PRId32, data_entry_offset);
+        log_misc("  archive size:      {}", archive_size);
+        log_misc("  file count:        {}", file_count);
+        log_misc("  data offset:       {}", data_offset);
+        log_misc("  rect offset:       {}", rect_offset);
+        log_misc("  name offset:       {}", name_offset);
+        log_misc("  data entry offset: {}", data_entry_offset);
     }
 };
 
@@ -73,8 +73,8 @@ class TexbinNamesHdr {
     void debug() {
         log_misc("texbin names hdr");
 
-        log_misc("  section size:      %" PRId32, sect_size);
-        log_misc("  names count:       %" PRId32, names_count);
+        log_misc("  section size:      {}", sect_size);
+        log_misc("  names count:       {}", names_count);
     }
 };
 
@@ -90,10 +90,10 @@ class TexbinRectHdr {
     void debug() {
         log_misc("texbin rect hdr");
 
-        log_misc("  section size:      %" PRId32, sect_size);
-        log_misc("  image count:       %" PRId32, image_count);
-        log_misc("  name offset:       %" PRId32, name_offset);
-        log_misc("  entries offset:    %" PRId32, rect_entry_offset);
+        log_misc("  section size:      {}", sect_size);
+        log_misc("  image count:       {}", image_count);
+        log_misc("  name offset:       {}", name_offset);
+        log_misc("  entries offset:    {}", rect_entry_offset);
     }
 };
 
@@ -227,7 +227,7 @@ static vector<string> load_names(istream &f, uint32_t name_offset) {
     TexbinNameEntry entry;
     for(uint32_t i = 0; i < name_hdr.names_count; i++) {
         if(!f.read((char*)&entry, sizeof(entry))) {
-            log_warning("bad name entry at %" PRId32, i);
+            log_warning("bad name entry at {}", i);
             return ret;
         }
         auto pos = f.tellg();
@@ -239,7 +239,7 @@ static vector<string> load_names(istream &f, uint32_t name_offset) {
             name += ch;
         }
         if(!f) {
-            log_warning("bad name entry at %" PRId32, i);
+            log_warning("bad name entry at {}", i);
             return ret;
         }
         ret[entry.id] = name;
@@ -261,7 +261,7 @@ static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
     TexbinDataEntry entry;
     for(uint32_t i = 0; i < hdr.file_count; i++) {
         if(!f.read((char*)&entry, sizeof(entry))) {
-            log_warning("bad data entry at %" PRId32, i);
+            log_warning("bad data entry at {}", i);
             return ret;
         }
         auto pos = f.tellg();
@@ -274,9 +274,7 @@ static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
         // actual data len, so they're not broken.
         uint32_t sizes[2];
         if(!f.read((char*)&sizes[0], sizeof(sizes))) {
-            log_warning("can't read data at i %" PRId32 " offset %" PRId32,
-                i, entry.offset
-            );
+            log_warning("can't read data at i {} offset {}", i, entry.offset);
             return ret;
         }
 
@@ -293,9 +291,7 @@ static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
         vector<uint8_t> data;
         data.resize(entry.size);
         if(!f.read((char*)&data[0], entry.size)) {
-            log_warning("can't read data at i %" PRId32 " offset %" PRId32 " len %" PRId32,
-                i, entry.offset, entry.size
-            );
+            log_warning("can't read data at i {} offset {} len {}", i, entry.offset, entry.size);
             return ret;
         }
         ret.push_back(data);
@@ -388,7 +384,7 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
     unsigned width, height;
     error = lodepng::decode(image, width, height, png_path);
     if (error) {
-        log_warning("Can't load png %u: %s\n", error, lodepng_error_text(error));
+        log_warning("Can't load png {}: {}", error, lodepng_error_text(error));
         return false;
     }
 
@@ -397,25 +393,25 @@ bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) 
     // rect image names may shadow normal image names, so check them first
     if(existing_rect != rects.end()) {
         if(width != existing_rect->second.w || height != existing_rect->second.h) {
-            log_info("Replacement rect image %s has dimensions %dx%d but original is %dx%d, ignoring",
+            log_info("Replacement rect image {} has dimensions {}x{} but original is {}x{}, ignoring",
                 image_name, width, height, existing_rect->second.w, existing_rect->second.h
             );
             return false;
         }
-        log_info("Replacing rect image %s", image_name);
+        log_info("Replacing rect image {}", image_name);
         existing_rect->second.dirty_data = image;
     } else if(existing_image != images.end()) {
         auto [w, h] = existing_image->second.peek_dimensions();
         if(width != w || height != h) {
-            log_info("Replacement image %s has dimensions %dx%d but original is %dx%d, repacking anyway",
+            log_info("Replacement image {} has dimensions {}x{} but original is {}x{}, repacking anyway",
                 image_name, width, height, w, h
             );
         }
 
-        log_info("Replacing %s", image_name);
+        log_info("Replacing {}", image_name);
         images[image_name] = ImageEntryParsed(argb8888_to_texture_data(&image[0], width, height));
     } else{
-        log_info("Adding new image %s", image_name);
+        log_info("Adding new image {}", image_name);
         images[image_name] = ImageEntryParsed(argb8888_to_texture_data(&image[0], width, height));
     }
 
@@ -459,7 +455,11 @@ optional<Texbin> Texbin::from_stream(istream &f) {
     }
 
     if(hdr.archive_size != file_len) {
-        log_warning("bad archive size (file said %d stream said %d)", hdr.archive_size, file_len);
+        log_warning("bad archive size (file said {} stream said {})",
+            hdr.archive_size,
+            // TODO: hope that P3374R1 is implemented for C++26?
+            static_cast<std::streamoff>(file_len)
+        );
         return nullopt;
     }
 
@@ -520,7 +520,7 @@ optional<Texbin> Texbin::from_stream(istream &f) {
             }
 
             if(entry.x1 >= entry.x2 || entry.y1 >= entry.y2) {
-                log_warning("rect entry has invalid dimensions (%d,%d,%d,%d)",
+                log_warning("rect entry has invalid dimensions ({},{},{},{})",
                     entry.x1, entry.x2, entry.y1, entry.y2
                 );
                 return nullopt;
@@ -546,7 +546,7 @@ optional<Texbin> Texbin::from_stream(istream &f) {
 optional<Texbin> Texbin::from_path(const char *path) {
     // there are a handful of .bin files we might try to parse that *aren't*
     // texbins, so gate all logs before header magic check behind log_verbose
-    log_verbose("Opening %s", path);
+    log_verbose("Opening {}", path);
     ifstream f (path, ios::binary);
     if(!f) {
         log_verbose("cannot open");
@@ -568,21 +568,21 @@ void Texbin::process_dirty_rects() {
     for(auto &[rect_name, rects] : updates) {
         auto _image = images.find(rect_name);
         if(_image == images.end()) {
-            log_warning("Can't update rect %s: no tex???", rect_name.c_str());
+            log_warning("Can't update rect {}: no tex???", rect_name);
             continue;
         }
         auto image = &_image->second;
         auto _tex = image->tex_to_argb8888();
         if(!_tex) {
-            log_warning("Can't update rect %s: cannot load tex", rect_name.c_str());
+            log_warning("Can't update rect {}: cannot load tex", rect_name);
             continue;
         }
         auto [tex, width, height] = *_tex;
 
         for(auto &rect : rects) {
             if(rect->x2() > width || rect->y2() > height) {
-                log_warning("Can't update rect in %s: out of bounds (canvas is %dx%d, rect is x1,x2,y1,y2 %d,%d,%d,%d)",
-                    rect_name.c_str(),
+                log_warning("Can't update rect in {}: out of bounds (canvas is {}x{}, rect is x1,x2,y1,y2 {},{},{},{})",
+                    rect_name,
                     width,
                     height,
                     rect->x, rect->x2(), rect->y, rect->y2()
@@ -657,8 +657,8 @@ bool Texbin::save(const char *dest) {
         for(auto &[name, rect] : rects) {
             auto parent = images.find(rect.parent_name);
             if(parent == images.end()) {
-                log_warning("Rect entry \"%s\" has an invalid parent name \"%s\"",
-                    name.c_str(), rect.parent_name.c_str()
+                log_warning("Rect entry \"{}\" has an invalid parent name \"{}\"",
+                    name, rect.parent_name
                 );
                 return false;
             }
@@ -891,7 +891,7 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
             break;
 
         default:
-            log_warning("Unsupported tex format type 0x%X", hdr->format1 & 0xFF);
+            log_warning("Unsupported tex format type {:#x}", hdr->format1 & 0xFF);
             return nullopt;
     }
 

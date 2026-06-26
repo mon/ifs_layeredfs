@@ -88,7 +88,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
     vector<Bitmap*> textures;
 
     for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
-        log_verbose("New image: %s", it->c_str());
+        log_verbose("New image: {}", *it);
 
         string png_tex = *it + ".png";
         auto png_loc = find_first_modfile(ifs_mod_path + "/" + png_tex);
@@ -122,7 +122,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         log_warning("Couldn't pack textures :(");
         return false;
     }
-    log_misc("Texture packing %d ms", time() - pack_start);
+    log_misc("Texture packing {} ms", time() - pack_start);
 
     // because the property API, being
     // a) written by Konami
@@ -187,7 +187,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         }
     }
 
-    log_misc("Texture extend total time %d ms", time() - start);
+    log_misc("Texture extend total time {} ms", time() - start);
     return true;
 }
 
@@ -198,7 +198,7 @@ void parse_texturelist(HookFile &file) {
     auto ifs_path = file.norm_path;
     // truncate
     ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
-    // log_misc("Reading ifs %s", ifs_path.c_str());
+    // log_misc("Reading ifs {}", ifs_path);
     auto ifs_mod_path = ifs_path;
     string_replace(ifs_mod_path, ".ifs", "_ifs");
 
@@ -240,14 +240,14 @@ void parse_texturelist(HookFile &file) {
 
         auto format = texture->first_attribute("format");
         if (!format) {
-            log_warning("Texture missing format %s", path_to_open.c_str());
+            log_warning("Texture missing format {}", path_to_open);
             continue;
         }
 
         //<size __type="2u16">128 128</size>
         auto size = texture->first_node("size");
         if (!size) {
-            log_warning("Texture missing size %s", path_to_open.c_str());
+            log_warning("Texture missing size {}", path_to_open);
             continue;
         }
 
@@ -263,7 +263,7 @@ void parse_texturelist(HookFile &file) {
             image = image->next_sibling("image")) {
             auto name = image->first_attribute("name");
             if (!name) {
-                log_warning("Texture missing name %s", path_to_open.c_str());
+                log_warning("Texture missing name {}", path_to_open);
                 continue;
             }
 
@@ -271,14 +271,14 @@ void parse_texturelist(HookFile &file) {
             auto imgrect = image->first_node("imgrect");
             auto uvrect = image->first_node("uvrect");
             if (!imgrect || !uvrect) {
-                log_warning("Texture missing dimensions %s", path_to_open.c_str());
+                log_warning("Texture missing dimensions {}", path_to_open);
                 continue;
             }
 
             // it's a 4u16
             sscanf(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0], &dimensions[1], &dimensions[2], &dimensions[3]);
 
-            // log_misc("Image '%s' compress %d format %d", name->value(), compress, format_type);
+            // log_misc("Image '{}' compress {} format {}", name->value(), compress, format_type);
             image_t image_info;
             image_info.name = name->value();
             MD5 md5;
@@ -297,7 +297,7 @@ void parse_texturelist(HookFile &file) {
         }
     }
 
-    log_verbose("%d added PNGs", extra_pngs.size());
+    log_verbose("{} added PNGs", extra_pngs.size());
     if (extra_pngs.size() > 0) {
         if (add_images_to_list(extra_pngs, texturelist_node, ifs_path, ifs_mod_path, compress))
             prop_was_rewritten = true;
@@ -341,12 +341,12 @@ bool cache_texture(string const&png_path, image_t const&tex) {
 
     error = lodepng_decode32_file(&image, &width, &height, png_path.c_str());
     if (error) {
-        log_warning("can't load png %u: %s\n", error, lodepng_error_text(error));
+        log_warning("can't load png {}: {}\n", error, lodepng_error_text(error));
         return false;
     }
 
     if ((int)width != tex.width || (int)height != tex.height) {
-        log_warning("Loaded png (%dx%d) doesn't match texturelist.xml (%dx%d), ignoring", width, height, tex.width, tex.height);
+        log_warning("Loaded png ({}x{}) doesn't match texturelist.xml ({}x{}), ignoring", width, height, tex.width, tex.height);
         return false;
     }
 
@@ -420,7 +420,7 @@ void parse_afplist(HookFile &file) {
     auto ifs_path = file.norm_path;
     // truncate
     ifs_path.resize(ifs_path.size() - strlen("/tex/afplist.xml"));
-    // log_misc("Reading ifs %s", ifs_path.c_str());
+    // log_misc("Reading ifs {}", ifs_path);
     auto ifs_mod_path = ifs_path;
     string_replace(ifs_mod_path, ".ifs", "_ifs");
 
@@ -452,14 +452,14 @@ void parse_afplist(HookFile &file) {
 
         auto name = afp->first_attribute("name");
         if (!name) {
-            log_warning("AFP missing name %s", path_to_open.c_str());
+            log_warning("AFP missing name {}", path_to_open);
             continue;
         }
 
         // <geo __type="u16" __count="5">5 8 11 16 19</geo>
         auto geo = afp->first_node("geo");
         if (!geo) {
-            log_warning("AFP missing geo %s", path_to_open.c_str());
+            log_warning("AFP missing geo {}", path_to_open);
             continue;
         }
 
@@ -469,7 +469,7 @@ void parse_afplist(HookFile &file) {
                 .mod_path = ifs_mod_path + folder + file,
             });
             mapped++;
-            // log_info("AFP %s -> %s", md5_path.c_str(), (ifs_mod_path + folder + file).c_str());
+            // log_info("AFP {} -> {}", md5_path, ifs_mod_path + folder + file);
         };
 
         std::lock_guard lock(afp_md5_names_mtx);
@@ -485,7 +485,7 @@ void parse_afplist(HookFile &file) {
         }
     }
 
-    log_verbose("Mapped %d AFP filenames", mapped);
+    log_verbose("Mapped {} AFP filenames", mapped);
 }
 
 std::optional<std::tuple<std::string, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile &file) {
@@ -495,7 +495,7 @@ std::optional<std::tuple<std::string, std::shared_ptr<image_t>>> lookup_png_from
         return std::nullopt;
     }
 
-    //log_misc("Mapped file %s is found!", norm_path.c_str());
+    //log_misc("Mapped file {} is found!", norm_path);
     auto tex = tex_search->second;
     lock.unlock(); // is it safe to unlock this early? Time will tell...
 
@@ -519,15 +519,15 @@ void handle_texture(HookFile &file) {
     auto &[png_path, tex] = *lookup;
 
     if (tex->compression == UNSUPPORTED_COMPRESS) {
-        log_warning("Unsupported compression for %s", png_path.c_str());
+        log_warning("Unsupported compression for {}", png_path);
         return;
     }
     if (tex->format == UNSUPPORTED_FORMAT) {
-        log_warning("Unsupported texture format for %s", png_path.c_str());
+        log_warning("Unsupported texture format for {}", png_path);
         return;
     }
 
-    log_verbose("Mapped file %s found!", png_path.c_str());
+    log_verbose("Mapped file {} found!", png_path);
     if (cache_texture(png_path, *tex)) {
         file.mod_path = tex->cache_file();
     }
@@ -541,7 +541,7 @@ std::optional<std::string> lookup_afp_from_md5(HookFile &file) {
         return std::nullopt;
     }
 
-    //log_misc("Mapped file %s is found!", norm_path.c_str());
+    //log_misc("Mapped file {} is found!", norm_path);
     auto afp = afp_search->second;
     lock.unlock(); // is it safe to unlock this early? Time will tell...
 
@@ -553,7 +553,7 @@ void handle_afp(HookFile &file) {
     if(!lookup)
         return;
 
-    log_verbose("Mapped file %s found!", lookup->c_str());
+    log_verbose("Mapped file {} found!", *lookup);
     file.mod_path = *lookup;
     return;
 }
@@ -584,9 +584,9 @@ void merge_xmls(HookFile &file) {
     auto cache_hasher = CacheHasher(out_hashed);
 
     cache_hasher.add(starting); // don't forget to take the input into account
-    log_info("Merging into %s", starting.c_str());
+    log_info("Merging into {}", starting);
     for (auto &path : to_merge) {
-        log_info("  %s", path.c_str());
+        log_info("  {}", path);
         cache_hasher.add(path);
     }
     cache_hasher.finish();
@@ -600,7 +600,7 @@ void merge_xmls(HookFile &file) {
 
     auto first_result = rapidxml_from_avs_filepath(starting, merged_xml, merged_xml);
     if (!first_result) {
-        log_warning("Couldn't merge (can't load first xml %s)", starting.c_str());
+        log_warning("Couldn't merge (can't load first xml {})", starting);
         return;
     }
 
@@ -608,7 +608,7 @@ void merge_xmls(HookFile &file) {
         rapidxml::xml_document<> rapid_to_merge;
         auto merge_load_result = rapidxml_from_avs_filepath(path, rapid_to_merge, merged_xml);
         if (!merge_load_result) {
-            log_warning("Couldn't merge (can't load xml) %s", path.c_str());
+            log_warning("Couldn't merge (can't load xml) {}", path);
             return;
         }
 
@@ -630,5 +630,5 @@ void merge_xmls(HookFile &file) {
     cache_hasher.commit();
     file.mod_path = out;
 
-    log_misc("Merge took %d ms", time() - start);
+    log_misc("Merge took {} ms", time() - start);
 }

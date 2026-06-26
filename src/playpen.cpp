@@ -35,7 +35,7 @@ void lz_unfuck(uint8_t *buf, size_t len) {
         }
     }
 
-    log_info("unfucked %d bytes", repl);
+    log_info("unfucked {} bytes", repl);
 }
 
 optional<std::vector<uint8_t>> readFile(const char* filename)
@@ -45,7 +45,7 @@ optional<std::vector<uint8_t>> readFile(const char* filename)
     std::ifstream file(filename, std::ios::binary);
 
     if(!file) {
-        log_warning("Couldn't open %s", filename);
+        log_warning("Couldn't open {}", filename);
         return nullopt;
     }
 
@@ -96,16 +96,16 @@ void avs_playpen() {
     //     return;
     // }
     // auto debug = *_debug;
-    // log_info("Loaded %d bytes", debug.size());
+    // log_info("Loaded {} bytes", debug.size());
 
     // // lz_unfuck(&debug[8], comp_sz);
     // // auto decomp = lz_decompress(&debug[8], comp_sz, &decomp_sz);
     // auto decomp = texbin_lz77_decompress(debug);
-    // log_info("Decomp to %u", decomp.size());
+    // log_info("Decomp to {}", decomp.size());
     // auto comp = texbin_lz77_compress(decomp);
-    // log_info("Comp again to %u", comp.size());
+    // log_info("Comp again to {}", comp.size());
     // auto decomp2 = texbin_lz77_decompress(comp);
-    // log_info("Final decomp to %u", decomp2.size());
+    // log_info("Final decomp to {}", decomp2.size());
 
     // auto f = fopen("debug.out.bin", "wb");
     // fwrite(&decomp[0], 1, decomp.size(), f);
@@ -142,7 +142,7 @@ void avs_playpen() {
 
     auto memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
     if (memsize < 0) {
-        log_warning("Couldn't get memsize %08X", memsize);
+        log_warning("Couldn't get memsize {:08X}", memsize);
         goto FAIL;
     }
 
@@ -176,7 +176,7 @@ FAIL:
         return;
     }
     for (char* n = avs_fs_readdir(d); n; n = avs_fs_readdir(d))
-        log_info("dir %s", n);
+        log_info("dir {}", n);
     avs_fs_closedir(d);*/
     //char name[64];
     //auto playpen = prop_from_file("playpen.xml");
@@ -188,15 +188,15 @@ FAIL:
     //print_node(end);
     /*for (int i = 0; i <= 8; i++) {
         if (i == 6 || i == 3) continue;
-        log_info("Traverse: %d", i);
+        log_info("Traverse: {}", i);
         auto node = property_search(playpen, NULL, "/root/t2");
         auto nnn = property_node_traversal(node, 8);
         auto nna = property_node_traversal(nnn, TRAVERSE_FIRST_ATTR);
         property_node_name(nna, name, 64);
-        log_info("bloop %s", name);
+        log_info("bloop {}", name);
         for (;node;node = property_node_traversal(node, i)) {
             if (!property_node_name(node, name, 64)) {
-                log_info("    %s", name);
+                log_info("    {}", name);
             }
         }
     }*/

@@ -39,13 +39,13 @@ std::set<string, CaseInsensitiveCompare> walk_dir(const string &path, const stri
                     log_warning("\"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
                 }
                 result_path = root + ffd.cFileName + "/";
-                log_verbose("  %s", result_path.c_str());
+                log_verbose("  {}", result_path);
                 auto subdir_walk = walk_dir(path + "/" + ffd.cFileName, result_path);
                 result.insert(subdir_walk.begin(), subdir_walk.end());
             }
             else {
                 result_path = root + ffd.cFileName;
-                log_verbose("  %s", result_path.c_str());
+                log_verbose("  {}", result_path);
             }
             result.insert(result_path);
         } while (FindNextFileA(contents, &ffd) != 0);
@@ -64,7 +64,7 @@ void cache_mods(void) {
     config.developer_mode = devmode;
 
     for (auto &dir : avail_mods) {
-        log_verbose("Walking %s", dir.c_str());
+        log_verbose("Walking {}", dir);
         mod_contents_t mod;
         mod.name = dir;
         // even in developer mode we want to walk the mods directory for effective logging
@@ -82,7 +82,7 @@ static vector<string> game_folders;
 void init_modpath_handler(void) {
     log_verbose("Top level folders:");
     for (auto folder : folders_in_folder(".")) {
-        log_verbose("  %s", folder.c_str());
+        log_verbose("  {}", folder);
 
         // data is the normal case we transparently handle
         if (!strcasecmp(folder.c_str(), "data")) {
@@ -149,7 +149,7 @@ vector<string> available_mods() {
             // if there is an allowlist, is this mod on it?
             if (!config.allowlist.empty() && config.allowlist.find(folder) == config.allowlist.end()) {
                 if (first_search)
-                    log_info("Ignoring non-allowlisted mod %s", folder.c_str());
+                    log_info("Ignoring non-allowlisted mod {}", folder);
 
                 continue;
             }
@@ -157,7 +157,7 @@ vector<string> available_mods() {
             // is this mod in the blocklist?
             if (config.blocklist.find(folder) != config.blocklist.end()) {
                 if (first_search)
-                    log_info("Ignoring blocklisted mod %s", folder.c_str());
+                    log_info("Ignoring blocklisted mod {}", folder);
 
                 continue;
             }
@@ -220,7 +220,7 @@ optional<string> find_first_cached_item(const string &norm_path) {
 }
 
 optional<string> find_first_modfile(const string &norm_path) {
-    //log_verbose("%s(%s)", __FUNCTION__, norm_path.c_str());
+    //log_verbose("{}({})", __FUNCTION__, norm_path);
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;

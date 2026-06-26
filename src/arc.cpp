@@ -34,11 +34,11 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
         return std::nullopt;
     }
     if (hdr.magic != ARC_MAGIC) {
-        log_warning("arc: bad magic %08x", hdr.magic);
+        log_warning("arc: bad magic {:08x}", hdr.magic);
         return std::nullopt;
     }
     if (hdr.compression != ARC_COMPRESSION_NONE && hdr.compression != ARC_COMPRESSION_AVSLZ) {
-        log_warning("arc: unknown compression %u", hdr.compression);
+        log_warning("arc: unknown compression {}", hdr.compression);
         return std::nullopt;
     }
 
@@ -57,7 +57,7 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
         stream.seekg(e.file_offset);
         std::vector<uint8_t> packed(e.packed_size);
         if (!stream.read(reinterpret_cast<char*>(packed.data()), e.packed_size)) {
-            log_warning("arc: couldn't read data for '%s'", name.c_str());
+            log_warning("arc: couldn't read data for '{}'", name);
             return std::nullopt;
         }
 
@@ -65,7 +65,7 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
             size_t out_size = e.unpacked_size;
             auto raw = lz_decompress(packed.data(), packed.size(), &out_size);
             if (!raw || out_size != e.unpacked_size) {
-                log_warning("arc: decompression failed for '%s'", name.c_str());
+                log_warning("arc: decompression failed for '{}'", name);
                 if (raw) free(raw);
                 return std::nullopt;
             }
@@ -92,7 +92,7 @@ static uint32_t align_up(uint32_t v, uint32_t align) {
 bool ArcArchive::save(const char* path) {
     std::ofstream f(path, std::ios::binary);
     if (!f) {
-        log_warning("arc: couldn't open '%s' for writing", path);
+        log_warning("arc: couldn't open '{}' for writing", path);
         return false;
     }
 

@@ -209,12 +209,6 @@ const avs_exports_t avs_exports[] = {
 FOREACH_AVS_FUNC(AVS_FUNC_PTR)
 FOREACH_AVS_FUNC_OPTIONAL(AVS_FUNC_PTR)
 
-/*void* (*avs_fs_mount)(char* mountpoint, char* fsroot, char* fstype, int a5);
-void* hook_avs_fs_mount(char* mountpoint, char* fsroot, char* fstype, int a5) {
-    log_misc("Mounting %s at %s with type %s", fsroot, mountpoint, fstype);
-    return avs_fs_mount(mountpoint, fsroot, fstype, a5);
-}*/
-
 #define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, avs_exports[i].func, (LPVOID)hook_ ## func, (LPVOID*)&func) != MH_OK || func == NULL) continue
 #define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i].func)) == NULL) continue
 #define CHECK_UNIQUE(func) if( avs_exports[i].func != NULL && GetProcAddress(mod_handle, avs_exports[i].func) == NULL) continue
@@ -227,7 +221,7 @@ bool init_avs(void) {
 
 #ifdef _DEBUG
     for (int i = 0; i < lenof(avs_exports); i++) {
-#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) log_warning("MISSING EXPORT %d: %s", i, #name);
+#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) log_warning("MISSING EXPORT {}: {}", i, #name);
         FOREACH_AVS_FUNC(VERBOSE_EXPORT_CHECK)
         FOREACH_AVS_FUNC_OPTIONAL(VERBOSE_EXPORT_CHECK)
     }
@@ -291,7 +285,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
         avs_fs_lseek(f, 0, SEEK_SET);
         memsize = property_read_query_memsize(avs_fs_read, f, NULL, NULL);
         if (memsize < 0) {
-            log_warning("Couldn't get memsize %08X (%s)", memsize, get_prop_error_str(memsize));
+            log_warning("Couldn't get memsize {:08X} ({})", memsize, get_prop_error_str(memsize));
             goto FAIL;
         }
     }
@@ -305,7 +299,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
     prop = property_create(flags, prop_buffer, memsize);
     if (!prop) {
         // double cast to squash truncation warning
-        log_warning("Couldn't create prop (%s)", get_prop_error_str((int32_t)(size_t)prop));
+        log_warning("Couldn't create prop ({})", get_prop_error_str((int32_t)(size_t)prop));
         goto FAIL;
     }
 
@@ -314,7 +308,7 @@ property_t prop_from_file_handle(AVS_FILE f) {
     avs_fs_close(f);
 
     if (ret < 0) {
-        log_warning("Couldn't read prop (%s)", get_prop_error_str(ret));
+        log_warning("Couldn't read prop ({})", get_prop_error_str(ret));
         goto FAIL;
     }
 
@@ -349,7 +343,7 @@ char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
     }
     else {
         xml[0] = '\0';
-        log_warning("property_mem_write failed (%s)", get_prop_error_str(written));
+        log_warning("property_mem_write failed ({})", get_prop_error_str(written));
     }
 
     return xml;

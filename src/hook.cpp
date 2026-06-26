@@ -63,7 +63,7 @@ class PkfsHookFile final : public HookFile {
         log_if_modfile();
         auto ret = pkfs_fs_open(get_path_to_open().c_str());
         if(ret == 0) {
-            log_verbose("pkfs_fs_open(%s) failed in call_real", get_path_to_open().c_str());
+            log_verbose("pkfs_fs_open({}) failed in call_real", get_path_to_open());
         }
         return ret;
     }
@@ -86,7 +86,7 @@ class PkfsHookFile final : public HookFile {
             // This of course is racey, so if there is a *real* error in another
             // thread, this resets it. But it's a tight race, and I'll take that
             // chance.
-            log_verbose("pkfs_open(%s) failed in load_to_vec, clearing HDD error", get_path_to_open().c_str());
+            log_verbose("pkfs_open({}) failed in load_to_vec, clearing HDD error", get_path_to_open());
             pkfs_clear_hdd_error();
             return nullopt;
         }
@@ -233,7 +233,7 @@ void handle_arc(HookFile &file) {
         }
         arc = std::move(*_arc);
     } else {
-        log_info("arc: no original file, creating from scratch: \"%s\"", file.norm_path.c_str());
+        log_info("arc: no original file, creating from scratch: \"{}\"", file.norm_path);
     }
 
     auto out_folder = out.substr(0, out.rfind("/"));
@@ -296,13 +296,13 @@ void handle_arc(HookFile &file) {
 
             auto out_folder = xml_orig.substr(0, xml_orig.rfind("/"));
             if (!mkdir_p(out_folder)) {
-                log_warning("Couldn't create arc xml cache folder %s", out_folder.c_str());
+                log_warning("Couldn't create arc xml cache folder {}", out_folder);
                 continue;
             }
 
             FILE *f = fopen(xml_orig.c_str(), "wb");
             if (!f) {
-                log_warning("Couldn't create arc xml base at %s", xml_orig.c_str());
+                log_warning("Couldn't create arc xml base at {}", xml_orig);
                 continue;
             }
             fwrite(arc_file.second.data(), 1, arc_file.second.size(), f);
@@ -324,7 +324,7 @@ void handle_arc(HookFile &file) {
 
         auto data = f.load_to_vec();
         if (!data) {
-            log_warning("arc: couldn't load mod file '%s'", path.first.c_str());
+            log_warning("arc: couldn't load mod file '{}'", path.first);
             continue;
         }
         arc.add_or_replace(name, std::move(*data));
@@ -338,7 +338,7 @@ void handle_arc(HookFile &file) {
     cache_hasher.commit();
     file.mod_path = out;
 
-    log_misc("arc generation took %d ms", time() - start);
+    log_misc("arc generation took {} ms", time() - start);
 }
 
 void handle_texbin(HookFile &file) {
@@ -413,7 +413,7 @@ void handle_texbin(HookFile &file) {
         }
         texbin = *_texbin;
     } else {
-        log_info("Found texbin mods but no original file, creating from scratch: \"%s\"", file.norm_path.c_str());
+        log_info("Found texbin mods but no original file, creating from scratch: \"{}\"", file.norm_path);
     }
 
     auto folder_terminator = out.rfind("/");
@@ -438,7 +438,7 @@ void handle_texbin(HookFile &file) {
     cache_hasher.commit();
     file.mod_path = out;
 
-    log_misc("Texbin generation took %d ms", time() - start);
+    log_misc("Texbin generation took {} ms", time() - start);
 }
 
 uint32_t handle_file_open(HookFile &file) {
@@ -474,7 +474,7 @@ uint32_t handle_file_open(HookFile &file) {
     if(file.ramfs_demangle()) {
         ramfs_demangler_on_fs_open(file.path, ret);
     }
-    // log_verbose("(returned %d)", ret);
+    // log_verbose("(returned {})", ret);
     return ret;
 }
 
@@ -482,7 +482,7 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     if (name == NULL)
         return avs_fs_lstat(name, st);
 
-    log_verbose("statting %s", name);
+    log_verbose("statting {}", name);
     string path = name;
 
     // can it be modded ie is it under /data ?
@@ -499,7 +499,7 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
     if (name == NULL)
         return avs_fs_convert_path(dest_name, name);
 
-    log_verbose("convert_path %s", name);
+    log_verbose("convert_path {}", name);
     string path = name;
 
     // can it be modded ie is it under /data ?
@@ -513,7 +513,7 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
 }
 
 int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* args) {
-    log_verbose("mounting %s to %s with type %s and args %s", fsroot, mountpoint, fstype, args);
+    log_verbose("mounting {} to {} with type {} and args {}", fsroot, mountpoint, fstype, args ? args : "(null)");
     ramfs_demangler_on_fs_mount(mountpoint, fsroot, fstype, args);
 
     // In new jubeat, a modded IFS file will be loaded as such:
@@ -559,7 +559,7 @@ DWORD WINAPI hook_GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWO
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if(name == NULL || inside_pkfs_hook)
         return avs_fs_open(name, mode, flags);
-    log_verbose("opening %s mode %d flags %d", name, mode, flags);
+    log_verbose("opening {} mode {} flags {}", name, mode, flags);
     // only touch reads
     if (mode != avs_open_mode_read()) {
         return avs_fs_open(name, mode, flags);
@@ -577,7 +577,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 }
 
 unsigned int hook_pkfs_open(const char *name) {
-    log_verbose("pkfs_open %s", name);
+    log_verbose("pkfs_open {}", name);
 
     string path = name;
 
@@ -630,7 +630,8 @@ static void dump_loaded_dll_info() {
     bool first = true;
     for(auto mod = head; mod && (first || mod != head); mod = mod->Flink) {
         auto ldr = reinterpret_cast<PLDR_DATA_TABLE_ENTRY>(mod);
-        log_verbose("  %.*ls", ldr->FullDllName.Length, ldr->FullDllName.Buffer);
+        std::string narrow_dll_name(ldr->FullDllName.Buffer, ldr->FullDllName.Buffer + ldr->FullDllName.Length);
+        log_verbose("  {}", narrow_dll_name);
         first = false;
     }
 }
@@ -667,7 +668,7 @@ extern "C" {
 #ifdef SPECIAL_VER
         log_info("Build config: " SPECIAL_VER);
 #endif
-        log_info("AVS DLL detected: %s", avs_loaded_dll_name);
+        log_info("AVS DLL detected: {}", avs_loaded_dll_name);
         print_config();
 #ifdef UNPAK
         log_info(".pak dumper mode enabled");
@@ -714,7 +715,7 @@ extern "C" {
 
         log_info("Detected mod folders:");
         for (auto &p : available_mods()) {
-            log_info("%s", p.c_str());
+            log_info("{}", p);
         }
 
         return 0;

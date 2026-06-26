@@ -4,20 +4,8 @@
 #include <algorithm>
 
 #include "utils.hpp"
-#include "log.hpp"
 #include "avs.h"
 #include "hook.h"
-
-char* snprintf_auto(const char* fmt, ...) {
-    va_list argList;
-
-    va_start(argList, fmt);
-    size_t len = vsnprintf(NULL, 0, fmt, argList);
-    auto s = (char*)malloc(len + 1);
-    vsnprintf(s, len + 1, fmt, argList);
-    va_end(argList);
-    return s;
-}
 
 bool string_ends_with(const char * str, const char * suffix) {
     size_t str_len = strlen(str);
@@ -227,7 +215,7 @@ uint64_t file_time(const char* path) {
     ULARGE_INTEGER result;
     result.LowPart = mtime.dwLowDateTime;
     result.HighPart = mtime.dwHighDateTime;
-    // log_verbose("file time %lu for %s", result.QuadPart, path);
+    // log_verbose("file time {} for {}", result.QuadPart, path);
     return result.QuadPart;
 
     // NOTE: can't use this method because the DLL time is taken before AVS is
@@ -236,7 +224,7 @@ uint64_t file_time(const char* path) {
     // struct avs_stat st;
     // auto res = avs_fs_lstat(path, &st);
     // if (res) {
-    //     log_verbose("file time %ld for %s", st.st_mtime, path);
+    //     log_verbose("file time {} for {}", st.st_mtime, path);
     //     return st.st_mtime;
     // } else {
     //     return 0;

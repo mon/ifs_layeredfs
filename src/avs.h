@@ -272,7 +272,7 @@ bool rapidxml_from_avs_file(
     try {
         doc.parse<Flags>(xml);
     } catch (const rapidxml::parse_error& e) {
-        log_warning("Couldn't parse xml (%s byte %d)", e.what(), (int)(e.where<char>() - xml));
+        log_warning("Couldn't parse xml ({} byte {})", e.what(), (int)(e.where<char>() - xml));
         auto f = fopen("debug.xml", "wb");
         fwrite(xml, strlen(xml), 1, f);
         return false;

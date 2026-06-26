@@ -28,7 +28,7 @@ FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
 
 class LogTestName : public testing::EmptyTestEventListener {
     void OnTestStart(const testing::TestInfo& info) override {
-        log_misc("--------- Running %s.%s", info.test_suite_name(), info.name());
+        log_misc("--------- Running {}.{}", info.test_suite_name(), info.name());
     }
 };
 
@@ -133,7 +133,7 @@ TEST(ImageFs, MD5DemanglingWorks) {
       if(!norm) return std::string();
 
       TestHookFile file(path, *norm);
-      log_info("Lookup %s norm %s", path.c_str(), norm->c_str());
+      log_info("Lookup {} norm {}", path, *norm);
       auto lookup = lookup_png_from_md5(file);
       EXPECT_NE(lookup, std::nullopt);
       if(!lookup) return std::string();
@@ -150,7 +150,7 @@ TEST(ImageFs, MD5DemanglingWorks) {
       if(!norm) return std::string();
 
       TestHookFile file(path, *norm);
-      log_info("Lookup %s norm %s", path.c_str(), norm->c_str());
+      log_info("Lookup {} norm {}", path, *norm);
       auto lookup = lookup_afp_from_md5(file);
       EXPECT_NE(lookup, std::nullopt);
       if(!lookup) return std::string();
@@ -230,9 +230,8 @@ TEST(RamFs, DemanglingWorks) {
     ramfs_demangler_on_fs_open("./data/test.ifs", fake_handle);
 
     ramfs_demangler_on_fs_read(fake_handle, fake_buffer);
-    char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
-    ramfs_demangler_on_fs_mount("/sd0", "test.ifs", "ramfs", flags);
-    free(flags);
+    std::string flags = std::format("base={:#x}", (uintptr_t)fake_buffer);
+    ramfs_demangler_on_fs_mount("/sd0", "test.ifs", "ramfs", flags.c_str());
 
     ramfs_demangler_on_fs_mount("/game/test", "/sd0/test.ifs", "imagefs", nullptr);
 
@@ -264,9 +263,8 @@ TEST(RamFs, DemanglingWorksNabla) {
    ramfs_demangler_on_fs_open("/data/graphics/ver07/logo.ifs", fake_handle);
 
    ramfs_demangler_on_fs_read(fake_handle, fake_buffer);
-   char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
-   ramfs_demangler_on_fs_mount("/mnt/bm2d/rmp_89_2714881", "image.bin", "ramfs", flags);
-   free(flags);
+   std::string flags = std::format("base={:#x}", (uintptr_t)fake_buffer);
+   ramfs_demangler_on_fs_mount("/mnt/bm2d/rmp_89_2714881", "image.bin", "ramfs", flags.c_str());
 
    ramfs_demangler_on_fs_mount("/mnt/bm2d/rfs88r89/logo.ifs", "/mnt/bm2d/rmp_89_2714881/image.bin", "link", "");
    ramfs_demangler_on_fs_mount("/mnt/bm2d/ngp88/logo.ifs", "/mnt/bm2d/rfs88r89/logo.ifs", "imagefs", nullptr);
@@ -382,9 +380,8 @@ TEST(ArcArchive, MergedXmlInsideArcWithOriginalInsideArc) {
 static void exercise_inner_ifs_demangle(std::string const& arc_path) {
     // The buffer pointer doesn't matter — basename lookup is the fallback path
     uint8_t fake_buffer[1];
-    char* flags = snprintf_auto("base=0x%llx", (unsigned long long)(uintptr_t)fake_buffer);
-    ramfs_demangler_on_fs_mount("/sd9", "inner.ifs", "ramfs", flags);
-    free(flags);
+    std::string flags = std::format("base={:#x}", (uintptr_t)fake_buffer);
+    ramfs_demangler_on_fs_mount("/sd9", "inner.ifs", "ramfs", flags.c_str());
     ramfs_demangler_on_fs_mount("/game/inner_test", "/sd9/inner.ifs", "imagefs", nullptr);
 
     std::string p = "/game/inner_test/some_subfile";

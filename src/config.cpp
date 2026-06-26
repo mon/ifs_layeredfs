@@ -120,13 +120,14 @@ void load_config(void) {
 }
 
 void print_config(void) {
-    log_info("Options: %s=%d %s=%d %s=%d %s=%s %s=%s %s=%s %s=%s",
+    log_info("Options: {}={} {}={} {}={} {}={} {}={} {}={} {}={}",
         VERBOSE_FLAG, config.verbose_logs,
         DEVMODE_FLAG, config.developer_mode,
         DISABLE_FLAG, config.disable,
-        LOGFILE_FLAG, config.logfile,
-        ALLOWLIST_FLAG, allowlist,
-        BLOCKLIST_FLAG, blocklist,
+        // TODO: std::optional
+        LOGFILE_FLAG, config.logfile ? config.logfile : "(null)",
+        ALLOWLIST_FLAG, allowlist ? allowlist : "(null)",
+        BLOCKLIST_FLAG, blocklist ? blocklist : "(null)",
         MOD_FOLDER_FLAG, config.get_mod_folder().c_str()
     );
 }
