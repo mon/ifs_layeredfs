@@ -2,25 +2,15 @@
 
 #include <string>
 #include <vector>
-
-#if 0
-#include <experimental/optional>
-using std::experimental::optional;
-#else
 #include <optional>
-using std::optional;
-#endif
-
-using std::string;
-using std::vector;
 
 void init_modpath_handler(void);
-void modpath_debug_add_folder(const string &folder);
+void modpath_debug_add_folder(const std::string &folder);
 void cache_mods(void);
-vector<string> available_mods();
-// mutates source string to be all lowercase
-optional<string> normalise_path(const string &path, bool demangle = true);
-optional<string> find_first_modfile(const string &norm_path);
-optional<string> find_first_modfolder(const string &norm_path);
-vector<string> find_all_modfile(const string &norm_path);
-bool mkdir_p(const string &path);
+std::vector<std::string> available_mods();
+// mutates source std::string to be all lowercase
+std::optional<std::string> normalise_path(const std::string &path, bool demangle = true);
+std::optional<std::string> find_first_modfile(const std::string &norm_path);
+std::optional<std::string> find_first_modfolder(const std::string &norm_path);
+std::vector<std::string> find_all_modfile(const std::string &norm_path);
+bool mkdir_p(const std::string &path);

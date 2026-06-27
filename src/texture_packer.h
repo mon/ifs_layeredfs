@@ -5,17 +5,14 @@
 #include <string>
 #include <vector>
 
-using std::string;
-using std::vector;
-
 struct Bitmap
 {
-    string name;
+    std::string name;
     int width;
     int height;
     int packX;
     int packY;
-    Bitmap(const string& name, int width, int height)
+    Bitmap(const std::string& name, int width, int height)
     : name(name), width(width), height(height)
     {}
 };
@@ -25,10 +22,10 @@ struct Packer
     int width;
     int height;
 
-    vector<Bitmap*> bitmaps;
+    std::vector<Bitmap*> bitmaps;
 
     Packer(int max_size);
-    void Pack(vector<Bitmap*> &bitmaps);
+    void Pack(std::vector<Bitmap*> &bitmaps);
 };
 
-bool pack_textures(vector<Bitmap*> &textures, vector<Packer*> &packed_textures);
+bool pack_textures(std::vector<Bitmap*> &textures, std::vector<Packer*> &packed_textures);

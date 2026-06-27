@@ -44,24 +44,22 @@
 #include "modpath_handler.h"
 #include "utils.hpp"
 
-using namespace std;
-
 typedef struct {
 	AVS_FILE handle;
 	void* buffer;
-	optional<string> ramfs_path;
-	optional<string> link_path;
-	optional<string> mounted_path;
+	std::optional<std::string> ramfs_path;
+	std::optional<std::string> link_path;
+	std::optional<std::string> mounted_path;
 } file_cleanup_info_t;
 
-static map<string, file_cleanup_info_t, CaseInsensitiveCompare> cleanup_map;
-static unordered_map<AVS_FILE, string> open_file_map;
-static unordered_map<void*, string> ram_load_map;
+static std::map<std::string, file_cleanup_info_t, CaseInsensitiveCompare> cleanup_map;
+static std::unordered_map<AVS_FILE, std::string> open_file_map;
+static std::unordered_map<void*, std::string> ram_load_map;
 // using tries for fast prefix matches on our mangled names
-static tsl::htrie_map<char, string> ramfs_map;
-static tsl::htrie_map<char, string> mangling_map;
+static tsl::htrie_map<char, std::string> ramfs_map;
+static tsl::htrie_map<char, std::string> mangling_map;
 // Basename ("foo.ifs") -> demangled inner path ("arc/.../foo_arc/.../foo.ifs")
-static unordered_map<string, string> arc_inner_by_basename;
+static std::unordered_map<std::string, std::string> arc_inner_by_basename;
 
 static std::mutex mangling_mtx;
 
@@ -70,8 +68,8 @@ static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path);
 
 void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 	if (open_result < 0
-		|| (!string_ends_with(path.c_str(), ".ifs")
-			&& !string_ends_with(path.c_str(), ".arc"))) {
+		|| (!string_ends_with_i(path.c_str(), ".ifs")
+			&& !string_ends_with_i(path.c_str(), ".arc"))) {
 		return;
 	}
 
@@ -99,8 +97,8 @@ void ramfs_demangler_on_fs_open(const std::string& path, AVS_FILE open_result) {
 	file_cleanup_info_t cleanup = {
 		open_result,
 		NULL,
-		nullopt,
-		nullopt
+		std::nullopt,
+		std::nullopt
 	};
 	cleanup_map[path] = cleanup;
 	open_file_map[open_result] = path;
@@ -153,9 +151,9 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 		buffer = (void*)strtoull(baseptr + strlen("base="), NULL, 0);
 
 		// strip trailing '/' on mountpoint — DDR uses "/dev/ram/foo.ifs/"
-		string mp_trim = mountpoint;
+		std::string mp_trim = mountpoint;
 		while (!mp_trim.empty() && mp_trim.back() == '/') mp_trim.pop_back();
-		string mount_path = mp_trim + "/" + fsroot;
+		std::string mount_path = mp_trim + "/" + fsroot;
 
 		auto find = ram_load_map.find(buffer);
 		if (find != ram_load_map.end()) {
@@ -169,15 +167,15 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			}
 		} else {
 			// ifs-inside-arc
-			auto basename_of = [](const char* path) -> string {
+			auto basename_of = [](const char* path) -> std::string {
 				if (!path) return "";
-				string s = path;
+				std::string s = path;
 				while (!s.empty() && s.back() == '/') s.pop_back();
 				auto pos = s.rfind('/');
-				string bn = (pos == string::npos) ? s : s.substr(pos + 1);
-				return string_ends_with(bn.c_str(), ".ifs") ? bn : string();
+				std::string bn = (pos == std::string::npos) ? s : s.substr(pos + 1);
+				return string_ends_with_i(bn.c_str(), ".ifs") ? bn : std::string();
 			};
-			string bn = basename_of(mountpoint);
+			std::string bn = basename_of(mountpoint);
 			if (bn.empty()) bn = basename_of(fsroot);
 
 			auto by_name = bn.empty() ? arc_inner_by_basename.end()
@@ -215,7 +213,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 				cleanup->second.mounted_path = mountpoint;
 			}
 		}
-		else if(string_ends_with(fsroot, ".ifs")) {
+		else if(string_ends_with_i(fsroot, ".ifs")) {
 			// Two scenarios reach here:
 			//  (1) imagefs mounted directly from a real file path (eg
 			//      ./data/foo.ifs). mountpoint -> fsroot is what makes
@@ -225,7 +223,7 @@ void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, con
 			//      would lie about a mapping we don't actually have.
 			// Demangle first to handle ifs-inside-real-ifs, then check that
 			// the result is something normalise_path can use.
-			string root = (string)fsroot;
+			std::string root = (std::string)fsroot;
 			ramfs_demangler_demangle_if_possible_nolock(root);
 			if (normalise_path(root, /* demangle */ false)) {
 				log_verbose("imagefs mount mapped to {}", root);
@@ -241,13 +239,13 @@ void ramfs_demangler_demangle_if_possible(std::string& raw_path) {
 	auto search = mangling_map.longest_prefix(raw_path);
 	if (search != mangling_map.end()) {
 		// log_verbose("can demangle {} to {}", search.key(), *search);
-		string_replace(raw_path, search.key().c_str(), search->c_str());
+		string_replace_i(raw_path, search.key().c_str(), search->c_str());
 	}
 }
 
 static void ramfs_demangler_demangle_if_possible_nolock(std::string& raw_path) {
 	auto search = mangling_map.longest_prefix(raw_path);
 	if (search != mangling_map.end()) {
-		string_replace(raw_path, search.key().c_str(), search->c_str());
+		string_replace_i(raw_path, search.key().c_str(), search->c_str());
 	}
 }

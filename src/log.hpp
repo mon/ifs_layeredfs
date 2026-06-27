@@ -3,6 +3,7 @@
 #include "config.hpp" // since log_verbose uses it
 #include "fmt/format.h"
 #include "fmt/std.h"
+#include "fmt/xchar.h"
 
 #ifndef LOG_MODULE
 #define LOG_MODULE "layeredfs"

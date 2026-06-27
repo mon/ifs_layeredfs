@@ -10,17 +10,15 @@
 #include "utils.hpp"
 #include "avs.h"
 
-using std::nullopt;
-
 typedef struct {
     std::string name;
-    std::set<string, CaseInsensitiveCompare> contents;
+    std::set<std::string, CaseInsensitiveCompare> contents;
 } mod_contents_t;
 
 std::vector<mod_contents_t> cached_mods;
 
-std::set<string, CaseInsensitiveCompare> walk_dir(const string &path, const string &root) {
-    std::set<string, CaseInsensitiveCompare> result;
+std::set<std::string, CaseInsensitiveCompare> walk_dir(const std::string &path, const std::string &root) {
+    std::set<std::string, CaseInsensitiveCompare> result;
 
     WIN32_FIND_DATAA ffd;
     auto contents = FindFirstFileA((path + "/*").c_str(), &ffd);
@@ -32,7 +30,7 @@ std::set<string, CaseInsensitiveCompare> walk_dir(const string &path, const stri
                 continue;
             }
 
-            string result_path;
+            std::string result_path;
             if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
                 // sanity check a common mistake
                 if (root == "" && !strcasecmp(ffd.cFileName, "data")) {
@@ -77,7 +75,7 @@ void cache_mods(void) {
 
 // data, data2, data_op2 etc
 // data is "flat", all others must have their own special subfolders
-static vector<string> game_folders;
+static std::vector<std::string> game_folders;
 
 void init_modpath_handler(void) {
     log_verbose("Top level folders:");
@@ -93,46 +91,46 @@ void init_modpath_handler(void) {
     }
 }
 
-void modpath_debug_add_folder(const string &folder) {
+void modpath_debug_add_folder(const std::string &folder) {
     game_folders.push_back(folder + "/");
 }
 
-optional<string> normalise_path(const string &_path, bool demangle) {
+std::optional<std::string> normalise_path(const std::string &_path, bool demangle) {
     auto path = _path;
     if (demangle)
         ramfs_demangler_demangle_if_possible(path);
 
-    auto data_pos = string_find_icase(path, "data/");
-    auto other_pos = string::npos;
+    auto data_pos = string_find_i(path, "data/");
+    auto other_pos = std::string::npos;
 
-    if (data_pos == string::npos) {
+    if (data_pos == std::string::npos) {
         // search all our other folders for anything that matches
         for (auto folder : game_folders) {
-            other_pos = string_find_icase(path, folder);
-            if (other_pos != string::npos) {
+            other_pos = string_find_i(path, folder);
+            if (other_pos != std::string::npos) {
                 break;
             }
         }
 
-        if (other_pos == string::npos) {
-            return nullopt;
+        if (other_pos == std::string::npos) {
+            return std::nullopt;
         }
     }
-    auto actual_pos = (data_pos != string::npos) ? data_pos : other_pos;
+    auto actual_pos = (data_pos != std::string::npos) ? data_pos : other_pos;
     // if data2 was found, for example, use root mod/data2/.../... instead of just mod/.../...
-    auto offset = (other_pos != string::npos) ? 0 : strlen("data/");
+    auto offset = (other_pos != std::string::npos) ? 0 : strlen("data/");
     auto data_str = path.substr(actual_pos + offset);
     // nuke backslash
-    string_replace(data_str, "\\", "/");
+    string_replace_i(data_str, "\\", "/");
     // nuke double slash
-    string_replace(data_str, "//", "/");
+    string_replace_i(data_str, "//", "/");
 
     return data_str;
 }
 
-vector<string> available_mods() {
-    vector<string> ret;
-    string mod_root = config.get_mod_folder() + "/";
+std::vector<std::string> available_mods() {
+    std::vector<std::string> ret;
+    std::string mod_root = config.get_mod_folder() + "/";
 
     // just pretend we have no mods at all
     if (config.disable) {
@@ -173,13 +171,13 @@ vector<string> available_mods() {
         }
     }
     // case insensitive, so apple comes before English
-    std::sort(ret.begin(), ret.end(), [](const string& a, const string& b){
+    std::sort(ret.begin(), ret.end(), [](const std::string& a, const std::string& b){
             return strcasecmp(a.c_str(), b.c_str()) < 0;
     });
     return ret;
 }
 
-bool mkdir_p(const string &path) {
+bool mkdir_p(const std::string &path) {
     /* Adapted from http://stackoverflow.com/a/2336245/119527 */
     char *p;
     errno = 0;
@@ -207,7 +205,7 @@ bool mkdir_p(const string &path) {
 }
 
 // same for files and folders when cached
-optional<string> find_first_cached_item(const string &norm_path) {
+std::optional<std::string> find_first_cached_item(const std::string &norm_path) {
     for (auto &dir : cached_mods) {
         auto file_search = dir.contents.find(norm_path);
         if (file_search == dir.contents.end()) {
@@ -216,10 +214,10 @@ optional<string> find_first_cached_item(const string &norm_path) {
         return dir.name + "/" + *file_search;
     }
 
-    return nullopt;
+    return std::nullopt;
 }
 
-optional<string> find_first_modfile(const string &norm_path) {
+std::optional<std::string> find_first_modfile(const std::string &norm_path) {
     //log_verbose("{}({})", __FUNCTION__, norm_path);
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
@@ -232,10 +230,10 @@ optional<string> find_first_modfile(const string &norm_path) {
     else {
         return find_first_cached_item(norm_path);
     }
-    return nullopt;
+    return std::nullopt;
 }
 
-optional<string> find_first_modfolder(const string &norm_path) {
+std::optional<std::string> find_first_modfolder(const std::string &norm_path) {
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;
@@ -247,11 +245,11 @@ optional<string> find_first_modfolder(const string &norm_path) {
     else {
         return find_first_cached_item(norm_path + "/");
     }
-    return nullopt;
+    return std::nullopt;
 }
 
-vector<string> find_all_modfile(const string &norm_path) {
-    vector<string> ret;
+std::vector<std::string> find_all_modfile(const std::string &norm_path) {
+    std::vector<std::string> ret;
 
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {

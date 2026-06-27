@@ -1,3 +1,4 @@
+#include <functional>
 #include <mutex>
 #include <stdio.h>
 
@@ -14,23 +15,19 @@ void stdout_log(char level, const char *fmt, va_list args) {
 
 static void log_to_file(char level, const char* fmt, va_list args) {
     static std::mutex log_mutex;
-    static FILE* logfile = NULL;
-    static bool tried_to_open = false;
+
 #ifndef SUPPRESS_PRINTF
     stdout_log(level, fmt, args);
 #endif
-    // don't reopen every time: slow as shit
-    if (!tried_to_open) {
-        std::lock_guard lock(log_mutex);
 
-        if (!logfile) {
-            // default to ifs_hook.log because we need *something* in the case
-            // of a fatal error
-            const char *path = config.logfile ? config.logfile : DEFAULT_LOGFILE;
-            logfile = fopen(path, "w");
-        }
-        tried_to_open = true;
-    }
+    // only try and open the logfile once; if the FS is readonly then retrying
+    // every log call is slow as shit
+    static FILE* logfile = std::invoke([]() {
+        // default to ifs_hook.log because we need *something* in the case
+        // of a fatal error
+        return fopen(config.logfile.value_or(DEFAULT_LOGFILE).c_str(), "w");
+    });
+
     if (logfile) {
         std::lock_guard lock(log_mutex);
 

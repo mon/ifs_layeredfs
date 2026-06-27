@@ -7,42 +7,40 @@
 
 #include "utils.hpp"
 
-using namespace std;
-
 // because for some reason, texbin decided to implement lz77 *slightly differently*
 // from every other place konami games use it. smh.
 // This differs from texbintools in that it JUST compresses, and doesn't add
 // or parse the length headers
-vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data);
+std::vector<uint8_t> texbin_lz77_compress(const std::vector<uint8_t> &data);
 // max_len is a soft clamp, you may get a few extra bytes
-vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, size_t max_len = 0, bool debug = true);
+std::vector<uint8_t> texbin_lz77_decompress(const std::vector<uint8_t> &comp_with_hdr, size_t max_len = 0, bool debug = true);
 
 class ImageEntryParsed {
     public:
-    vector<uint8_t> tex;
+    std::vector<uint8_t> tex;
 
-    ImageEntryParsed(vector<uint8_t> tex)
+    ImageEntryParsed(std::vector<uint8_t> tex)
         : tex(tex)
     {}
     ImageEntryParsed()
-        : tex(vector<uint8_t>())
+        : tex(std::vector<uint8_t>())
     {}
 
     // w/h
-    pair<uint16_t, uint16_t> peek_dimensions();
+    std::pair<uint16_t, uint16_t> peek_dimensions();
     // data, w, h
-    optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> tex_to_argb8888();
+    std::optional<std::tuple<std::vector<uint8_t>, uint16_t, uint16_t>> tex_to_argb8888();
     // used in debug output
-    string tex_type_str(bool debug_lz77 = true);
+    std::string tex_type_str(bool debug_lz77 = true);
 };
 
 class RectEntryParsed {
     public:
-    string parent_name;
+    std::string parent_name;
     uint16_t x, y, w, h;
     // if the image has been replaced, we defer until save-time so we replace
     // all images in the same base image at once, for better performance
-    optional<vector<uint8_t>> dirty_data = nullopt;
+    std::optional<std::vector<uint8_t>> dirty_data = std::nullopt;
 
     inline uint16_t x2() {return x + w;};
     inline uint16_t y2() {return y + h;};
@@ -55,15 +53,15 @@ class Texbin {
     // will we
 
     // name -> entry
-    map<string, ImageEntryParsed, CaseInsensitiveCompare> images;
+    std::map<std::string, ImageEntryParsed, CaseInsensitiveCompare> images;
     // name -> entry. Don't need to maintain a list of source rects, as we don't
     // support packing a new texture into an existing rect (please let this
     // remain a never-needed usecase)
-    map<string, RectEntryParsed, CaseInsensitiveCompare> rects;
+    std::map<std::string, RectEntryParsed, CaseInsensitiveCompare> rects;
 
     Texbin(
-        map<string, ImageEntryParsed, CaseInsensitiveCompare> images,
-        map<string, RectEntryParsed, CaseInsensitiveCompare> rects
+        std::map<std::string, ImageEntryParsed, CaseInsensitiveCompare> images,
+        std::map<std::string, RectEntryParsed, CaseInsensitiveCompare> rects
     )
         : images(images)
         , rects(rects)
@@ -71,8 +69,8 @@ class Texbin {
 
     Texbin() = default;
 
-    static optional<Texbin> from_path(const char *path);
-    static optional<Texbin> from_stream(istream &f);
+    static std::optional<Texbin> from_path(const char *path);
+    static std::optional<Texbin> from_stream(std::istream &f);
     bool add_or_replace_image(const char *image_name, const char *png_path);
     bool save(const char *dest);
     void debug();

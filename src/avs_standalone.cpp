@@ -12,7 +12,7 @@ namespace avs_standalone
 typedef void (*avs_log_writer_t)(const char *chars, uint32_t nchars, void *ctx);
 
 static LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo);
-static size_t read_str(int32_t context, void *dst_buf, size_t count);
+static size_t read_boot_cfg(int32_t context, void *dst_buf, size_t count);
 static void log_writer(const char *chars, uint32_t nchars, void *ctx);
 
 #define FOREACH_EXTRA_FUNC(X)                                                                                                                              \
@@ -26,7 +26,7 @@ static void log_writer(const char *chars, uint32_t nchars, void *ctx);
 FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
 
 static bool g_print_logs = true;
-static size_t g_boot_cfg_offset;
+static void reset_boot_cfg_reader();
 
 #define DEFAULT_HEAP_SIZE 16777216
 
@@ -44,8 +44,8 @@ bool boot(bool _print_logs) {
 
     auto avs_heap = malloc(DEFAULT_HEAP_SIZE);
 
-    g_boot_cfg_offset = 0;
-    int prop_len = property_read_query_memsize(read_str, 0, 0, 0);
+    reset_boot_cfg_reader();
+    int prop_len = property_read_query_memsize(read_boot_cfg, 0, 0, 0);
     if (prop_len <= 0) {
         log_fatal("error reading config (size <= 0)");
         return false;
@@ -56,8 +56,8 @@ bool boot(bool _print_logs) {
         log_fatal("cannot create property");
         return false;
     }
-    g_boot_cfg_offset = 0;
-    if (!property_insert_read(avs_config, 0, read_str, 0)) {
+    reset_boot_cfg_reader();
+    if (!property_insert_read(avs_config, 0, read_boot_cfg, 0)) {
         log_fatal("avs-core", "cannot read property");
         return false;
     }
@@ -68,8 +68,7 @@ bool boot(bool _print_logs) {
         return false;
     }
 
-    bool was_print = g_print_logs;
-    g_print_logs = _print_logs;
+    bool was_print = std::exchange(g_print_logs, _print_logs);
     avs_boot(avs_config_root, avs_heap, DEFAULT_HEAP_SIZE, NULL, log_writer, NULL);
     g_print_logs = was_print;
 
@@ -103,21 +102,18 @@ bool load_dll(void)
 
 void log_writer(const char *chars, uint32_t nchars, void *ctx)
 {
-    // don't print noisy shutdown logs
-    auto prefix = "[----/--/-- --:--:--] ";
-    auto len = strlen(prefix);
-    if (strncmp(chars, prefix, len) == 0)
-    {
+    if (!g_print_logs)
         return;
-    }
 
-    if (g_print_logs)
-    {
-        fprintf(stderr, "%.*s", nchars, chars);
-    }
+    std::string_view msg(chars, nchars);
+    // don't print noisy shutdown logs
+    if (msg.starts_with("[----/--/-- --:--:--] "))
+        return;
+
+    fmt::print(stderr, "{}", msg);
 }
 
-static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
+static const std::string_view boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
 <config>
     <fs>
     <nr_filesys __type="u16">16</nr_filesys>
@@ -144,11 +140,17 @@ static const char *boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_JIS"?>
     </sntp>
 </config>
 )";
+static std::string_view boot_cfg_reader;
 
-static size_t read_str(int32_t context, void *dst_buf, size_t count)
+static void reset_boot_cfg_reader() {
+    boot_cfg_reader = boot_cfg;
+}
+
+static size_t read_boot_cfg(int32_t context, void *dst_buf, size_t count)
 {
-    memcpy(dst_buf, &boot_cfg[g_boot_cfg_offset], count);
-    g_boot_cfg_offset += count;
+    count = std::min(count, boot_cfg_reader.size());
+    memcpy(dst_buf, boot_cfg_reader.data(), count);
+    boot_cfg_reader.remove_prefix(count);
     return count;
 }
 

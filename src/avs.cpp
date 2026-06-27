@@ -1,3 +1,4 @@
+#include <optional>
 #define NOMINMAX
 #include <windows.h>
 #include <stdio.h>
@@ -8,19 +9,22 @@
 #include "3rd_party/MinHook.h"
 #include "utils.hpp"
 
+static std::string_view get_prop_error_str(int32_t code);
+
 #define AVS_STRUCT_DEF(ret_type, name, ...) const char* name;
 
-const char *avs_loaded_dll_name;
+std::string_view avs_loaded_dll_name;
 uint16_t avs_loaded_version;
 
-typedef struct {
-    const char *version_name;
+struct avs_exports_t {
+    std::string_view version_name;
     uint16_t version;
-    const char *unique_check; // for IIDX vs SDVX cloud, almost all funcs are identical
+    // for IIDX vs SDVX cloud, almost all funcs are identical
+    const char* unique_check = NULL;
 
     FOREACH_AVS_FUNC(AVS_STRUCT_DEF)
     FOREACH_AVS_FUNC_OPTIONAL(AVS_STRUCT_DEF)
-} avs_exports_t;
+};
 
 const LPCWSTR dll_names[] = {
     L"libavs-win32.dll",
@@ -29,199 +33,188 @@ const LPCWSTR dll_names[] = {
 };
 
 const avs_exports_t avs_exports[] = {
-    [] { avs_exports_t x = { 0 };
-    x.version_name                        = "plain (2.12.x and older)";
-    x.version                             = 1200;
-    x.unique_check                        = NULL;
-    x.log_body_fatal                      = "log_body_fatal";
-    x.log_body_warning                    = "log_body_warning";
-    x.log_body_info                       = "log_body_info";
-    x.log_body_misc                       = "log_body_misc";
-    x.avs_fs_open                         = "avs_fs_open";
-    x.avs_fs_close                        = "avs_fs_close";
-    x.avs_fs_convert_path                 = "avs_fs_convert_path";
-    x.avs_fs_read                         = "avs_fs_read";
-    x.avs_fs_lseek                        = "avs_fs_lseek";
-    x.avs_fs_fstat                        = "avs_fs_fstat";
-    x.avs_fs_lstat                        = "avs_fs_lstat";
-    x.avs_fs_mount                        = "avs_fs_mount";
-    x.property_read_query_memsize         = "property_read_query_memsize";
-    x.property_read_query_memsize_long    = "property_read_query_memsize_long";
-    x.property_create                     = "property_create";
-    x.property_insert_read                = "property_insert_read";
-    x.property_mem_write                  = "property_mem_write";
-    x.property_destroy                    = "property_destroy";
-    x.property_query_size                 = "property_query_size";
-    x.cstream_create                      = "cstream_create";
-    x.cstream_operate                     = "cstream_operate";
-    x.cstream_finish                      = "cstream_finish";
-    x.cstream_destroy                     = "cstream_destroy";
-    return x;
-    }(),
-    [] { avs_exports_t x = { 0 };
-    x.version_name                        = "2.13.x (XC058ba5------)";
-    x.version                             = 1300;
-    x.unique_check                        = NULL;
-    x.log_body_fatal                      = "XC058ba5000084";
-    x.log_body_warning                    = "XC058ba50000e1";
-    x.log_body_info                       = "XC058ba500015a";
-    x.log_body_misc                       = "XC058ba500002d";
-    x.avs_fs_open                         = "XC058ba50000b6";
-    x.avs_fs_close                        = "XC058ba500011b";
-    x.avs_fs_convert_path                 = "XC058ba50000d5";
-    x.avs_fs_read                         = "XC058ba5000139";
-    x.avs_fs_lseek                        = "XC058ba500000f";
-    x.avs_fs_fstat                        = "XC058ba50000d0";
-    x.avs_fs_lstat                        = "XC058ba5000063";
-    x.avs_fs_mount                        = "XC058ba500009c";
-    x.property_read_query_memsize         = "XC058ba5000066";
-    x.property_read_query_memsize_long    = "XC058ba5000091";
-    x.property_create                     = "XC058ba5000107";
-    x.property_insert_read                = "XC058ba5000016";
-    x.property_mem_write                  = "XC058ba5000162";
-    x.property_destroy                    = "XC058ba500010f";
-    x.property_query_size                 = "XC058ba5000101";
-    x.cstream_create                      = "XC058ba5000118";
-    x.cstream_operate                     = "XC058ba5000078";
-    x.cstream_finish                      = "XC058ba5000130";
-    x.cstream_destroy                     = "XC058ba500012b";
-    return x;
-    }(),
-    [] { avs_exports_t x = { 0 };
-    x.version_name                        = "2.15.x (XCd229cc------)";
-    x.version                             = 1500;
-    x.unique_check                        = NULL;
-    x.log_body_fatal                      = "XCd229cc0000e6";
-    x.log_body_warning                    = "XCd229cc000018";
-    x.log_body_info                       = "XCd229cc0000dc";
-    x.log_body_misc                       = "XCd229cc000075";
-    x.avs_fs_open                         = "XCd229cc000090";
-    x.avs_fs_close                        = "XCd229cc00011f";
-    x.avs_fs_convert_path                 = "XCd229cc00001e";
-    x.avs_fs_read                         = "XCd229cc00010d";
-    x.avs_fs_lseek                        = "XCd229cc00004d";
-    x.avs_fs_fstat                        = "XCd229cc0000c3";
-    x.avs_fs_lstat                        = "XCd229cc0000c0";
-    x.avs_fs_mount                        = "XCd229cc0000ce";
-    x.property_read_query_memsize         = "XCd229cc0000ff";
-    x.property_read_query_memsize_long    = "XCd229cc00002b";
-    x.property_create                     = "XCd229cc000126";
-    x.property_insert_read                = "XCd229cc00009a";
-    x.property_mem_write                  = "XCd229cc000033";
-    x.property_destroy                    = "XCd229cc00013c";
-    x.property_query_size                 = "XCd229cc000032";
-    x.cstream_create                      = "XCd229cc000141";
-    x.cstream_operate                     = "XCd229cc00008c";
-    x.cstream_finish                      = "XCd229cc000025";
-    x.cstream_destroy                     = "XCd229cc0000e3";
-    return x;
-    }(),
-    [] { avs_exports_t x = { 0 }; // sdvx cloud
-    x.version_name                        = "2.16.[3-7] (XCnbrep7------)";
-    x.version                             = 1630;
-    x.unique_check                        = "XCnbrep700013c";
-    x.log_body_fatal                      = "XCnbrep700017a";
-    x.log_body_warning                    = "XCnbrep700017b";
-    x.log_body_info                       = "XCnbrep700017c";
-    x.log_body_misc                       = "XCnbrep700017d";
-    x.avs_fs_open                         = "XCnbrep700004e";
-    x.avs_fs_close                        = "XCnbrep7000055";
-    x.avs_fs_convert_path                 = "XCnbrep7000046";
-    x.avs_fs_read                         = "XCnbrep7000051";
-    x.avs_fs_lseek                        = "XCnbrep700004f";
-    x.avs_fs_fstat                        = "XCnbrep7000062";
-    x.avs_fs_lstat                        = "XCnbrep7000063";
-    x.avs_fs_mount                        = "XCnbrep700004b";
-    x.property_read_query_memsize         = "XCnbrep70000b0";
-    x.property_read_query_memsize_long    = "XCnbrep70000b1";
-    x.property_create                     = "XCnbrep7000090";
-    x.property_insert_read                = "XCnbrep7000094";
-    x.property_mem_write                  = "XCnbrep70000b8";
-    x.property_destroy                    = "XCnbrep7000091";
-    x.property_query_size                 = "XCnbrep700009f";
-    x.cstream_create                      = "XCnbrep7000130";
-    x.cstream_operate                     = "XCnbrep7000132";
-    x.cstream_finish                      = "XCnbrep7000133";
-    x.cstream_destroy                     = "XCnbrep7000134";
-    return x;
-    }(),
-    [] { avs_exports_t x = { 0 }; // IIDX, "nbrep but different"
-    x.version_name                        = "2.16.1 (XCnbrep7 but different)",
-    x.version                             = 1610;
-    x.unique_check                        = NULL;
-    x.log_body_fatal                      = "XCnbrep7000168";
-    x.log_body_warning                    = "XCnbrep7000169";
-    x.log_body_info                       = "XCnbrep700016a";
-    x.log_body_misc                       = "XCnbrep700016b";
-    x.avs_fs_open                         = "XCnbrep7000039";
-    x.avs_fs_close                        = "XCnbrep7000040";
-    x.avs_fs_convert_path                 = "XCnbrep7000031";
-    x.avs_fs_read                         = "XCnbrep700003c";
-    x.avs_fs_lseek                        = "XCnbrep700003a";
-    x.avs_fs_fstat                        = "XCnbrep700004d";
-    x.avs_fs_lstat                        = "XCnbrep700004e";
-    x.avs_fs_mount                        = "XCnbrep7000036";
-    x.property_read_query_memsize         = "XCnbrep700009b";
-    x.property_read_query_memsize_long    = "XCnbrep700009c";
-    x.property_create                     = "XCnbrep700007b";
-    x.property_insert_read                = "XCnbrep700007f";
-    x.property_mem_write                  = "XCnbrep70000a3";
-    x.property_destroy                    = "XCnbrep700007c";
-    x.property_query_size                 = "XCnbrep700008a";
-    x.cstream_create                      = "XCnbrep7000124";
-    x.cstream_operate                     = "XCnbrep7000126";
-    x.cstream_finish                      = "XCnbrep7000127";
-    x.cstream_destroy                     = "XCnbrep7000128";
-    return x;
-    }(),
-    [] { avs_exports_t x = { 0 }; // avs 64 bit, pretty much. 2.16.3 with different prefix
-    x.version_name                        = "2.17.x (XCgsqzn0------)";
-    x.version                             = 1700;
-    x.unique_check                        = NULL;
-    x.log_body_fatal                      = "XCgsqzn000017a";
-    x.log_body_warning                    = "XCgsqzn000017b";
-    x.log_body_info                       = "XCgsqzn000017c";
-    x.log_body_misc                       = "XCgsqzn000017d";
-    x.avs_fs_open                         = "XCgsqzn000004e";
-    x.avs_fs_close                        = "XCgsqzn0000055";
-    x.avs_fs_convert_path                 = "XCgsqzn0000046";
-    x.avs_fs_read                         = "XCgsqzn0000051";
-    x.avs_fs_lseek                        = "XCgsqzn000004f";
-    x.avs_fs_fstat                        = "XCgsqzn0000062";
-    x.avs_fs_lstat                        = "XCgsqzn0000063";
-    x.avs_fs_mount                        = "XCgsqzn000004b";
-    x.property_read_query_memsize         = "XCgsqzn00000b0";
-    x.property_read_query_memsize_long    = "XCgsqzn00000b1";
-    x.property_create                     = "XCgsqzn0000090";
-    x.property_insert_read                = "XCgsqzn0000094";
-    x.property_mem_write                  = "XCgsqzn00000b8";
-    x.property_destroy                    = "XCgsqzn0000091";
-    x.property_query_size                 = "XCgsqzn000009f";
-    x.cstream_create                      = "XCgsqzn0000130";
-    x.cstream_operate                     = "XCgsqzn0000132";
-    x.cstream_finish                      = "XCgsqzn0000133";
-    x.cstream_destroy                     = "XCgsqzn0000134";
-    return x;
-    }(),
+    {
+    .version_name                        = "plain (2.12.x and older)",
+    .version                             = 1200,
+    .log_body_fatal                      = "log_body_fatal",
+    .log_body_warning                    = "log_body_warning",
+    .log_body_info                       = "log_body_info",
+    .log_body_misc                       = "log_body_misc",
+    .avs_fs_open                         = "avs_fs_open",
+    .avs_fs_close                        = "avs_fs_close",
+    .avs_fs_convert_path                 = "avs_fs_convert_path",
+    .avs_fs_fstat                        = "avs_fs_fstat",
+    .avs_fs_lstat                        = "avs_fs_lstat",
+    .avs_fs_lseek                        = "avs_fs_lseek",
+    .avs_fs_mount                        = "avs_fs_mount",
+    .avs_fs_read                         = "avs_fs_read",
+    .property_read_query_memsize         = "property_read_query_memsize",
+    .property_create                     = "property_create",
+    .property_insert_read                = "property_insert_read",
+    .property_mem_write                  = "property_mem_write",
+    .property_query_size                 = "property_query_size",
+    .property_destroy                    = "property_destroy",
+    .cstream_create                      = "cstream_create",
+    .cstream_operate                     = "cstream_operate",
+    .cstream_finish                      = "cstream_finish",
+    .cstream_destroy                     = "cstream_destroy",
+    .property_read_query_memsize_long    = "property_read_query_memsize_long",
+    },
+    {
+    .version_name                        = "2.13.x (XC058ba5------)",
+    .version                             = 1300,
+    .log_body_fatal                      = "XC058ba5000084",
+    .log_body_warning                    = "XC058ba50000e1",
+    .log_body_info                       = "XC058ba500015a",
+    .log_body_misc                       = "XC058ba500002d",
+    .avs_fs_open                         = "XC058ba50000b6",
+    .avs_fs_close                        = "XC058ba500011b",
+    .avs_fs_convert_path                 = "XC058ba50000d5",
+    .avs_fs_fstat                        = "XC058ba50000d0",
+    .avs_fs_lstat                        = "XC058ba5000063",
+    .avs_fs_lseek                        = "XC058ba500000f",
+    .avs_fs_mount                        = "XC058ba500009c",
+    .avs_fs_read                         = "XC058ba5000139",
+    .property_read_query_memsize         = "XC058ba5000066",
+    .property_create                     = "XC058ba5000107",
+    .property_insert_read                = "XC058ba5000016",
+    .property_mem_write                  = "XC058ba5000162",
+    .property_query_size                 = "XC058ba5000101",
+    .property_destroy                    = "XC058ba500010f",
+    .cstream_create                      = "XC058ba5000118",
+    .cstream_operate                     = "XC058ba5000078",
+    .cstream_finish                      = "XC058ba5000130",
+    .cstream_destroy                     = "XC058ba500012b",
+    .property_read_query_memsize_long    = "XC058ba5000091",
+    },
+    {
+    .version_name                        = "2.15.x (XCd229cc------)",
+    .version                             = 1500,
+    .log_body_fatal                      = "XCd229cc0000e6",
+    .log_body_warning                    = "XCd229cc000018",
+    .log_body_info                       = "XCd229cc0000dc",
+    .log_body_misc                       = "XCd229cc000075",
+    .avs_fs_open                         = "XCd229cc000090",
+    .avs_fs_close                        = "XCd229cc00011f",
+    .avs_fs_convert_path                 = "XCd229cc00001e",
+    .avs_fs_fstat                        = "XCd229cc0000c3",
+    .avs_fs_lstat                        = "XCd229cc0000c0",
+    .avs_fs_lseek                        = "XCd229cc00004d",
+    .avs_fs_mount                        = "XCd229cc0000ce",
+    .avs_fs_read                         = "XCd229cc00010d",
+    .property_read_query_memsize         = "XCd229cc0000ff",
+    .property_create                     = "XCd229cc000126",
+    .property_insert_read                = "XCd229cc00009a",
+    .property_mem_write                  = "XCd229cc000033",
+    .property_query_size                 = "XCd229cc000032",
+    .property_destroy                    = "XCd229cc00013c",
+    .cstream_create                      = "XCd229cc000141",
+    .cstream_operate                     = "XCd229cc00008c",
+    .cstream_finish                      = "XCd229cc000025",
+    .cstream_destroy                     = "XCd229cc0000e3",
+    .property_read_query_memsize_long    = "XCd229cc00002b",
+    },
+    {
+    .version_name                        = "2.16.[3-7] (XCnbrep7------)",
+    .version                             = 1630,
+    .unique_check                        = "XCnbrep700013c",
+    .log_body_fatal                      = "XCnbrep700017a",
+    .log_body_warning                    = "XCnbrep700017b",
+    .log_body_info                       = "XCnbrep700017c",
+    .log_body_misc                       = "XCnbrep700017d",
+    .avs_fs_open                         = "XCnbrep700004e",
+    .avs_fs_close                        = "XCnbrep7000055",
+    .avs_fs_convert_path                 = "XCnbrep7000046",
+    .avs_fs_fstat                        = "XCnbrep7000062",
+    .avs_fs_lstat                        = "XCnbrep7000063",
+    .avs_fs_lseek                        = "XCnbrep700004f",
+    .avs_fs_mount                        = "XCnbrep700004b",
+    .avs_fs_read                         = "XCnbrep7000051",
+    .property_read_query_memsize         = "XCnbrep70000b0",
+    .property_create                     = "XCnbrep7000090",
+    .property_insert_read                = "XCnbrep7000094",
+    .property_mem_write                  = "XCnbrep70000b8",
+    .property_query_size                 = "XCnbrep700009f",
+    .property_destroy                    = "XCnbrep7000091",
+    .cstream_create                      = "XCnbrep7000130",
+    .cstream_operate                     = "XCnbrep7000132",
+    .cstream_finish                      = "XCnbrep7000133",
+    .cstream_destroy                     = "XCnbrep7000134",
+    .property_read_query_memsize_long    = "XCnbrep70000b1",
+    },
+    { // IIDX
+    .version_name                        = "2.16.1 (XCnbrep7 but different)",
+    .version                             = 1610,
+    .log_body_fatal                      = "XCnbrep7000168",
+    .log_body_warning                    = "XCnbrep7000169",
+    .log_body_info                       = "XCnbrep700016a",
+    .log_body_misc                       = "XCnbrep700016b",
+    .avs_fs_open                         = "XCnbrep7000039",
+    .avs_fs_close                        = "XCnbrep7000040",
+    .avs_fs_convert_path                 = "XCnbrep7000031",
+    .avs_fs_fstat                        = "XCnbrep700004d",
+    .avs_fs_lstat                        = "XCnbrep700004e",
+    .avs_fs_lseek                        = "XCnbrep700003a",
+    .avs_fs_mount                        = "XCnbrep7000036",
+    .avs_fs_read                         = "XCnbrep700003c",
+    .property_read_query_memsize         = "XCnbrep700009b",
+    .property_create                     = "XCnbrep700007b",
+    .property_insert_read                = "XCnbrep700007f",
+    .property_mem_write                  = "XCnbrep70000a3",
+    .property_query_size                 = "XCnbrep700008a",
+    .property_destroy                    = "XCnbrep700007c",
+    .cstream_create                      = "XCnbrep7000124",
+    .cstream_operate                     = "XCnbrep7000126",
+    .cstream_finish                      = "XCnbrep7000127",
+    .cstream_destroy                     = "XCnbrep7000128",
+    .property_read_query_memsize_long    = "XCnbrep700009c",
+    },
+    { // avs 64 bit, pretty much. 2.16.3 with different prefix
+    .version_name                        = "2.17.x (XCgsqzn0------)",
+    .version                             = 1700,
+    .log_body_fatal                      = "XCgsqzn000017a",
+    .log_body_warning                    = "XCgsqzn000017b",
+    .log_body_info                       = "XCgsqzn000017c",
+    .log_body_misc                       = "XCgsqzn000017d",
+    .avs_fs_open                         = "XCgsqzn000004e",
+    .avs_fs_close                        = "XCgsqzn0000055",
+    .avs_fs_convert_path                 = "XCgsqzn0000046",
+    .avs_fs_fstat                        = "XCgsqzn0000062",
+    .avs_fs_lstat                        = "XCgsqzn0000063",
+    .avs_fs_lseek                        = "XCgsqzn000004f",
+    .avs_fs_mount                        = "XCgsqzn000004b",
+    .avs_fs_read                         = "XCgsqzn0000051",
+    .property_read_query_memsize         = "XCgsqzn00000b0",
+    .property_create                     = "XCgsqzn0000090",
+    .property_insert_read                = "XCgsqzn0000094",
+    .property_mem_write                  = "XCgsqzn00000b8",
+    .property_query_size                 = "XCgsqzn000009f",
+    .property_destroy                    = "XCgsqzn0000091",
+    .cstream_create                      = "XCgsqzn0000130",
+    .cstream_operate                     = "XCgsqzn0000132",
+    .cstream_finish                      = "XCgsqzn0000133",
+    .cstream_destroy                     = "XCgsqzn0000134",
+    .property_read_query_memsize_long    = "XCgsqzn00000b1",
+    },
 };
 
 #define AVS_FUNC_PTR(ret_type, name, ...) ret_type (* name )( __VA_ARGS__ );
 FOREACH_AVS_FUNC(AVS_FUNC_PTR)
 FOREACH_AVS_FUNC_OPTIONAL(AVS_FUNC_PTR)
 
-#define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, avs_exports[i].func, (LPVOID)hook_ ## func, (LPVOID*)&func) != MH_OK || func == NULL) continue
-#define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, avs_exports[i].func)) == NULL) continue
-#define CHECK_UNIQUE(func) if( avs_exports[i].func != NULL && GetProcAddress(mod_handle, avs_exports[i].func) == NULL) continue
+#define TEST_HOOK_AND_APPLY(func) if (MH_CreateHookApi(dll_name, exports.func, (LPVOID)hook_ ## func, (LPVOID*)&func) != MH_OK || func == NULL) continue
+#define LOAD_FUNC(func) if( (func = (decltype(func))GetProcAddress(mod_handle, exports.func)) == NULL) continue
+#define CHECK_UNIQUE(func) if( exports.func != NULL && GetProcAddress(mod_handle, exports.func) == NULL) continue
 
 #define AVS_FUNC_LOAD(ret_type, name, ...) LOAD_FUNC(name);
-#define AVS_FUNC_LOAD_OPTIONAL(ret_type, name, ...) name = (decltype(name))GetProcAddress(mod_handle, avs_exports[i].name);
+#define AVS_FUNC_LOAD_OPTIONAL(ret_type, name, ...) name = (decltype(name))GetProcAddress(mod_handle, exports.name);
 
 bool init_avs(void) {
     bool success = false;
 
 #ifdef _DEBUG
-    for (int i = 0; i < lenof(avs_exports); i++) {
-#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(avs_exports[i]. ## name == NULL) log_warning("MISSING EXPORT {}: {}", i, #name);
+    for (const auto &exports : avs_exports) {
+#define VERBOSE_EXPORT_CHECK(ret_type, name, ...) if(exports.name == NULL) log_warning("MISSING EXPORT {}: {}", i, #name);
         FOREACH_AVS_FUNC(VERBOSE_EXPORT_CHECK)
         FOREACH_AVS_FUNC_OPTIONAL(VERBOSE_EXPORT_CHECK)
     }
@@ -231,10 +224,10 @@ bool init_avs(void) {
     // Please don't be proven wrong
     LPCWSTR dll_name = NULL;
     HMODULE mod_handle = NULL;
-    for (size_t i = 0; i < lenof(dll_names); i++) {
-        mod_handle = GetModuleHandleW(dll_names[i]);
+    for (auto name : dll_names) {
+        mod_handle = GetModuleHandleW(name);
         if (mod_handle != NULL) {
-            dll_name = dll_names[i];
+            dll_name = name;
             break;
         }
     }
@@ -244,7 +237,7 @@ bool init_avs(void) {
         return false;
     }
 
-    for (size_t i = 0; i < lenof(avs_exports); i++) {
+    for (const auto &exports : avs_exports) {
         // make sure this is the right DLL
         CHECK_UNIQUE(unique_check);
 
@@ -260,8 +253,8 @@ bool init_avs(void) {
         TEST_HOOK_AND_APPLY(avs_fs_read);
 
         success = true;
-        avs_loaded_dll_name = avs_exports[i].version_name;
-        avs_loaded_version = avs_exports[i].version;
+        avs_loaded_dll_name = exports.version_name;
+        avs_loaded_version = exports.version;
 
         break;
     }
@@ -323,7 +316,7 @@ FAIL:
     return NULL;
 }
 
-property_t prop_from_file_path(string const&path) {
+property_t prop_from_file_path(std::string const&path) {
     AVS_FILE f = avs_fs_open(path.c_str(), avs_open_mode_read(), 420);
     if (f < 0) {
         log_warning("Couldn't open prop");
@@ -333,7 +326,7 @@ property_t prop_from_file_path(string const&path) {
     return prop_from_file_handle(f);
 }
 
-char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
+static char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& allocator) {
     auto prop_size = property_query_size(prop);
     char* xml = allocator.allocate_string(NULL, prop_size + 1);
 
@@ -367,7 +360,7 @@ std::vector<uint8_t> avs_file_to_vec(AVS_FILE f) {
     return ret;
 }
 
-bool is_binary_prop(AVS_FILE f) {
+static bool is_binary_prop(AVS_FILE f) {
     avs_fs_lseek(f, 0, SEEK_SET);
     unsigned char head;
     auto read = avs_fs_read(f, &head, 1);
@@ -378,7 +371,7 @@ bool is_binary_prop(AVS_FILE f) {
 }
 
 bool rapidxml_from_avs_filepath(
-    string const& path,
+    std::string const& path,
     rapidxml::xml_document<>& doc,
     rapidxml::xml_document<>& doc_to_allocate_with
 ) {
@@ -389,6 +382,39 @@ bool rapidxml_from_avs_filepath(
     }
 
     return rapidxml_from_avs_file(f, doc, doc_to_allocate_with);
+}
+
+bool rapidxml_from_avs_file(
+    AVS_FILE f,
+    rapidxml::xml_document<>& doc,
+    rapidxml::xml_document<>& doc_to_allocate_with
+) {
+    // if it's not binary, don't even bother parsing with avs
+    char* xml = NULL;
+    if (is_binary_prop(f)) {
+        auto prop = prop_from_file_handle(f);
+        if (!prop)
+            return false;
+
+        xml = prop_to_xml_string(prop, doc_to_allocate_with);
+        prop_free(prop);
+    }
+    else {
+        xml = avs_file_to_string(f, doc_to_allocate_with);
+    }
+    avs_fs_close(f);
+
+    try {
+        // parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
+        doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_utf8>(xml);
+    } catch (const rapidxml::parse_error& e) {
+        log_warning("Couldn't parse xml ({} byte {})", e.what(), (int)(e.where<char>() - xml));
+        auto f = fopen("debug.xml", "wb");
+        fwrite(xml, strlen(xml), 1, f);
+        return false;
+    }
+
+    return true;
 }
 
 // the given property MUST have been created with an 8-byte aligned memory
@@ -471,7 +497,7 @@ unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decomp
 
 typedef struct {
     uint32_t code;
-    const char* msg;
+    std::string_view msg;
 } prop_error_info_t;
 
 const prop_error_info_t prop_error_list[73] = {
@@ -550,84 +576,12 @@ const prop_error_info_t prop_error_list[73] = {
     { 0x800922C0, "operation is not supported" },
 };
 
-const char* get_prop_error_str(int32_t code) {
+static std::string_view get_prop_error_str(int32_t code) {
     static char ret[64];
-    for (size_t i = 0; i < lenof(prop_error_list); i++) {
-        if (prop_error_list[i].code == (uint32_t)code)
-            return prop_error_list[i].msg;
+    for (const auto &error : prop_error_list) {
+        if (error.code == (uint32_t)code)
+            return error.msg;
     }
     snprintf(ret, sizeof(ret), "unknown (%X)", code);
     return ret;
-}
-
-const char* prop_data_to_str(int type, void* data) {
-    static char ret[64];
-
-    type &= 63;
-
-    switch (type) {
-        case PROP_TYPE_node:
-            return "none - node element";
-        case PROP_TYPE_str:
-        case PROP_TYPE_attr:
-            snprintf(ret, sizeof(ret), "%s", (char*)data);
-            return ret;
-        case PROP_TYPE_s8:
-        case PROP_TYPE_u8:
-        case PROP_TYPE_s16:
-        case PROP_TYPE_u16:
-        case PROP_TYPE_s32:
-        case PROP_TYPE_u32:
-        case PROP_TYPE_s64:
-        case PROP_TYPE_u64:
-        case PROP_TYPE_bin:
-        case PROP_TYPE_ip4:
-        case PROP_TYPE_time:
-        case PROP_TYPE_float:
-        case PROP_TYPE_double:
-        case PROP_TYPE_2s8:
-        case PROP_TYPE_2u8:
-        case PROP_TYPE_2s16:
-        case PROP_TYPE_2u16:
-        case PROP_TYPE_2s32:
-        case PROP_TYPE_2u32:
-        case PROP_TYPE_2s64:
-        case PROP_TYPE_2u64:
-        case PROP_TYPE_2f:
-        case PROP_TYPE_2d:
-        case PROP_TYPE_3s8:
-        case PROP_TYPE_3u8:
-        case PROP_TYPE_3s16:
-        case PROP_TYPE_3u16:
-        case PROP_TYPE_3s32:
-        case PROP_TYPE_3u32:
-        case PROP_TYPE_3s64:
-        case PROP_TYPE_3u64:
-        case PROP_TYPE_3f:
-        case PROP_TYPE_3d:
-        case PROP_TYPE_4s8:
-        case PROP_TYPE_4u8:
-        case PROP_TYPE_4s16:
-        case PROP_TYPE_4u16:
-        case PROP_TYPE_4s32:
-        case PROP_TYPE_4u32:
-        case PROP_TYPE_4s64:
-        case PROP_TYPE_4u64:
-        case PROP_TYPE_4f:
-        case PROP_TYPE_4d:
-        case PROP_TYPE_attr_and_node:
-        case PROP_TYPE_vs8:
-        case PROP_TYPE_vu8:
-        case PROP_TYPE_vs16:
-        case PROP_TYPE_vu16:
-        case PROP_TYPE_bool:
-        case PROP_TYPE_2b:
-        case PROP_TYPE_3b:
-        case PROP_TYPE_4b:
-        case PROP_TYPE_vb:
-            snprintf(ret, sizeof(ret), "STR REP NOT IMPLEMENTED (%d)", type);
-            return ret;
-        default:
-            return "UNKNOWN";
-    }
 }

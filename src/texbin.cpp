@@ -20,9 +20,6 @@
 #include "3rd_party/lodepng.h"
 #include "3rd_party/libsquish/squish.h"
 
-using namespace std;
-using std::nullopt;
-
 #ifdef TEXBIN_VERBOSE
 #define VLOG(...) log_misc(__VA_ARGS__)
 #else
@@ -141,14 +138,14 @@ static_assert(sizeof(TexHdr) == 64, "Texbin tex header size is wrong");
 #pragma pack(pop)
 
 // texbintool always sets little_endian=true, unsure where it's seen most often
-static vector<uint8_t> argb8888_to_texture_data(
+static std::vector<uint8_t> argb8888_to_texture_data(
         const unsigned char *image, unsigned width, unsigned height,
         bool little_endian = true) {
     size_t image_size = 4 * width * height;
 
-    vector<uint8_t> data;
+    std::vector<uint8_t> data;
     data.reserve(0x40 + image_size);
-    auto write = [&data, little_endian] (const vector<uint8_t> &bytes) {
+    auto write = [&data, little_endian] (const std::vector<uint8_t> &bytes) {
         if(little_endian) {
             data.insert(data.end(),bytes.rbegin(),bytes.rend());
         } else {
@@ -158,7 +155,7 @@ static vector<uint8_t> argb8888_to_texture_data(
     auto write_int = [&data, little_endian] (auto val) {
         uint8_t b[sizeof(val)];
         memcpy(b, &val, sizeof(val));
-        vector v(b, b + sizeof(val));
+        std::vector v(b, b + sizeof(val));
 
         // note this is reversed to `write`, since the value is LE by default
         if(little_endian) {
@@ -203,8 +200,8 @@ static vector<uint8_t> argb8888_to_texture_data(
     return texbin_lz77_compress(data);
 }
 
-static vector<string> load_names(istream &f, uint32_t name_offset) {
-    vector<string> ret;
+static std::vector<std::string> load_names(std::istream &f, uint32_t name_offset) {
+    std::vector<std::string> ret;
 
     f.seekg(name_offset);
 
@@ -233,7 +230,7 @@ static vector<string> load_names(istream &f, uint32_t name_offset) {
         auto pos = f.tellg();
 
         f.seekg(name_offset + entry.str_offset);
-        string name = "";
+        std::string name = "";
         char ch;
         while(f.get(ch) && ch > '\0') {
             name += ch;
@@ -250,10 +247,10 @@ static vector<string> load_names(istream &f, uint32_t name_offset) {
     return ret;
 }
 
-static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
+static std::vector<std::vector<uint8_t>> load_data(std::istream &f, const TexbinHdr& hdr) {
     bool warned_about_size_mismatch = false;
 
-    vector<vector<uint8_t>> ret;
+    std::vector<std::vector<uint8_t>> ret;
     ret.reserve(hdr.file_count);
 
     f.seekg(hdr.data_entry_offset);
@@ -288,7 +285,7 @@ static vector<vector<uint8_t>> load_data(istream &f, const TexbinHdr& hdr) {
         }
 
         f.seekg(entry.offset);
-        vector<uint8_t> data;
+        std::vector<uint8_t> data;
         data.resize(entry.size);
         if(!f.read((char*)&data[0], entry.size)) {
             log_warning("can't read data at i {} offset {} len {}", i, entry.offset, entry.size);
@@ -322,7 +319,7 @@ uint32_t hash_name(const char *name) {
     return hash;
 }
 
-void pad32(ofstream &f) {
+void pad32(std::ofstream &f) {
     // pad to 4 bytes
     auto pad = 4 - (f.tellp() % 4);
     if(pad != 4) {
@@ -332,14 +329,14 @@ void pad32(ofstream &f) {
 }
 
 template<typename T>
-void write_names(ofstream &f, map<string, T, CaseInsensitiveCompare> &names) {
+void write_names(std::ofstream &f, std::map<std::string, T, CaseInsensitiveCompare> &names) {
     auto start = f.tellp();
     TexbinNamesHdr hdr;
     f.write((char*)&hdr, sizeof(hdr)); // update with real values later
 
     // Hashes are written in ascending order. Ensure this by using the (sorted)
     // std::map
-    map<uint32_t, TexbinNameEntry> entries;
+    std::map<uint32_t, TexbinNameEntry> entries;
     uint32_t str_offset = (uint32_t)(sizeof(hdr) + (names.size() * sizeof(TexbinNameEntry)));
     uint32_t id = 0;
     for(auto &[name, _val] : names) {
@@ -375,12 +372,12 @@ void write_names(ofstream &f, map<string, T, CaseInsensitiveCompare> &names) {
     f.write((char*)&hdr, sizeof(hdr));
 
     // back to the end for our consumer
-    f.seekp(0, ios::end);
+    f.seekp(0, std::ios::end);
 }
 
 bool Texbin::add_or_replace_image(const char *image_name, const char *png_path) {
     unsigned error;
-    vector<uint8_t> image;
+    std::vector<uint8_t> image;
     unsigned width, height;
     error = lodepng::decode(image, width, height, png_path);
     if (error) {
@@ -438,20 +435,20 @@ void Texbin::debug() {
     VLOG("Total data: %d", total);
 }
 
-optional<Texbin> Texbin::from_stream(istream &f) {
-    f.seekg(0, ios::end);
+std::optional<Texbin> Texbin::from_stream(std::istream &f) {
+    f.seekg(0, std::ios::end);
     auto file_len = f.tellg();
     f.seekg(0);
 
     TexbinHdr hdr;
     if(!f.read((char*)&hdr, sizeof(hdr))) {
         log_verbose("cannot read header");
-        return nullopt;
+        return std::nullopt;
     }
 
     if(memcmp(hdr.magic, "PXET", sizeof(hdr.magic))) {
         log_verbose("bad magic");
-        return nullopt;
+        return std::nullopt;
     }
 
     if(hdr.archive_size != file_len) {
@@ -460,7 +457,7 @@ optional<Texbin> Texbin::from_stream(istream &f) {
             // TODO: hope that P3374R1 is implemented for C++26?
             static_cast<std::streamoff>(file_len)
         );
-        return nullopt;
+        return std::nullopt;
     }
 
 #ifdef TEXBIN_VERBOSE
@@ -470,29 +467,29 @@ optional<Texbin> Texbin::from_stream(istream &f) {
     auto names = load_names(f, 0 + hdr.name_offset);
     if(names.size() != hdr.file_count) {
         log_warning("Name section mismatch against files");
-        return nullopt;
+        return std::nullopt;
     }
 
     auto data = load_data(f, hdr);
 
-    map<string, ImageEntryParsed, CaseInsensitiveCompare> images;
+    std::map<std::string, ImageEntryParsed, CaseInsensitiveCompare> images;
     // images.reserve(hdr.file_count);
 
     for(uint32_t i = 0; i < hdr.file_count; i++) {
         images[names[i]] = ImageEntryParsed(data[i]);
     }
 
-    map<string, RectEntryParsed, CaseInsensitiveCompare> rects;
+    std::map<std::string, RectEntryParsed, CaseInsensitiveCompare> rects;
     if(hdr.rect_offset) {
         TexbinRectHdr rect_hdr;
         f.seekg(hdr.rect_offset);
         if(!f.read((char*)&rect_hdr, sizeof(rect_hdr))) {
             log_warning("cannot read rect header");
-            return nullopt;
+            return std::nullopt;
         }
         if(memcmp(rect_hdr.magic, "TCER", sizeof(hdr.magic))) {
             log_warning("bad rect magic");
-            return nullopt;
+            return std::nullopt;
         }
 
 #ifdef TEXBIN_VERBOSE
@@ -503,7 +500,7 @@ optional<Texbin> Texbin::from_stream(istream &f) {
 
         if(rect_names.size() != rect_hdr.image_count) {
             log_warning("Rect name section mismatch against files");
-            return nullopt;
+            return std::nullopt;
         }
 
         f.seekg(hdr.rect_offset + rect_hdr.rect_entry_offset);
@@ -511,19 +508,19 @@ optional<Texbin> Texbin::from_stream(istream &f) {
             TexbinRectEntry entry;
             if(!f.read((char*)&entry, sizeof(entry))) {
                 log_warning("cannot read rect entry");
-                return nullopt;
+                return std::nullopt;
             }
 
             if(entry.image_id >= names.size()) {
                 log_warning("rect entry refers to invalid parent");
-                return nullopt;
+                return std::nullopt;
             }
 
             if(entry.x1 >= entry.x2 || entry.y1 >= entry.y2) {
                 log_warning("rect entry has invalid dimensions ({},{},{},{})",
                     entry.x1, entry.x2, entry.y1, entry.y2
                 );
-                return nullopt;
+                return std::nullopt;
             }
 
             RectEntryParsed entry_parsed;
@@ -543,24 +540,24 @@ optional<Texbin> Texbin::from_stream(istream &f) {
     return ret;
 }
 
-optional<Texbin> Texbin::from_path(const char *path) {
+std::optional<Texbin> Texbin::from_path(const char *path) {
     // there are a handful of .bin files we might try to parse that *aren't*
     // texbins, so gate all logs before header magic check behind log_verbose
     log_verbose("Opening {}", path);
-    ifstream f (path, ios::binary);
+    std::ifstream f (path, std::ios::binary);
     if(!f) {
         log_verbose("cannot open");
-        return nullopt;
+        return std::nullopt;
     }
 
     return Texbin::from_stream(f);
 }
 
 void Texbin::process_dirty_rects() {
-    unordered_map<string, vector<RectEntryParsed*>> updates;
+    std::unordered_map<std::string, std::vector<RectEntryParsed*>> updates;
     for(auto &[key, rect] : rects) {
         if(rect.dirty_data) {
-            auto [it, _] = updates.emplace(rect.parent_name, vector<RectEntryParsed*>());
+            auto [it, _] = updates.emplace(rect.parent_name, std::vector<RectEntryParsed*>());
             it->second.push_back(&rect);
         }
     }
@@ -599,7 +596,7 @@ void Texbin::process_dirty_rects() {
                 memcpy(&tex[dst_start], &dirty[src_start], len);
             }
 
-            rect->dirty_data = nullopt;
+            rect->dirty_data = std::nullopt;
         }
 
         image->tex = argb8888_to_texture_data(&tex[0], width, height);
@@ -607,7 +604,7 @@ void Texbin::process_dirty_rects() {
 }
 
 bool Texbin::save(const char *dest) {
-    ofstream f(dest, ios::binary);
+    std::ofstream f(dest, std::ios::binary);
     if(!f) {
         log_warning("Can't open output");
         return false;
@@ -677,7 +674,7 @@ bool Texbin::save(const char *dest) {
         rect_hdr.image_count = (uint32_t)rects.size();
         f.seekp(hdr.rect_offset);
         f.write((char*)&rect_hdr, sizeof(rect_hdr));
-        f.seekp(0, ios::end);
+        f.seekp(0, std::ios::end);
     } else {
         hdr.rect_offset = 0;
     }
@@ -692,21 +689,21 @@ bool Texbin::save(const char *dest) {
     return true;
 }
 
-pair<uint16_t, uint16_t> ImageEntryParsed::peek_dimensions() {
+std::pair<uint16_t, uint16_t> ImageEntryParsed::peek_dimensions() {
     auto raw = texbin_lz77_decompress(tex, 0x40);
     if(raw.size() < 0x40) {
-        return make_pair(0, 0);
+        return std::make_pair(0, 0);
     }
 
     auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
     // note: texbintool has a different check. I think this is better?
     if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
         // little endian
-        return make_pair(hdr->width, hdr->height);
+        return std::make_pair(hdr->width, hdr->height);
     } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
-        return make_pair(_byteswap_ushort(hdr->width), _byteswap_ushort(hdr->height));
+        return std::make_pair(_byteswap_ushort(hdr->width), _byteswap_ushort(hdr->height));
     } else {
-        return make_pair(0, 0);
+        return std::make_pair(0, 0);
     }
 }
 
@@ -724,10 +721,10 @@ enum TexFormat: uint8_t {
     DXT5        = 0x1A,
 };
 
-string ImageEntryParsed::tex_type_str(bool debug_lz77) {
+std::string ImageEntryParsed::tex_type_str(bool debug_lz77) {
     auto raw = texbin_lz77_decompress(tex, 0x40, debug_lz77);
     if(raw.size() < 0x40) {
-        return "SHORT TEX " + to_string(raw.size());
+        return "SHORT TEX " + std::to_string(raw.size());
     }
 
     auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
@@ -753,18 +750,18 @@ string ImageEntryParsed::tex_type_str(bool debug_lz77) {
         case TexFormat::DXT3:        return "DXT3";
         case TexFormat::DXT5:        return "DXT5";
 
-        default: return "UNK " + to_string(hdr->format1 & 0xFF);
+        default: return "UNK " + std::to_string(hdr->format1 & 0xFF);
     }
 }
 
-optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_argb8888() {
+std::optional<std::tuple<std::vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_argb8888() {
     auto raw = texbin_lz77_decompress(tex);
     if(raw.size() < 0x40) {
-        return nullopt;
+        return std::nullopt;
     }
 
     auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
-    vector<uint8_t> data(&raw[0x40], &raw[raw.size()]);
+    std::vector<uint8_t> data(&raw[0x40], &raw[raw.size()]);
     // note: texbintool has a different check. I think this is better?
     if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
         // little endian, nothing to do
@@ -774,7 +771,7 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
         hdr->format1 = _byteswap_ulong(hdr->format1);
     } else {
         log_warning("Not a TXDT file");
-        return nullopt;
+        return std::nullopt;
     }
 
     // happy path, already the right format
@@ -786,7 +783,7 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
     size_t pixel_count = hdr->width * hdr->height;
     size_t out_sz_bytes = pixel_count * 4;
 
-    vector<uint8_t> out_data;
+    std::vector<uint8_t> out_data;
     out_data.resize(out_sz_bytes);
 
     LodePNGColorMode out_mode;
@@ -854,7 +851,7 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
 
         case TexFormat::BGR_4BIT:
             log_warning("Unsupported format BGR_4BIT, raise an issue about it!");
-            return nullopt;
+            return std::nullopt;
 
             // don't actually have a test file to validate against
             // in_mode.colortype = LCT_PALETTE;
@@ -867,7 +864,7 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
 
         case TexFormat::BGR_8BIT:
             log_warning("Unsupported format BGR_8BIT, raise an issue about it!");
-            return nullopt;
+            return std::nullopt;
 
             // don't actually have a test file to validate against
             // in_mode.colortype = LCT_PALETTE;
@@ -892,7 +889,7 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
 
         default:
             log_warning("Unsupported tex format type {:#x}", hdr->format1 & 0xFF);
-            return nullopt;
+            return std::nullopt;
     }
 
     return make_tuple(out_data, hdr->width, hdr->height);
@@ -902,13 +899,13 @@ optional<tuple<vector<uint8_t>, uint16_t, uint16_t>> ImageEntryParsed::tex_to_ar
 // Which itself is based on: https://github.com/gdkchan/LegaiaText/blob/bbec0465428a9ff1858e4177588599629ca43302/LegaiaText/Legaia/Compression/LZSS.cs
 // Many thanks to windyfairy for this, without which this layeredfs feature would
 // not exist
-vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
-    vector<uint8_t> output(8, 0); // fill 8 bytes for header
+std::vector<uint8_t> texbin_lz77_compress(const std::vector<uint8_t> &data) {
+    std::vector<uint8_t> output(8, 0); // fill 8 bytes for header
     output.reserve(data.size()); // should be performant enough
 
     uint64_t lookup[0x10000];
 
-    vector<uint8_t> dict(0x1000, 0);
+    std::vector<uint8_t> dict(0x1000, 0);
 
     size_t dict_i = 4078;
     size_t data_i = 0;
@@ -1005,7 +1002,7 @@ vector<uint8_t> texbin_lz77_compress(const vector<uint8_t> &data) {
     return output;
 }
 
-vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, size_t max_len, bool debug) {
+std::vector<uint8_t> texbin_lz77_decompress(const std::vector<uint8_t> &comp_with_hdr, size_t max_len, bool debug) {
     size_t decomp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[0]);
     size_t comp_len = _byteswap_ulong(*(uint32_t*)&comp_with_hdr[4]);
     auto comp = &comp_with_hdr[8];
@@ -1016,16 +1013,16 @@ vector<uint8_t> texbin_lz77_decompress(const vector<uint8_t> &comp_with_hdr, siz
     }
     // optionally extract only the first n bytes
     if(max_len) {
-        decomp_len = min(max_len, decomp_len);
+        decomp_len = std::min(max_len, decomp_len);
     }
 
     // actually not compressed
     if(comp_len == 0) {
-        size_t data_len = min(decomp_len, comp_with_hdr.size() - 8);
-        return vector<uint8_t>(comp, comp + data_len);
+        size_t data_len = std::min(decomp_len, comp_with_hdr.size() - 8);
+        return std::vector<uint8_t>(comp, comp + data_len);
     }
 
-    vector<uint8_t> decomp;
+    std::vector<uint8_t> decomp;
     decomp.reserve(decomp_len);
 
     uint8_t window[4096] = {0};

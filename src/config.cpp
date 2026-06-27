@@ -1,4 +1,7 @@
-#include <string.h>
+#include <optional>
+#include <ranges>
+#include <span>
+#include <string_view>
 #include <windows.h>
 #include <shellapi.h>
 
@@ -6,41 +9,19 @@
 #include "log.hpp"
 #include "utils.hpp"
 
-#define VERBOSE_FLAG    "--layered-verbose"
-#define DEVMODE_FLAG    "--layered-devmode"
-#define DISABLE_FLAG    "--layered-disable"
-#define ALLOWLIST_FLAG  "--layered-allowlist"
-#define BLOCKLIST_FLAG  "--layered-blocklist"
-#define LOGFILE_FLAG    "--layered-logfile"
-#define MOD_FOLDER_FLAG "--layered-data-mods-folder"
+static constexpr std::string_view VERBOSE_FLAG    = "--layered-verbose";
+static constexpr std::string_view DEVMODE_FLAG    = "--layered-devmode";
+static constexpr std::string_view DISABLE_FLAG    = "--layered-disable";
+static constexpr std::string_view ALLOWLIST_FLAG  = "--layered-allowlist=";
+static constexpr std::string_view BLOCKLIST_FLAG  = "--layered-blocklist=";
+static constexpr std::string_view LOGFILE_FLAG    = "--layered-logfile=";
+static constexpr std::string_view MOD_FOLDER_FLAG = "--layered-data-mods-folder=";
 
 config_t config;
 
-// so we can just print the exact arg
-static const char *allowlist = NULL;
-static const char *blocklist = NULL;
-
-void comma_separated_to_set(std::set<std::string, CaseInsensitiveCompare> &dest, const std::string &arg) {
-    size_t last = 0;
-    size_t next = 0;
-    while ((next = arg.find(",", last)) != std::string::npos) {
-        dest.insert(arg.substr(last, next-last));
-        last = next + 1;
-    }
-    dest.insert(arg.substr(last));
-}
-
-const char* parse_list(const char* prefix, const char* arg, std::set<std::string, CaseInsensitiveCompare> &dest) {
-    size_t prefix_len = strlen(prefix) + strlen("=");
-    if (strlen(arg) <= prefix_len) {
-        return NULL;
-    }
-
-    const char* list_start = &arg[prefix_len];
-
-    comma_separated_to_set(dest, std::string(list_start));
-
-    return list_start;
+static void parse_list(std::string_view arg, std::set<std::string, CaseInsensitiveCompare> &dest) {
+    for (const auto el : std::views::split(arg, std::string_view(",")))
+        dest.emplace(std::string_view(el));
 }
 
 void load_config(void) {
@@ -64,7 +45,7 @@ void load_config(void) {
 #ifdef CFG_LOGFILE
     config.logfile = DEFAULT_LOGFILE;
 #else
-    config.logfile = NULL;
+    config.logfile = std::nullopt;
 #endif
 
     int argc;
@@ -74,60 +55,55 @@ void load_config(void) {
         return;
     }
 
-    char* arg;
-
+    std::span args(argv, argv + argc);
     // so close to just pulling in a third party argparsing lib...
-    for (int i = 0; i < argc; i++) {
-        if (!wstr_narrow(argv[i], &arg))
-            continue;
+    for (auto warg : args) {
+        // narrowing
+        std::string _arg(warg, warg + wcslen(warg));
+        std::string_view arg(_arg);
 
-        if (strcmp(arg, VERBOSE_FLAG) == 0) {
+        if (arg == VERBOSE_FLAG) {
             config.verbose_logs = true;
-            free(arg);
         }
-        else if (strcmp(arg, DEVMODE_FLAG) == 0) {
+        else if (arg == DEVMODE_FLAG) {
             config.developer_mode = true;
-            free(arg);
         }
-        else if (strcmp(arg, DISABLE_FLAG) == 0) {
+        else if (arg == DISABLE_FLAG) {
             config.disable = true;
-            free(arg);
         }
-        else if (strncmp(arg, ALLOWLIST_FLAG, strlen(ALLOWLIST_FLAG)) == 0) {
-            allowlist = parse_list(ALLOWLIST_FLAG, arg, config.allowlist);
+        else if (arg.starts_with(ALLOWLIST_FLAG)) {
+            arg.remove_prefix(ALLOWLIST_FLAG.size());
+            parse_list(arg, config.allowlist);
         }
-        else if (strncmp(arg, BLOCKLIST_FLAG, strlen(BLOCKLIST_FLAG)) == 0) {
-            blocklist = parse_list(BLOCKLIST_FLAG, arg, config.blocklist);
+        else if (arg.starts_with(BLOCKLIST_FLAG)) {
+            arg.remove_prefix(BLOCKLIST_FLAG.size());
+            parse_list(arg, config.blocklist);
         }
-        else if (strncmp(arg, LOGFILE_FLAG, strlen(LOGFILE_FLAG)) == 0) {
-            const char *path = &arg[strlen(LOGFILE_FLAG)];
+        else if (arg.starts_with(LOGFILE_FLAG)) {
+            arg.remove_prefix(LOGFILE_FLAG.size());
             // correct format: --layered-logfile=whatever.log
-            if(path[0] == '=' && path[1]) {
-                config.logfile = &path[1];
+            if(!arg.empty()) {
+                config.logfile = arg;
             }
         }
-        else if (strncmp(arg, MOD_FOLDER_FLAG, strlen(MOD_FOLDER_FLAG)) == 0) {
-            std::string_view path = &arg[strlen(MOD_FOLDER_FLAG)];
+        else if (arg.starts_with(MOD_FOLDER_FLAG)) {
+            arg.remove_prefix(MOD_FOLDER_FLAG.size());
             // correct format: --layered-data-mods-folder=./my_mods
-            if(path.starts_with("=./")) {
-                config.set_mod_folder(std::string(path.substr(1)));
+            if(arg.starts_with("./")) {
+                config.set_mod_folder(std::string(arg));
             }
-        }
-        else {
-            free(arg);
         }
     }
 }
 
 void print_config(void) {
-    log_info("Options: {}={} {}={} {}={} {}={} {}={} {}={} {}={}",
+    log_info("Options: {}={} {}={} {}={} {}{} {}{} {}{} {}{}",
         VERBOSE_FLAG, config.verbose_logs,
         DEVMODE_FLAG, config.developer_mode,
         DISABLE_FLAG, config.disable,
-        // TODO: std::optional
-        LOGFILE_FLAG, config.logfile ? config.logfile : "(null)",
-        ALLOWLIST_FLAG, allowlist ? allowlist : "(null)",
-        BLOCKLIST_FLAG, blocklist ? blocklist : "(null)",
+        LOGFILE_FLAG, config.logfile,
+        ALLOWLIST_FLAG, config.allowlist,
+        BLOCKLIST_FLAG, config.blocklist,
         MOD_FOLDER_FLAG, config.get_mod_folder().c_str()
     );
 }

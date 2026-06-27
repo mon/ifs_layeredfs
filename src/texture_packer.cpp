@@ -6,7 +6,7 @@
 
 using namespace rbp;
 
-bool pack_textures(vector<Bitmap*> &textures, vector<Packer*> &packed_textures) {
+bool pack_textures(std::vector<Bitmap*> &textures, std::vector<Packer*> &packed_textures) {
     std::sort(textures.begin(), textures.end(), [](const Bitmap* a, const Bitmap* b) {
         return (a->width * a->height) < (b->width * b->height);
     });
@@ -32,7 +32,7 @@ Packer::Packer(int max_size)
 
 }
 
-void Packer::Pack(vector<Bitmap*> &bitmaps)
+void Packer::Pack(std::vector<Bitmap*> &bitmaps)
 {
     GuillotineBinPack packer(width, height);
 

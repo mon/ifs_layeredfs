@@ -19,8 +19,6 @@
 #include "texture_packer.h"
 #include "utils.hpp"
 
-using std::string;
-
 enum img_format {
     ARGB8888REV,
     DXT5,
@@ -34,30 +32,30 @@ enum compress_type {
 };
 
 typedef struct image {
-    string name;
-    string name_md5;
+    std::string name;
+    std::string name_md5;
     img_format format;
     compress_type compression;
-    string ifs_mod_path;
+    std::string ifs_mod_path;
     int width;
     int height;
-    string cache_folder() const { return CACHE_FOLDER + "/" + ifs_mod_path;  }
-    string cache_file() const { return cache_folder() + "/" + name_md5; };
+    std::string cache_folder() const { return config.get_cache_folder() + "/" + ifs_mod_path;  }
+    std::string cache_file() const { return cache_folder() + "/" + name_md5; };
 } image_t;
 
 typedef struct afp {
-    string mod_path;
+    std::string mod_path;
 } afp_t;
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
-static std::map<string, std::shared_ptr<image_t>, CaseInsensitiveCompare> ifs_textures;
+static std::map<std::string, std::shared_ptr<image_t>, CaseInsensitiveCompare> ifs_textures;
 static std::mutex ifs_textures_mtx;
 
 static std::map<std::string, std::shared_ptr<afp_t>, CaseInsensitiveCompare> afp_md5_names;
 static std::mutex afp_md5_names_mtx;
 
 
-void rapidxml_dump_to_file(const string& out, const rapidxml::xml_document<> &xml) {
+void rapidxml_dump_to_file(const std::string& out, const rapidxml::xml_document<> &xml) {
     std::ofstream out_file;
     out_file.open(out.c_str());
 
@@ -83,14 +81,14 @@ rapidxml::xml_node<>* allocate_node_and_attrib(
     return node;
 }
 
-bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelist_node, string const&ifs_path, string const&ifs_mod_path, compress_type compress) {
+bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelist_node, std::string const&ifs_path, std::string const&ifs_mod_path, compress_type compress) {
     auto start = time();
-    vector<Bitmap*> textures;
+    std::vector<Bitmap*> textures;
 
     for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
         log_verbose("New image: {}", *it);
 
-        string png_tex = *it + ".png";
+        std::string png_tex = *it + ".png";
         auto png_loc = find_first_modfile(ifs_mod_path + "/" + png_tex);
         if(!png_loc)
             png_loc = find_first_modfile(ifs_mod_path + "/tex/" + png_tex);
@@ -117,7 +115,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
     }
 
     auto pack_start = time();
-    vector<Packer*> packed_textures;
+    std::vector<Packer*> packed_textures;
     if (!pack_textures(textures, packed_textures)) {
         log_warning("Couldn't pack textures :(");
         return false;
@@ -200,7 +198,7 @@ void parse_texturelist(HookFile &file) {
     ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
     // log_misc("Reading ifs {}", ifs_path);
     auto ifs_mod_path = ifs_path;
-    string_replace(ifs_mod_path, ".ifs", "_ifs");
+    string_replace_i(ifs_mod_path, ".ifs", "_ifs");
 
     if (!find_first_modfolder(ifs_mod_path)) {
         log_verbose("mod folder doesn't exist, skipping");
@@ -304,30 +302,30 @@ void parse_texturelist(HookFile &file) {
     }
 
     if (prop_was_rewritten) {
-        string outfolder = CACHE_FOLDER + "/" + ifs_mod_path;
+        std::string outfolder = config.get_cache_folder() + "/" + ifs_mod_path;
         if (!mkdir_p(outfolder)) {
             log_warning("Couldn't create cache folder");
         }
-        string outfile = outfolder + "/texturelist.xml";
+        std::string outfile = outfolder + "/texturelist.xml";
         rapidxml_dump_to_file(outfile, texturelist);
         file.mod_path = outfile;
     }
 }
 
-bool cache_texture(string const&png_path, image_t const&tex) {
-    string cache_path = tex.cache_folder();
+bool cache_texture(std::string const&png_path, image_t const&tex) {
+    std::string cache_path = tex.cache_folder();
     if (!mkdir_p(cache_path)) {
         log_warning("Couldn't create texture cache folder");
         return false;
     }
 
-    string cache_file = tex.cache_file();
+    std::string cache_file = tex.cache_file();
     auto cache_time = file_time(cache_file.c_str());
     auto png_time = file_time(png_path.c_str());
 
     // the cache is fresh, don't do the same work twice
 #ifndef ALWAYS_CACHE
-    if (cache_time > 0 && cache_time >= dll_time && cache_time >= png_time) {
+    if (cache_time > cache_time.min() && cache_time >= dll_time && cache_time >= png_time) {
         return true;
     }
 #endif
@@ -422,7 +420,7 @@ void parse_afplist(HookFile &file) {
     ifs_path.resize(ifs_path.size() - strlen("/tex/afplist.xml"));
     // log_misc("Reading ifs {}", ifs_path);
     auto ifs_mod_path = ifs_path;
-    string_replace(ifs_mod_path, ".ifs", "_ifs");
+    string_replace_i(ifs_mod_path, ".ifs", "_ifs");
 
     if (!find_first_modfolder(ifs_mod_path)) {
         // hide this print - the texturelist.xml will catch it
@@ -561,16 +559,16 @@ void handle_afp(HookFile &file) {
 void merge_xmls(HookFile &file) {
     auto start = time();
     // initialize since we're GOTO-ing like naughty people
-    string out;
-    string out_folder;
+    std::string out;
+    std::string out_folder;
     rapidxml::xml_document<> merged_xml;
 
     auto merge_path = file.norm_path;
-    string_replace(merge_path, ".xml", ".merged.xml");
+    string_replace_i(merge_path, ".xml", ".merged.xml");
     auto to_merge = find_all_modfile(merge_path);
     if (to_merge.size() == 0) {
         // handle merging XML inside .ifs
-        string_replace(merge_path, ".ifs", "_ifs");
+        string_replace_i(merge_path, ".ifs", "_ifs");
         to_merge = find_all_modfile(merge_path);
 
         // nothing to do...
@@ -579,7 +577,7 @@ void merge_xmls(HookFile &file) {
     }
 
     auto starting = file.get_path_to_open();
-    out = CACHE_FOLDER + "/" + file.norm_path;
+    out = config.get_cache_folder() + "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 

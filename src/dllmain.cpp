@@ -5,20 +5,19 @@
 
 extern "C" __declspec(dllexport) const char __layeredfs_version[] = VER_STRING;
 
-HMODULE my_module;
-char dll_filename[MAX_PATH];
-uint64_t dll_time;
+std::filesystem::file_time_type dll_time;
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
                      )
 {
+    wchar_t dll_filename[MAX_PATH];
+
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-    my_module = hModule;
-    if (GetModuleFileNameA(my_module, dll_filename, MAX_PATH)) {
+    if (GetModuleFileNameW(hModule, dll_filename, MAX_PATH)) {
       dll_time = file_time(dll_filename);
     }
     return init() == 0;

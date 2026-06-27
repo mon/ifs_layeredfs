@@ -10,6 +10,7 @@
 #include "ramfs_demangler.h"
 
 #include "3rd_party/rapidxml_print.hpp"
+#include "src/3rd_party/rapidxml.hpp"
 #include "src/utils.hpp"
 #include "arc.hpp"
 
@@ -174,10 +175,13 @@ TEST(Xml, MergingWorks) {
    ASSERT_GT(f, 0);
 
    rapidxml::xml_document<> xml_doc;
-   bool res = rapidxml_from_avs_file<rapidxml::parse_no_utf8>(f, xml_doc, xml_doc);
+   bool res = rapidxml_from_avs_file(f, xml_doc, xml_doc);
    ASSERT_TRUE(res);
 
    auto node = xml_doc.first_node();
+   ASSERT_NE(node, nullptr);
+   ASSERT_EQ(node->type(), rapidxml::node_type::node_declaration);
+   node = node->next_sibling();
    ASSERT_NE(node, nullptr);
    EXPECT_STREQ(node->name(), "afplist");
 
@@ -387,7 +391,7 @@ static void exercise_inner_ifs_demangle(std::string const& arc_path) {
     std::string p = "/game/inner_test/some_subfile";
     ramfs_demangler_demangle_if_possible(p);
     std::string expected_arc = arc_path;
-    string_replace(expected_arc, ".arc", "_arc");
+    string_replace_i(expected_arc, ".arc", "_arc");
     EXPECT_EQ(p, "data/" + expected_arc + "/inner.ifs/some_subfile");
 }
 
@@ -455,10 +459,13 @@ TEST(Regression, BeatStreamAfpXml) {
    auto f = hook_avs_fs_open("/afp22/data2/graphic/psd_result.ifs/afp/afplist.xml", avs_open_mode_read(), 420);
    ASSERT_GT(f, 0);
    rapidxml::xml_document<> xml_doc;
-   bool res = rapidxml_from_avs_file<rapidxml::parse_no_utf8>(f, xml_doc, xml_doc);
+   bool res = rapidxml_from_avs_file(f, xml_doc, xml_doc);
    ASSERT_TRUE(res);
 
    auto node = xml_doc.first_node();
+   ASSERT_NE(node, nullptr);
+   ASSERT_EQ(node->type(), rapidxml::node_type::node_declaration);
+   node = node->next_sibling();
    ASSERT_NE(node, nullptr);
    EXPECT_STREQ(node->name(), "afplist");
 

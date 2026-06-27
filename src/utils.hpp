@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <stdint.h>
 
+#include <filesystem>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -11,18 +12,14 @@
 
 #define strcasecmp _stricmp
 
-#define lenof(x) (sizeof(x) / sizeof(*x))
-
-bool string_ends_with(const char * str, const char * suffix);
-bool string_ends_with(const std::string &str, const char * suffix);
+bool string_ends_with_i(std::string_view str, std::string_view suffix);
 // case insensitive
-void string_replace(std::string &str, const char* from, const char* to);
+void string_replace_i(std::string &str, std::string_view from, std::string_view to);
 // // case insensitive
-bool string_replace_first(std::string &str, const char* from, const char* to);
+bool string_replace_first_i(std::string &str, std::string_view from, std::string_view to);
 // Like string.find(), but case insensitive
-std::size_t string_find_icase(const std::string & strHaystack, const std::string & strNeedle, std::size_t off = 0);
+std::size_t string_find_i(std::string_view strHaystack, std::string_view strNeedle, std::size_t off = 0);
 wchar_t *str_widen(const char *src);
-bool wstr_narrow(const wchar_t *src, char **dest);
 void str_toupper_inline(std::string &str);
 bool file_exists(const char* name);
 bool folder_exists(const char* name);
@@ -32,7 +29,7 @@ bool folder_exists(const char* name);
 // - must not end with "/"
 std::string path_to_actual_case(std::string path);
 std::vector<std::string> folders_in_folder(const char* root);
-uint64_t file_time(const char* path);
+std::filesystem::file_time_type file_time(const std::filesystem::path &path);
 LONG time(void);
 std::string basename_without_extension(std::string const & path);
 

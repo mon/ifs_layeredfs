@@ -5,7 +5,6 @@
 #include "hook.h"
 
 // all good code mixes C and C++, right?
-using std::string;
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
@@ -88,13 +87,13 @@ class PkfsHookFile final : public HookFile {
             // chance.
             log_verbose("pkfs_open({}) failed in load_to_vec, clearing HDD error", get_path_to_open());
             pkfs_clear_hdd_error();
-            return nullopt;
+            return std::nullopt;
         }
     }
 };
 
 // this should probably be part of the modpath h/cpp
-void list_pngs_onefolder(string_set &names, string const& folder) {
+void list_pngs_onefolder(string_set &names, std::string const& folder) {
     auto search_path = folder + "/*.png";
     const auto extension_len = strlen(".png");
     WIN32_FIND_DATAA fd;
@@ -112,7 +111,7 @@ void list_pngs_onefolder(string_set &names, string const& folder) {
     }
 }
 
-string_set list_pngs(string const&folder) {
+string_set list_pngs(std::string const&folder) {
     string_set ret;
 
     for (auto &mod : available_mods()) {
@@ -127,17 +126,17 @@ string_set list_pngs(string const&folder) {
 struct ArcModScan {
     // Per-entry overrides. Keyed by relative path within the arc, e.g. "shader/foo.bin".
     // Tuple of actual path / norm path
-    std::map<string, std::pair<string, string>> files;
+    std::map<std::string, std::pair<std::string, std::string>> files;
     // Inner-ifs paths inside the arc, derived from "*_ifs" mod subdirs. Paths
     // are arc-relative with the dot restored: a mod dir "sub/inner_ifs/" yields
     // "sub/inner.ifs". These get registered with the demangler so the game's
     // ramfs mount of the extracted inner ifs maps back to the arc-qualified
     // path our mod-folder lookup expects. Set, so multiple mods declaring the
     // same inner ifs dedupe.
-    std::set<string> inner_ifs_paths;
+    std::set<std::string> inner_ifs_paths;
 };
 
-static void scan_arc_mod_onefolder(ArcModScan &out, string const& mod_folder, string const& folder, string const& rel_prefix) {
+static void scan_arc_mod_onefolder(ArcModScan &out, std::string const& mod_folder, std::string const& folder, std::string const& rel_prefix) {
     WIN32_FIND_DATAA fd;
     HANDLE hFind = FindFirstFileA((mod_folder + "/" + folder + "/*").c_str(), &fd);
     if (hFind == INVALID_HANDLE_VALUE)
@@ -146,8 +145,8 @@ static void scan_arc_mod_onefolder(ArcModScan &out, string const& mod_folder, st
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
                 continue;
-            if (string_ends_with(fd.cFileName, "_ifs")) {
-                string name = fd.cFileName;
+            if (string_ends_with_i(fd.cFileName, "_ifs")) {
+                std::string name = fd.cFileName;
                 name.replace(name.size() - 4, 4, ".ifs");
                 out.inner_ifs_paths.insert(rel_prefix + name);
                 continue;
@@ -157,7 +156,7 @@ static void scan_arc_mod_onefolder(ArcModScan &out, string const& mod_folder, st
                 folder + "/" + fd.cFileName,
                 rel_prefix + fd.cFileName + "/");
         } else {
-            string rel = rel_prefix + fd.cFileName;
+            std::string rel = rel_prefix + fd.cFileName;
             if (out.files.find(rel) == out.files.end())
                 out.files[rel] = std::make_pair(
                     mod_folder + "/" + folder + "/" + fd.cFileName,
@@ -168,7 +167,7 @@ static void scan_arc_mod_onefolder(ArcModScan &out, string const& mod_folder, st
     FindClose(hFind);
 }
 
-static ArcModScan scan_arc_mod_folder(string const& folder) {
+static ArcModScan scan_arc_mod_folder(std::string const& folder) {
     ArcModScan ret;
     for (auto &mod : available_mods()) {
         scan_arc_mod_onefolder(ret, mod, folder, "");
@@ -180,7 +179,7 @@ void handle_arc(HookFile &file) {
     auto start = time();
 
     auto arc_mod_path = file.norm_path;
-    string_replace(arc_mod_path, ".arc", "_arc");
+    string_replace_i(arc_mod_path, ".arc", "_arc");
 
     if (!find_first_modfolder(arc_mod_path)) {
         return;
@@ -194,8 +193,8 @@ void handle_arc(HookFile &file) {
 
     for (auto const& inner_rel : scan.inner_ifs_paths) {
         auto pos = inner_rel.rfind('/');
-        string basename = (pos == string::npos) ? inner_rel : inner_rel.substr(pos + 1);
-        string demangled = "data/" + arc_mod_path + "/" + inner_rel;
+        std::string basename = (pos == std::string::npos) ? inner_rel : inner_rel.substr(pos + 1);
+        std::string demangled = "data/" + arc_mod_path + "/" + inner_rel;
         ramfs_demangler_register_arc_inner_ifs(basename, demangled);
     }
 
@@ -203,7 +202,7 @@ void handle_arc(HookFile &file) {
         return;
     }
 
-    string out = CACHE_FOLDER + "/" + file.norm_path;
+    std::string out = config.get_cache_folder() + "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 
@@ -225,7 +224,7 @@ void handle_arc(HookFile &file) {
     auto _orig_data = file.load_to_vec();
     if (_orig_data) {
         auto &orig_data = *_orig_data;
-        std::istringstream stream(string((char*)orig_data.data(), orig_data.size()));
+        std::istringstream stream(std::string((char*)orig_data.data(), orig_data.size()));
         auto _arc = ArcArchive::from_stream(stream);
         if (!_arc) {
             log_warning("arc: load failed, aborting modding");
@@ -246,7 +245,7 @@ void handle_arc(HookFile &file) {
     // exists on disk, so we need to make it so if it only exists inside of
     // the original .arc file
     for (const auto &arc_file : arc.files) {
-        if (!string_ends_with(arc_file.first, ".xml")) {
+        if (!string_ends_with_i(arc_file.first, ".xml")) {
             continue;
         }
 
@@ -273,8 +272,8 @@ void handle_arc(HookFile &file) {
         // Do we have XMLs to merge? Only then, extract to cache and add a fake
         // extra entry. We don't need to add this particular file to the cache
         // because it gets its key off the original .arc file
-        string merged_fname = arc_file.first;
-        string_replace(merged_fname, ".xml", ".merged.xml");
+        std::string merged_fname = arc_file.first;
+        string_replace_i(merged_fname, ".xml", ".merged.xml");
         decltype(scan.files) extra_files;
         for (auto &[name, path] : scan.files) {
             // TODO: more hacks, make these paths less insane
@@ -289,10 +288,10 @@ void handle_arc(HookFile &file) {
                 continue;
             }
 
-            auto xml_orig = CACHE_FOLDER + "/" + file.norm_path + "/" + arc_file.first + ".orig";
+            auto xml_orig = config.get_cache_folder() + "/" + file.norm_path + "/" + arc_file.first + ".orig";
             auto xml_orig_norm = file.norm_path + "/" + arc_file.first;
-            string_replace(xml_orig, ".arc", "_arc");
-            string_replace(xml_orig_norm, ".arc", "_arc");
+            string_replace_i(xml_orig, ".arc", "_arc");
+            string_replace_i(xml_orig_norm, ".arc", "_arc");
 
             auto out_folder = xml_orig.substr(0, xml_orig.rfind("/"));
             if (!mkdir_p(out_folder)) {
@@ -314,12 +313,12 @@ void handle_arc(HookFile &file) {
     }
 
     for (auto &[name, path] : scan.files) {
-        if (string_ends_with(name, ".merged.xml"))
+        if (string_ends_with_i(name, ".merged.xml"))
             continue;
 
         AvsOpenHookFile f(path.first, path.second, 0, 0);
 
-        if (string_ends_with(name, ".xml"))
+        if (string_ends_with_i(name, ".xml"))
             merge_xmls(f);
 
         auto data = f.load_to_vec();
@@ -348,7 +347,7 @@ void handle_texbin(HookFile &file) {
     // mod texbins strip the .bin off the end. This isn't consistent with the _ifs
     // used for ifs files, but it's consistent with gitadora-texbintool, the *only*
     // tool to extract .bin files currently.
-    string_replace(bin_mod_path, ".bin", "");
+    string_replace_i(bin_mod_path, ".bin", "");
 
     if (!find_first_modfolder(bin_mod_path)) {
         // log_verbose("texbin: mod folder doesn't exist, skipping");
@@ -361,7 +360,7 @@ void handle_texbin(HookFile &file) {
     //// hashing :(
 
     // convert the string_set to a vec for repeatable hashes
-    vector<string> pngs_list;
+    std::vector<std::string> pngs_list;
     pngs_list.reserve(pngs.size());
     for (auto it = pngs.begin(); it != pngs.end(); ) {
         auto png = std::move(pngs.extract(it++).value());
@@ -382,7 +381,7 @@ void handle_texbin(HookFile &file) {
     }
 
     auto starting = file.get_path_to_open();
-    string out = CACHE_FOLDER + "/" + file.norm_path;
+    std::string out = config.get_cache_folder() + "/" + file.norm_path;
     auto out_hashed = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 
@@ -405,7 +404,7 @@ void handle_texbin(HookFile &file) {
     if (_orig_data) {
         auto orig_data = *_orig_data;
         // one extra copy which *sucks* but whatever
-        std::istringstream stream(string((char*)&orig_data[0], orig_data.size()));
+        std::istringstream stream(std::string((char*)&orig_data[0], orig_data.size()));
         auto _texbin = Texbin::from_stream(stream);
         if(!_texbin) {
             log_warning("Texbin load failed, aborting modding");
@@ -445,25 +444,25 @@ uint32_t handle_file_open(HookFile &file) {
     auto norm_copy = file.norm_path;
     file.mod_path = find_first_modfile(norm_copy);
     // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
-    while (!file.mod_path && string_replace_first(norm_copy, ".ifs", "_ifs")) {
+    while (!file.mod_path && string_replace_first_i(norm_copy, ".ifs", "_ifs")) {
         file.mod_path = find_first_modfile(norm_copy);
     }
 
-    if(string_ends_with(file.path, ".xml")) {
+    if(string_ends_with_i(file.path, ".xml")) {
         merge_xmls(file);
     }
 
-    if(string_ends_with(file.path, ".bin")) {
+    if(string_ends_with_i(file.path, ".bin")) {
         handle_texbin(file);
     }
 
-    if(string_ends_with(file.path, ".arc")) {
+    if(string_ends_with_i(file.path, ".arc")) {
         handle_arc(file);
     }
 
-    if (string_ends_with(file.path, "texturelist.xml")) {
+    if (string_ends_with_i(file.path, "texturelist.xml")) {
         parse_texturelist(file);
-    } else if(string_ends_with(file.path, "afplist.xml")) {
+    } else if(string_ends_with_i(file.path, "afplist.xml")) {
         parse_afplist(file);
     } else {
         handle_texture(file);
@@ -483,7 +482,7 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
         return avs_fs_lstat(name, st);
 
     log_verbose("statting {}", name);
-    string path = name;
+    std::string path = name;
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
@@ -500,7 +499,7 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
         return avs_fs_convert_path(dest_name, name);
 
     log_verbose("convert_path {}", name);
-    string path = name;
+    std::string path = name;
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
@@ -564,7 +563,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if (mode != avs_open_mode_read()) {
         return avs_fs_open(name, mode, flags);
     }
-    string path = name;
+    std::string path = name;
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
@@ -579,7 +578,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
 unsigned int hook_pkfs_open(const char *name) {
     log_verbose("pkfs_open {}", name);
 
-    string path = name;
+    std::string path = name;
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
@@ -595,7 +594,7 @@ unsigned int hook_pkfs_open(const char *name) {
     inside_pkfs_hook = true;
 
 #ifdef UNPAK
-    string pakdump_loc = "./data_unpak/" + file.norm_path;
+    std::string pakdump_loc = "./data_unpak/" + file.norm_path;
     if(!file_exists(pakdump_loc.c_str())) {
         auto folder_terminator = pakdump_loc.rfind("/");
         auto out_folder = pakdump_loc.substr(0, folder_terminator);
