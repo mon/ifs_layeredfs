@@ -1,7 +1,8 @@
 #pragma once
 
 #include "config.hpp" // since log_verbose uses it
-#include <format>
+#include "fmt/format.h"
+#include "fmt/std.h"
 
 #ifndef LOG_MODULE
 #define LOG_MODULE "layeredfs"
@@ -12,8 +13,8 @@ inline constexpr char _log_module[] = LOG_MODULE;
 using log_formatter_t = void (*)(const char *module, const char *fmt, ...);
 
 template<log_formatter_t* Logger, const char *Module, class... Args>
-void log_base(std::format_string<Args...> fmt, Args&&... args) {
-    (*Logger)(Module, "%s", std::format(fmt, std::forward<Args>(args)...).c_str());
+void log_base(fmt::format_string<Args...> fmt, Args&&... args) {
+    (*Logger)(Module, "%s", fmt::format(fmt, std::forward<Args>(args)...).c_str());
 }
 
 

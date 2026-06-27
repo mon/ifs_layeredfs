@@ -1,6 +1,6 @@
 project('layeredfs', 'c', 'cpp', version: '4.1',
     default_options: [
-        'cpp_std=c++26',
+        'cpp_std=c++23',
         'buildtype=release',
         'strip=true',
         'werror=true',
@@ -10,6 +10,21 @@ project('layeredfs', 'c', 'cpp', version: '4.1',
 
 add_project_link_arguments('-static', language: 'cpp')
 add_project_arguments('-DVER_STRING="' + meson.project_version() + '"', language: 'cpp')
+
+# note: not using fmt from the wrapdb because it needs pkgconfig which doesn't
+# work for cross builds
+fmt_lib = static_library('fmt',
+    sources: [
+        'src/3rd_party/fmt/src/format.cc',
+        'src/3rd_party/fmt/src/os.cc',
+    ],
+    include_directories: 'src/3rd_party/fmt/include',
+)
+
+fmt_dep = declare_dependency(
+    include_directories: 'src/3rd_party/fmt/include',
+    link_with: fmt_lib,
+)
 
 third_party = static_library('3rd_party',
     sources: [
@@ -39,10 +54,11 @@ third_party = static_library('3rd_party',
     cpp_args: '-w',
 )
 
-texbin_lib = static_library('texbin', 'src/texbin.cpp')
+texbin_lib = static_library('texbin', 'src/texbin.cpp', dependencies: fmt_dep)
 texbin_verbose_lib = static_library('texbin_verbose',
     'src/texbin.cpp',
-    cpp_args: '-DTEXBIN_VERBOSE'
+    cpp_args: '-DTEXBIN_VERBOSE',
+    dependencies: fmt_dep,
 )
 
 layeredfs_lib = static_library('layeredfs',
@@ -58,6 +74,7 @@ layeredfs_lib = static_library('layeredfs',
         'src/utils.cpp',
     ],
     link_with: third_party,
+    dependencies: fmt_dep,
 )
 
 # has to be bare source so each special version gets a different copy
@@ -65,25 +82,27 @@ layeredfs_cfg_dep = declare_dependency(
     sources: [
         'src/config.cpp',
         'src/hook.cpp',
-    ]
+    ],
+    dependencies: fmt_dep,
 )
 
 avs_standalone_lib = static_library('avs_standalone',
-    sources: 'src/avs_standalone.cpp'
+    sources: 'src/avs_standalone.cpp',
+    dependencies: fmt_dep,
 )
 
 executable('playpen',
     sources: 'src/playpen.cpp',
     build_by_default: false,
     link_with: [layeredfs_lib, texbin_verbose_lib, avs_standalone_lib],
-    dependencies: layeredfs_cfg_dep,
+    dependencies: [layeredfs_cfg_dep, fmt_dep],
 )
 
 executable('texbin_debug',
     sources: 'src/texbin_debug.cpp',
     build_by_default: false,
     link_with: [layeredfs_lib, texbin_verbose_lib],
-    dependencies: layeredfs_cfg_dep,
+    dependencies: [layeredfs_cfg_dep, fmt_dep],
 )
 
 # pre-configured DLLs if you don't know how to (or can't) add cmdline args
@@ -211,7 +230,7 @@ if host_machine.cpu_family() == 'x86_64'
     test('unit tests', executable('tests_bin',
             sources: 'src/tests.cpp',
             link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
-            dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
+            dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep, fmt_dep],
             build_by_default: false,
         ),
         workdir: meson.current_source_dir(),
