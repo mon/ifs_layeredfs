@@ -320,8 +320,8 @@ bool cache_texture(std::string const&png_path, image_t const&tex) {
     }
 
     std::string cache_file = tex.cache_file();
-    auto cache_time = file_time(cache_file.c_str());
-    auto png_time = file_time(png_path.c_str());
+    auto cache_time = file_time(cache_file);
+    auto png_time = file_time(png_path);
 
     // the cache is fresh, don't do the same work twice
 #ifndef ALWAYS_CACHE
@@ -331,13 +331,11 @@ bool cache_texture(std::string const&png_path, image_t const&tex) {
 #endif
 
     // make the cache
-    FILE *cache;
-
     unsigned error;
-    unsigned char* image;
+    std::vector<uint8_t> image;
     unsigned width, height; // TODO use these to check against xml
 
-    error = lodepng_decode32_file(&image, &width, &height, png_path.c_str());
+    error = lodepng::decode(image, width, height, png_path, LCT_RGBA);
     if (error) {
         log_warning("can't load png {}: {}\n", error, lodepng_error_text(error));
         return false;
@@ -348,30 +346,21 @@ bool cache_texture(std::string const&png_path, image_t const&tex) {
         return false;
     }
 
-    size_t image_size = 4 * width * height;
-
     switch (tex.format) {
     case ARGB8888REV:
-        for (size_t i = 0; i < image_size; i += 4) {
+        for (size_t i = 0; i < image.size(); i += 4) {
             // swap r and b
-            auto tmp = image[i];
-            image[i] = image[i + 2];
-            image[i + 2] = tmp;
+            std::swap(image[i], image[i + 2]);
         }
         break;
     case DXT5: {
-        size_t dxt5_size = image_size / 4;
-        unsigned char* dxt5_image = (unsigned char*)malloc(dxt5_size);
-        rygCompress(dxt5_image, image, width, height, 1);
-        free(image);
-        image = dxt5_image;
-        image_size = dxt5_size;
+        std::vector<uint8_t> dxt5_image(image.size() / 4);
+        rygCompress(dxt5_image.data(), image.data(), width, height, 1);
+        image = std::move(dxt5_image);
 
         // the data has swapped endianness for every WORD
-        for (size_t i = 0; i < image_size; i += 2) {
-            auto tmp = image[i];
-            image[i] = image[i + 1];
-            image[i + 1] = tmp;
+        for (size_t i = 0; i < image.size(); i += 2) {
+            std::swap(image[i], image[i + 1]);
         }
 
         /*FILE* f = fopen("dxt_debug.bin", "wb");
@@ -382,34 +371,30 @@ bool cache_texture(std::string const&png_path, image_t const&tex) {
     default:
         break;
     }
-    auto uncompressed_size = image_size;
+    auto uncompressed_size = image.size();
 
     if (tex.compression == AVSLZ) {
-        size_t compressed_size;
-        auto compressed = lz_compress(image, image_size, &compressed_size);
-        free(image);
-        if (compressed == NULL) {
+        auto compressed = lz_compress(image);
+        if (!compressed) {
             log_warning("Couldn't compress");
             return false;
         }
-        image = compressed;
-        image_size = compressed_size;
+        image = std::move(*compressed);
     }
 
-    cache = fopen(cache_file.c_str(), "wb");
+    FILE* cache = fopen(cache_file.c_str(), "wb");
     if (!cache) {
         log_warning("can't open cache for writing");
         return false;
     }
     if (tex.compression == AVSLZ) {
         uint32_t uncomp_sz = _byteswap_ulong((uint32_t)uncompressed_size);
-        uint32_t comp_sz = _byteswap_ulong((uint32_t)image_size);
+        uint32_t comp_sz = _byteswap_ulong((uint32_t)image.size());
         fwrite(&uncomp_sz, 4, 1, cache);
         fwrite(&comp_sz, 4, 1, cache);
     }
-    fwrite(image, 1, image_size, cache);
+    fwrite(image.data(), 1, image.size(), cache);
     fclose(cache);
-    free(image);
     return true;
 }
 

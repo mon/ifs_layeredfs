@@ -62,15 +62,12 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
         }
 
         if (hdr.compression == ARC_COMPRESSION_AVSLZ && e.packed_size != e.unpacked_size) {
-            size_t out_size = e.unpacked_size;
-            auto raw = lz_decompress(packed.data(), packed.size(), &out_size);
-            if (!raw || out_size != e.unpacked_size) {
+            auto raw = lz_decompress(packed, e.unpacked_size);
+            if (!raw || raw->size() != e.unpacked_size) {
                 log_warning("arc: decompression failed for '{}'", name);
-                if (raw) free(raw);
                 return std::nullopt;
             }
-            arc.files[name] = std::vector<uint8_t>(raw, raw + out_size);
-            free(raw);
+            arc.files[name] = std::move(*raw);
         } else {
             arc.files[name] = std::move(packed);
         }

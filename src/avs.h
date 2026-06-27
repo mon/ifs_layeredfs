@@ -1,7 +1,9 @@
 #pragma once
 
+#include <optional>
 #include <stdint.h>
 
+#include <span>
 #include <string>
 #include <vector>
 
@@ -28,10 +30,10 @@ struct avs_stat {
 };
 
 typedef struct {
-    unsigned char* output_buffer;
-    unsigned char* input_buffer;
-    uint32_t output_size;
-    uint32_t input_size;
+    uint8_t* output_buffer;
+    const uint8_t* input_buffer;
+    uint32_t output_available;
+    uint32_t input_available;
 } cstream_t;
 
 // want to add more? use kbinxml repo
@@ -227,8 +229,8 @@ bool rapidxml_from_avs_file(
 char* avs_file_to_string(AVS_FILE f, rapidxml::xml_document<>& allocator);
 std::vector<uint8_t> avs_file_to_vec(AVS_FILE f);
 bool init_avs();
-unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);
-unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length);
+std::optional<std::vector<uint8_t>> lz_compress(std::span<const uint8_t> input);
+std::optional<std::vector<uint8_t>> lz_decompress(std::span<const uint8_t> input, size_t expected_length);
 
 extern std::string_view avs_loaded_dll_name;
 extern uint16_t avs_loaded_version; // uses bemanitools form, e.g. 2.17.3 = 1703

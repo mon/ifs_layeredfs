@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <windows.h>
 #include <stdint.h>
 
@@ -58,6 +59,25 @@ class Timer {
 
     private:
     std::chrono::steady_clock::time_point start;
+};
+
+class ScopeGuard {
+    public:
+    explicit ScopeGuard(std::function<void ()> &&cb): cb(std::move(cb)) {}
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard(ScopeGuard&&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&) = delete;
+
+    ~ScopeGuard() {
+        if (cb)
+            cb();
+    }
+
+    void cancel() { cb = nullptr; }
+
+    private:
+    std::function<void ()> cb;
 };
 
 struct CaseInsensitiveCompare {

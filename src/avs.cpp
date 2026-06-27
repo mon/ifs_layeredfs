@@ -425,73 +425,72 @@ void prop_free(property_t prop) {
     _aligned_free(prop);
 }
 
-unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length) {
+std::optional<std::vector<uint8_t>> lz_compress(std::span<const uint8_t> input) {
     auto compressor = cstream_create(AVS_COMPRESS_AVSLZ);
     if (!compressor) {
         log_warning("Couldn't create");
-        return NULL;
+        return std::nullopt;
     }
-    compressor->input_buffer = input;
-    compressor->input_size = (uint32_t)length;
+
+    ScopeGuard _guard([=](){ cstream_destroy(compressor); });
+
+    compressor->input_buffer = input.data();
+    compressor->input_available = input.size();
     // worst case, for every 8 bytes there will be an extra flag byte
-    auto to_add = std::max((length + 7) / 8, (size_t)1);
-    auto compress_size = length + to_add;
-    auto compress_buffer = (unsigned char*)malloc(compress_size);
-    compressor->output_buffer = compress_buffer;
-    compressor->output_size = (uint32_t)compress_size;
+    auto to_add = std::max((input.size() + 7) / 8, (size_t)1);
+    std::vector<uint8_t> compress_buffer(input.size() + to_add);
+    compressor->output_buffer = compress_buffer.data();
+    compressor->output_available = compress_buffer.size();
 
     bool ret;
     ret = cstream_operate(compressor);
-    if (!ret && !compressor->input_size) {
+    if (!ret && !compressor->input_available) {
         compressor->input_buffer = NULL;
-        compressor->input_size = -1;
+        compressor->input_available = -1;
         ret = cstream_operate(compressor);
     }
     if (!ret) {
         log_warning("Couldn't operate");
-        return NULL;
+        return std::nullopt;
     }
     if (cstream_finish(compressor)) {
         log_warning("Couldn't finish");
-        return NULL;
+        return std::nullopt;
     }
-    *compressed_length = compress_size - compressor->output_size;
-    cstream_destroy(compressor);
+    compress_buffer.resize(compress_buffer.size() - compressor->output_available);
     return compress_buffer;
 }
 
-unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length) {
+std::optional<std::vector<uint8_t>> lz_decompress(std::span<const uint8_t> input, size_t expected_length) {
     auto decompressor = cstream_create(AVS_DECOMPRESS_AVSLZ);
     if (!decompressor) {
         log_warning("Couldn't create decompressor");
-        return NULL;
+        return std::nullopt;
     }
-    auto decompress_buffer = (unsigned char*)malloc(*decompressed_length);
-    decompressor->input_buffer = input;
-    decompressor->input_size = (uint32_t)length;
-    decompressor->output_buffer = decompress_buffer;
-    decompressor->output_size = (uint32_t)*decompressed_length;
+
+    ScopeGuard _guard([=](){ cstream_destroy(decompressor); });
+
+    std::vector<uint8_t> decompress_buffer(expected_length);
+    decompressor->input_buffer = input.data();
+    decompressor->input_available = input.size();
+    decompressor->output_buffer = decompress_buffer.data();
+    decompressor->output_available = decompress_buffer.size();
 
     bool ret = cstream_operate(decompressor);
-    if (!ret && !decompressor->input_size) {
+    if (!ret && !decompressor->input_available) {
         decompressor->input_buffer = NULL;
-        decompressor->input_size = -1;
+        decompressor->input_available = -1;
         ret = cstream_operate(decompressor);
     }
     if (!ret) {
         log_warning("Couldn't decompress");
-        free(decompress_buffer);
-        cstream_destroy(decompressor);
-        return NULL;
+        return std::nullopt;
     }
     if (cstream_finish(decompressor)) {
         log_warning("Couldn't finish decompression");
-        free(decompress_buffer);
-        cstream_destroy(decompressor);
-        return NULL;
+        return std::nullopt;
     }
-    *decompressed_length = *decompressed_length - decompressor->output_size;
-    cstream_destroy(decompressor);
+    decompress_buffer.resize(decompress_buffer.size() - decompressor->output_available);
     return decompress_buffer;
 }
 
@@ -577,11 +576,11 @@ const prop_error_info_t prop_error_list[73] = {
 };
 
 static std::string_view get_prop_error_str(int32_t code) {
-    static char ret[64];
     for (const auto &error : prop_error_list) {
         if (error.code == (uint32_t)code)
             return error.msg;
     }
-    snprintf(ret, sizeof(ret), "unknown (%X)", code);
-    return ret;
+    static std::string unk;
+    unk = fmt::format("unknown ({:X})", code);
+    return unk;
 }
