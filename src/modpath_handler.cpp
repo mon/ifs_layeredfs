@@ -54,7 +54,7 @@ std::set<std::string, CaseInsensitiveCompare> walk_dir(const std::string &path, 
     return result;
 }
 
-void cache_mods(void) {
+void cache_mods() {
     // this is a bit hacky
     bool devmode = config.developer_mode;
     config.developer_mode = true;
@@ -77,7 +77,7 @@ void cache_mods(void) {
 // data is "flat", all others must have their own special subfolders
 static std::vector<std::string> game_folders;
 
-void init_modpath_handler(void) {
+void init_modpath_handler() {
     log_verbose("Top level folders:");
     for (auto folder : folders_in_folder(".")) {
         log_verbose("  {}", folder);

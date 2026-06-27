@@ -24,7 +24,7 @@ static void parse_list(std::string_view arg, std::set<std::string, CaseInsensiti
         dest.emplace(std::string_view(el));
 }
 
-void load_config(void) {
+void load_config() {
     config.disable = false;
     config.allowlist.clear();
     config.blocklist.clear();
@@ -96,7 +96,7 @@ void load_config(void) {
     }
 }
 
-void print_config(void) {
+void print_config() {
     log_info("Options: {}={} {}={} {}={} {}{} {}{} {}{} {}{}",
         VERBOSE_FLAG, config.verbose_logs,
         DEVMODE_FLAG, config.developer_mode,

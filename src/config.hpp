@@ -47,5 +47,5 @@ struct config_t {
 
 extern config_t config;
 
-void load_config(void);
-void print_config(void);
+void load_config();
+void print_config();

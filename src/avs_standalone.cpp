@@ -75,7 +75,7 @@ bool boot(bool _print_logs) {
     return true;
 }
 
-void shutdown(void) {
+void shutdown() {
     avs_shutdown();
 }
 
@@ -86,7 +86,7 @@ void shutdown(void) {
         return false;                                              \
     }
 
-bool load_dll(void)
+bool load_dll()
 {
     auto avs = LoadLibraryA("avs2-core.dll");
     if (!avs)

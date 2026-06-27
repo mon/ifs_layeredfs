@@ -99,7 +99,7 @@ void stdout_log_body_misc(const char *module, const char *fmt, ...) {
     va_end(args);
 }
 
-void log_to_stdout(void) {
+void log_to_stdout() {
     imp_log_body_fatal = stdout_log_body_fatal;
     imp_log_body_warning = stdout_log_body_warning;
     imp_log_body_info = stdout_log_body_info;

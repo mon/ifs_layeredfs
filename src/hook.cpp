@@ -636,7 +636,7 @@ static void dump_loaded_dll_info() {
 }
 
 extern "C" {
-    __declspec(dllexport) int init(void) {
+    __declspec(dllexport) int init() {
         // all logs up until init_avs succeeds will go to a file for debugging purposes
 
         // find out where we're logging to

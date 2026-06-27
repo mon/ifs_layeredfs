@@ -34,4 +34,4 @@ extern log_formatter_t imp_log_body_misc;
 #define log_verbose(...) if(config.verbose_logs) {log_misc(__VA_ARGS__);}
 
 // for the playpen
-void log_to_stdout(void);
+void log_to_stdout();

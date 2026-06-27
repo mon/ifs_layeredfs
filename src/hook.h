@@ -18,7 +18,7 @@ size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes);
 string_set list_pngs(std::string const&folder);
 
 extern "C" {
-    __declspec(dllexport) int init(void);
+    __declspec(dllexport) int init();
 }
 
 // Used to simplify file opens - pkfs/avs_fs have different signatures, but

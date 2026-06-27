@@ -209,7 +209,7 @@ FOREACH_AVS_FUNC_OPTIONAL(AVS_FUNC_PTR)
 #define AVS_FUNC_LOAD(ret_type, name, ...) LOAD_FUNC(name);
 #define AVS_FUNC_LOAD_OPTIONAL(ret_type, name, ...) name = (decltype(name))GetProcAddress(mod_handle, exports.name);
 
-bool init_avs(void) {
+bool init_avs() {
     bool success = false;
 
 #ifdef _DEBUG

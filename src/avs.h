@@ -226,7 +226,7 @@ bool rapidxml_from_avs_file(
 );
 char* avs_file_to_string(AVS_FILE f, rapidxml::xml_document<>& allocator);
 std::vector<uint8_t> avs_file_to_vec(AVS_FILE f);
-bool init_avs(void);
+bool init_avs();
 unsigned char* lz_compress(unsigned char* input, size_t length, size_t *compressed_length);
 unsigned char* lz_decompress(unsigned char* input, size_t length, size_t *decompressed_length);
 
