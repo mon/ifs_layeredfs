@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <windows.h>
 #include <algorithm>
 #include <set>
 
@@ -17,38 +16,24 @@ typedef struct {
 
 std::vector<mod_contents_t> cached_mods;
 
-std::set<std::string, CaseInsensitiveCompare> walk_dir(const std::string &path, const std::string &root) {
+std::set<std::string, CaseInsensitiveCompare> walk_dir(const std::filesystem::path &root) {
     std::set<std::string, CaseInsensitiveCompare> result;
 
-    WIN32_FIND_DATAA ffd;
-    auto contents = FindFirstFileA((path + "/*").c_str(), &ffd);
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(root)) {
+        auto& entry_path = entry.path();
 
-    if (contents != INVALID_HANDLE_VALUE) {
-        do {
-            if (!strcmp(ffd.cFileName, ".") ||
-                !strcmp(ffd.cFileName, "..")) {
-                continue;
-            }
+        std::string relative = entry_path.lexically_relative(root).string();
+        string_replace_i(relative, "\\", "/");
+        if (entry.is_directory())
+            relative += "/";
 
-            std::string result_path;
-            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                // sanity check a common mistake
-                if (root == "" && !strcasecmp(ffd.cFileName, "data")) {
-                    log_warning("\"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
-                }
-                result_path = root + ffd.cFileName + "/";
-                log_verbose("  {}", result_path);
-                auto subdir_walk = walk_dir(path + "/" + ffd.cFileName, result_path);
-                result.insert(subdir_walk.begin(), subdir_walk.end());
-            }
-            else {
-                result_path = root + ffd.cFileName;
-                log_verbose("  {}", result_path);
-            }
-            result.insert(result_path);
-        } while (FindNextFileA(contents, &ffd) != 0);
+        log_verbose("  {}", relative);
+        result.insert(relative);
 
-        FindClose(contents);
+        // sanity check a common mistake
+        if (entry_path.parent_path() == root && entry_path.filename() == "data") {
+            log_warning("\"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
+        }
     }
 
     return result;
@@ -66,7 +51,7 @@ void cache_mods() {
         mod_contents_t mod;
         mod.name = dir;
         // even in developer mode we want to walk the mods directory for effective logging
-        mod.contents = walk_dir(dir, "");
+        mod.contents = walk_dir(dir);
         if (!config.developer_mode) {
             cached_mods.push_back(mod);
         }
