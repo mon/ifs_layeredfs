@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <windows.h>
 #include <stdint.h>
 
@@ -19,19 +20,15 @@ void string_replace_i(std::string &str, std::string_view from, std::string_view 
 bool string_replace_first_i(std::string &str, std::string_view from, std::string_view to);
 // Like string.find(), but case insensitive
 std::size_t string_find_i(std::string_view strHaystack, std::string_view strNeedle, std::size_t off = 0);
-wchar_t *str_widen(const char *src);
 void str_toupper_inline(std::string &str);
-bool file_exists(const char* name);
-bool folder_exists(const char* name);
 // the given path:
 // -  must be known to exist
 // - must start with "/" or "./"
 // - must not end with "/"
 std::string path_to_actual_case(std::string path);
-std::vector<std::string> folders_in_folder(const char* root);
+std::vector<std::string> folders_in_folder(const std::filesystem::path &root);
+bool mkdir_p(const std::filesystem::path &path);
 std::filesystem::file_time_type file_time(const std::filesystem::path &path);
-LONG time(void);
-std::string basename_without_extension(std::string const & path);
 
 // Hashes the names and timestamps of input files into a rebuilt output.
 // Invalidates on DLL timestamp change, input timestamp change, or input change
@@ -52,6 +49,15 @@ class CacheHasher {
     MD5 digest;
     uint8_t existing_hash[MD5::HashBytes] = {0};
     uint8_t new_hash[MD5::HashBytes] = {0};
+};
+
+class Timer {
+    public:
+    Timer();
+    std::chrono::milliseconds elapsed();
+
+    private:
+    std::chrono::steady_clock::time_point start;
 };
 
 struct CaseInsensitiveCompare {

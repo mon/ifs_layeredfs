@@ -5,11 +5,8 @@
 #include "hook.h"
 
 // all good code mixes C and C++, right?
-#include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
-#include <fstream>
-#include <iostream>
 #include <map>
 #include <set>
 #include <sstream>
@@ -176,7 +173,7 @@ static ArcModScan scan_arc_mod_folder(std::string const& folder) {
 }
 
 void handle_arc(HookFile &file) {
-    auto start = time();
+    Timer timer;
 
     auto arc_mod_path = file.norm_path;
     string_replace_i(arc_mod_path, ".arc", "_arc");
@@ -337,11 +334,11 @@ void handle_arc(HookFile &file) {
     cache_hasher.commit();
     file.mod_path = out;
 
-    log_misc("arc generation took {} ms", time() - start);
+    log_misc("arc generation took {}", timer.elapsed());
 }
 
 void handle_texbin(HookFile &file) {
-    auto start = time();
+    Timer timer;
 
     auto bin_mod_path = file.norm_path;
     // mod texbins strip the .bin off the end. This isn't consistent with the _ifs
@@ -424,7 +421,7 @@ void handle_texbin(HookFile &file) {
 
     for (auto &path : pngs_list) {
         // I have yet to see a texbin without allcaps names for textures
-        auto tex_name = basename_without_extension(path);
+        auto tex_name = std::filesystem::path(path).stem().string();
         str_toupper_inline(tex_name);
         texbin.add_or_replace_image(tex_name.c_str(), path.c_str());
     }
@@ -437,7 +434,7 @@ void handle_texbin(HookFile &file) {
     cache_hasher.commit();
     file.mod_path = out;
 
-    log_misc("Texbin generation took {} ms", time() - start);
+    log_misc("Texbin generation took {}", timer.elapsed());
 }
 
 uint32_t handle_file_open(HookFile &file) {

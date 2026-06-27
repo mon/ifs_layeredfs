@@ -13,4 +13,3 @@ std::optional<std::string> normalise_path(const std::string &path, bool demangle
 std::optional<std::string> find_first_modfile(const std::string &norm_path);
 std::optional<std::string> find_first_modfolder(const std::string &norm_path);
 std::vector<std::string> find_all_modfile(const std::string &norm_path);
-bool mkdir_p(const std::string &path);

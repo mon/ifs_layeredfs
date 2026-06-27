@@ -82,7 +82,7 @@ rapidxml::xml_node<>* allocate_node_and_attrib(
 }
 
 bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelist_node, std::string const&ifs_path, std::string const&ifs_mod_path, compress_type compress) {
-    auto start = time();
+    Timer timer;
     std::vector<Bitmap*> textures;
 
     for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
@@ -114,13 +114,13 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         textures.push_back(new Bitmap(*it, width, height));
     }
 
-    auto pack_start = time();
+    Timer pack_timer;
     std::vector<Packer*> packed_textures;
     if (!pack_textures(textures, packed_textures)) {
         log_warning("Couldn't pack textures :(");
         return false;
     }
-    log_misc("Texture packing {} ms", time() - pack_start);
+    log_misc("Texture packing {}", pack_timer.elapsed());
 
     // because the property API, being
     // a) written by Konami
@@ -185,7 +185,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
         }
     }
 
-    log_misc("Texture extend total time {} ms", time() - start);
+    log_misc("Texture extend total time {}", timer.elapsed());
     return true;
 }
 
@@ -557,7 +557,7 @@ void handle_afp(HookFile &file) {
 }
 
 void merge_xmls(HookFile &file) {
-    auto start = time();
+    Timer timer;
     // initialize since we're GOTO-ing like naughty people
     std::string out;
     std::string out_folder;
@@ -628,5 +628,5 @@ void merge_xmls(HookFile &file) {
     cache_hasher.commit();
     file.mod_path = out;
 
-    log_misc("Merge took {} ms", time() - start);
+    log_misc("Merge took {}", timer.elapsed());
 }

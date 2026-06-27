@@ -1,3 +1,4 @@
+#include <chrono>
 #include <filesystem>
 #include <stdarg.h>
 #include <windows.h>
@@ -61,46 +62,6 @@ std::size_t string_find_i(std::string_view strHaystack, std::string_view strNeed
     }
 }
 
-wchar_t *str_widen(const char *src)
-{
-    int nchars;
-    wchar_t *result;
-
-    nchars = MultiByteToWideChar(CP_ACP, 0, src, -1, NULL, 0);
-
-    if (!nchars) {
-        abort();
-    }
-
-    result = (wchar_t*)malloc(nchars * sizeof(wchar_t));
-
-    if (!MultiByteToWideChar(CP_ACP, 0, src, -1, result, nchars)) {
-        abort();
-    }
-
-    return result;
-}
-
-bool file_exists(const char* name) {
-    // file_exists is only used by the modfile machinery, so use the easy
-    // method, not avs_fs_open or avs_fs_lstat
-    DWORD dwAttrib = GetFileAttributesA(name);
-
-    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
-            !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
-}
-
-bool folder_exists(const char* name) {
-    WIN32_FIND_DATAA ffd;
-    HANDLE hFind = FindFirstFileA(name, &ffd);
-
-    if (hFind == INVALID_HANDLE_VALUE || !(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-        return false;
-    }
-    FindClose(hFind);
-    return true;
-}
-
 std::string path_to_actual_case(std::string path) {
     WIN32_FIND_DATAA ffd;
     HANDLE hFind;
@@ -136,30 +97,25 @@ void str_toupper_inline(std::string& str) {
     }
 }
 
-std::vector<std::string> folders_in_folder(const char* root) {
+std::vector<std::string> folders_in_folder(const std::filesystem::path &root) {
     std::vector<std::string> results;
-    WIN32_FIND_DATAA ffd;
-    std::string wildcard = root;
-    wildcard += "/*";
 
-    auto contents = FindFirstFileA(wildcard.c_str(), &ffd);
-    if (contents == INVALID_HANDLE_VALUE) {
-        return results;
+    for (const auto& child : std::filesystem::directory_iterator(root)) {
+        if (child.is_directory()) {
+            results.emplace_back(child.path().filename().string());
+        }
     }
 
-    do {
-        if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
-            !strcmp(ffd.cFileName, ".") ||
-            !strcmp(ffd.cFileName, "..")) {
-            continue;
-        }
-
-        results.push_back(ffd.cFileName);
-    } while (FindNextFileA(contents, &ffd) != 0);
-
-    FindClose(contents);
-
     return results;
+}
+
+bool mkdir_p(const std::filesystem::path &path) {
+    try {
+        std::filesystem::create_directories(path);
+        return true;
+    } catch (const std::filesystem::filesystem_error&) {
+        return false;
+    }
 }
 
 std::filesystem::file_time_type file_time(const std::filesystem::path &path) {
@@ -168,18 +124,6 @@ std::filesystem::file_time_type file_time(const std::filesystem::path &path) {
     } catch(const std::filesystem::filesystem_error&) {
         return std::filesystem::file_time_type::min();
     }
-}
-
-LONG time(void) {
-    SYSTEMTIME time;
-    GetSystemTime(&time);
-    return (time.wSecond * 1000) + time.wMilliseconds;
-}
-
-std::string basename_without_extension(std::string const & path) {
-    auto basename = path.substr(path.find_last_of("/\\") + 1);
-    std::string::size_type const p(basename.find_last_of('.'));
-    return p > 0 && p != std::string::npos ? basename.substr(0, p) : basename;
 }
 
 CacheHasher::CacheHasher(std::string hash_file): hash_file(hash_file) {
@@ -214,4 +158,12 @@ void CacheHasher::commit() {
         fwrite(new_hash, 1, sizeof(new_hash), cache_hashfile);
         fclose(cache_hashfile);
     }
+}
+
+
+Timer::Timer(): start(std::chrono::steady_clock::now()) {}
+
+std::chrono::milliseconds Timer::elapsed() {
+    auto delta = std::chrono::steady_clock::now() - start;
+    return std::chrono::duration_cast<std::chrono::milliseconds>(delta);
 }

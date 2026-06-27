@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <windows.h>
 #include <algorithm>
 #include <set>
@@ -8,7 +9,6 @@
 #include "config.hpp"
 #include "log.hpp"
 #include "utils.hpp"
-#include "avs.h"
 
 typedef struct {
     std::string name;
@@ -139,13 +139,13 @@ std::vector<std::string> available_mods() {
 
     if (config.developer_mode) {
         static bool first_search = true;
-        for (auto folder : folders_in_folder(config.get_mod_folder().c_str())) {
+        for (auto folder : folders_in_folder(config.get_mod_folder())) {
             if (!strcasecmp(folder.c_str(), "_cache")) {
                 continue;
             }
 
             // if there is an allowlist, is this mod on it?
-            if (!config.allowlist.empty() && config.allowlist.find(folder) == config.allowlist.end()) {
+            if (!config.allowlist.empty() && config.allowlist.contains(folder)) {
                 if (first_search)
                     log_info("Ignoring non-allowlisted mod {}", folder);
 
@@ -153,7 +153,7 @@ std::vector<std::string> available_mods() {
             }
 
             // is this mod in the blocklist?
-            if (config.blocklist.find(folder) != config.blocklist.end()) {
+            if (config.blocklist.contains(folder)) {
                 if (first_search)
                     log_info("Ignoring blocklisted mod {}", folder);
 
@@ -177,33 +177,6 @@ std::vector<std::string> available_mods() {
     return ret;
 }
 
-bool mkdir_p(const std::string &path) {
-    /* Adapted from http://stackoverflow.com/a/2336245/119527 */
-    char *p;
-    errno = 0;
-    auto _path = path;
-
-    /* Iterate the string */
-    for (p = _path.data() + 1; *p; p++) {
-        if (*p == '/') {
-            /* Temporarily truncate */
-            *p = '\0';
-
-            if (!CreateDirectoryA(_path.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
-                return false;
-            }
-
-            *p = '/';
-        }
-    }
-
-    if (!CreateDirectoryA(_path.c_str(), NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
-        return false;
-    }
-
-    return true;
-}
-
 // same for files and folders when cached
 std::optional<std::string> find_first_cached_item(const std::string &norm_path) {
     for (auto &dir : cached_mods) {
@@ -222,7 +195,7 @@ std::optional<std::string> find_first_modfile(const std::string &norm_path) {
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;
-            if (file_exists(mod_path.c_str())) {
+            if (std::filesystem::is_regular_file(mod_path)) {
                 return path_to_actual_case(mod_path);
             }
         }
@@ -237,7 +210,7 @@ std::optional<std::string> find_first_modfolder(const std::string &norm_path) {
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;
-            if (folder_exists(mod_path.c_str())) {
+            if (std::filesystem::is_directory(mod_path)) {
                 return path_to_actual_case(mod_path) + "/";
             }
         }
@@ -254,7 +227,7 @@ std::vector<std::string> find_all_modfile(const std::string &norm_path) {
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
             auto mod_path = dir + "/" + norm_path;
-            if (file_exists(mod_path.c_str())) {
+            if (std::filesystem::is_regular_file(mod_path)) {
                 ret.push_back(mod_path);
             }
         }
