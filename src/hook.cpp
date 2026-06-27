@@ -23,10 +23,6 @@
 #include "avs.h"
 #include "modpath_handler.h"
 
-// let me use the std:: version, damnit
-#undef max
-#undef min
-
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
 #else

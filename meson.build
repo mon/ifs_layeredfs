@@ -9,7 +9,12 @@ project('layeredfs', 'c', 'cpp', version: '4.1',
 )
 
 add_project_link_arguments('-static', language: 'cpp')
-add_project_arguments('-DVER_STRING="' + meson.project_version() + '"', language: 'cpp')
+add_project_arguments(
+    '-DVER_STRING="' + meson.project_version() + '"',
+    '-DNOMINMAX',
+    '-DWIN32_LEAN_AND_MEAN',
+    language: 'cpp',
+)
 
 # note: not using fmt from the wrapdb because it needs pkgconfig which doesn't
 # work for cross builds
