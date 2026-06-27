@@ -29,9 +29,23 @@
 // raw data from bin
 #pragma pack(push,1)
 
+class Magic {
+    public:
+    Magic(const char literal[5]) { // 4 + NUL
+        std::copy(literal, literal + sizeof(magic), magic.begin());
+    }
+
+    bool operator==(std::string_view s) {
+        return std::string_view(magic) == s;
+    }
+
+    private:
+    std::array<char, 4> magic;
+};
+
 class TexbinHdr {
     public:
-    char magic[4] = {'P','X','E','T'};
+    Magic magic = "PXET";
     uint8_t unk1[8] = {0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00};
     uint32_t archive_size; // full, including header
     uint32_t unk2 = 1;
@@ -58,7 +72,7 @@ class TexbinHdr {
 
 class TexbinNamesHdr {
     public:
-    char magic[4] = {'P','M','A','N'};
+    Magic magic = "PMAN";
     uint32_t sect_size; // includes header
     uint8_t unk1[8] = { 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00 };
     uint32_t names_count;
@@ -77,7 +91,7 @@ class TexbinNamesHdr {
 
 class TexbinRectHdr {
     public:
-    char magic[4] = {'T','C','E','R'};
+    Magic magic = "TCER";
     uint8_t unk1[8] = {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00};
     uint32_t sect_size; // includes header
     uint32_t image_count;
@@ -122,7 +136,7 @@ class TexbinRectEntry {
 
 // just used for size peeking
 struct TexHdr {
-    char magic[4];
+    Magic magic;
     uint32_t check1;
     uint32_t check2;
     uint32_t archive_size;
@@ -211,7 +225,7 @@ static std::vector<std::string> load_names(std::istream &f, uint32_t name_offset
         return ret;
     }
 
-    if(memcmp(name_hdr.magic, "PMAN", sizeof(name_hdr.magic))) {
+    if(name_hdr.magic != "PMAN") {
         log_warning("bad name magic");
         return ret;
     }
@@ -446,7 +460,7 @@ std::optional<Texbin> Texbin::from_stream(std::istream &f) {
         return std::nullopt;
     }
 
-    if(memcmp(hdr.magic, "PXET", sizeof(hdr.magic))) {
+    if(hdr.magic != "PXET") {
         log_verbose("bad magic");
         return std::nullopt;
     }
@@ -487,7 +501,7 @@ std::optional<Texbin> Texbin::from_stream(std::istream &f) {
             log_warning("cannot read rect header");
             return std::nullopt;
         }
-        if(memcmp(rect_hdr.magic, "TCER", sizeof(hdr.magic))) {
+        if(rect_hdr.magic != "TCER") {
             log_warning("bad rect magic");
             return std::nullopt;
         }
@@ -697,10 +711,10 @@ std::pair<uint16_t, uint16_t> ImageEntryParsed::peek_dimensions() {
 
     auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
     // note: texbintool has a different check. I think this is better?
-    if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
+    if(hdr->magic == "TDXT") {
         // little endian
         return std::make_pair(hdr->width, hdr->height);
-    } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
+    } else if(hdr->magic == "TXDT") {
         return std::make_pair(_byteswap_ushort(hdr->width), _byteswap_ushort(hdr->height));
     } else {
         return std::make_pair(0, 0);
@@ -729,9 +743,9 @@ std::string ImageEntryParsed::tex_type_str(bool debug_lz77) {
 
     auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
     // note: texbintool has a different check. I think this is better?
-    if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
+    if(hdr->magic == "TDXT") {
         // little endian, nothing to do
-    } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
+    } else if(hdr->magic == "TXDT") {
         hdr->format1 = _byteswap_ulong(hdr->format1);
     } else {
         return "BAD TEX";
@@ -763,9 +777,9 @@ std::optional<std::tuple<std::vector<uint8_t>, uint16_t, uint16_t>> ImageEntryPa
     auto hdr = reinterpret_cast<TexHdr*>(&raw[0]);
     std::vector<uint8_t> data(&raw[0x40], &raw[raw.size()]);
     // note: texbintool has a different check. I think this is better?
-    if(memcmp(hdr->magic, "TDXT", sizeof(hdr->magic)) == 0) {
+    if(hdr->magic == "TDXT") {
         // little endian, nothing to do
-    } else if(memcmp(hdr->magic, "TXDT", sizeof(hdr->magic)) == 0) {
+    } else if(hdr->magic == "TXDT") {
         hdr->width = _byteswap_ushort(hdr->width);
         hdr->height = _byteswap_ushort(hdr->height);
         hdr->format1 = _byteswap_ulong(hdr->format1);

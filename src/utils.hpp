@@ -48,8 +48,8 @@ class CacheHasher {
     private:
     std::string hash_file;
     MD5 digest;
-    uint8_t existing_hash[MD5::HashBytes] = {0};
-    uint8_t new_hash[MD5::HashBytes] = {0};
+    std::array<uint8_t, MD5::HashBytes> existing_hash;
+    std::array<uint8_t, MD5::HashBytes> new_hash;
 };
 
 class Timer {

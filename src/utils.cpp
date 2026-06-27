@@ -92,8 +92,8 @@ std::string path_to_actual_case(std::string path) {
 }
 
 void str_toupper_inline(std::string& str) {
-    for (size_t i = 0; i < str.length(); i++) {
-        str[i] = toupper(str[i]);
+    for (auto &c : str) {
+        c = toupper(c);
     }
 }
 
@@ -132,7 +132,7 @@ CacheHasher::CacheHasher(std::string hash_file): hash_file(hash_file) {
 
     auto cache_hashfile = fopen(hash_file.c_str(), "rb");
     if (cache_hashfile) {
-        fread(existing_hash, 1, MD5::HashBytes, cache_hashfile);
+        fread(existing_hash.data(), 1, MD5::HashBytes, cache_hashfile);
         fclose(cache_hashfile);
     }
 }
@@ -145,17 +145,17 @@ void CacheHasher::add(const std::string &path) {
 }
 
 void CacheHasher::finish() {
-    digest.getHash(new_hash);
+    digest.getHash(new_hash.data());
 }
 
 bool CacheHasher::matches() {
-    return memcmp(new_hash, existing_hash, sizeof(new_hash)) == 0;
+    return new_hash == existing_hash;
 }
 
 void CacheHasher::commit() {
     auto cache_hashfile = fopen(hash_file.c_str(), "wb");
     if (cache_hashfile) {
-        fwrite(new_hash, 1, sizeof(new_hash), cache_hashfile);
+        fwrite(new_hash.data(), 1, new_hash.size(), cache_hashfile);
         fclose(cache_hashfile);
     }
 }
