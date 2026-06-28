@@ -588,7 +588,7 @@ unsigned int hook_pkfs_open(const char *name) {
 
 #ifdef UNPAK
     std::string pakdump_loc = "./data_unpak/" + file.norm_path;
-    if(!file_exists(pakdump_loc.c_str())) {
+    if(!std::filesystem::is_regular_file(pakdump_loc)) {
         auto folder_terminator = pakdump_loc.rfind("/");
         auto out_folder = pakdump_loc.substr(0, folder_terminator);
         auto data = file.load_to_vec();
