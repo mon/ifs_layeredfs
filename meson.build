@@ -70,7 +70,9 @@ layeredfs_lib = static_library('layeredfs',
     sources: [
         'src/arc.cpp',
         'src/avs.cpp',
+        'src/config.cpp',
         'src/dllmain.cpp',
+        'src/hook.cpp',
         'src/imagefs.cpp',
         'src/log.cpp',
         'src/modpath_handler.cpp',
@@ -79,15 +81,6 @@ layeredfs_lib = static_library('layeredfs',
         'src/utils.cpp',
     ],
     link_with: third_party,
-    dependencies: fmt_dep,
-)
-
-# has to be bare source so each special version gets a different copy
-layeredfs_cfg_dep = declare_dependency(
-    sources: [
-        'src/config.cpp',
-        'src/hook.cpp',
-    ],
     dependencies: fmt_dep,
 )
 
@@ -100,14 +93,14 @@ executable('playpen',
     sources: 'src/playpen.cpp',
     build_by_default: false,
     link_with: [layeredfs_lib, texbin_verbose_lib, avs_standalone_lib],
-    dependencies: [layeredfs_cfg_dep, fmt_dep],
+    dependencies: fmt_dep
 )
 
 executable('texbin_debug',
     sources: 'src/texbin_debug.cpp',
     build_by_default: false,
     link_with: [layeredfs_lib, texbin_verbose_lib],
-    dependencies: [layeredfs_cfg_dep, fmt_dep],
+    dependencies: fmt_dep,
 )
 
 # pre-configured DLLs if you don't know how to (or can't) add cmdline args
@@ -161,10 +154,14 @@ foreach cfg : special_cfgs
         special_defines = [f'-DSPECIAL_VER="@folder_name@"']
     endif
 
+    build_config = declare_dependency(
+        sources: 'src/buildconfig.cpp',
+        compile_args: [defines, special_defines],
+    )
+
     ifs_dll = shared_library(lib_name,
         link_with: [layeredfs_lib, texbin_lib],
-        dependencies: layeredfs_cfg_dep,
-        cpp_args: [defines, special_defines],
+        dependencies: build_config,
         name_prefix: '',
         install_dir: install_dir,
         install: true,
@@ -232,10 +229,14 @@ if host_machine.cpu_family() == 'x86_64'
     gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
     gmock_dep = gtest_proj.get_variable('gmock_dep')
 
+    default_build_config = static_library('default_build_config',
+        sources: 'src/buildconfig.cpp'
+    )
+
     test('unit tests', executable('tests_bin',
             sources: 'src/tests.cpp',
-            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
-            dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep, fmt_dep],
+            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
+            dependencies: [gtest_main_dep, gmock_dep, fmt_dep],
             build_by_default: false,
         ),
         workdir: meson.current_source_dir(),
@@ -243,8 +244,8 @@ if host_machine.cpu_family() == 'x86_64'
 
     test('commandline parsing test', executable('test_commandline',
             sources: 'src/test_commandline.cpp',
-            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib],
-            dependencies: [layeredfs_cfg_dep, gtest_main_dep, gmock_dep],
+            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
+            dependencies: [gtest_main_dep, gmock_dep],
             build_by_default: false,
         ),
         workdir: meson.current_source_dir(),

@@ -6,6 +6,7 @@
 #include <shellapi.h>
 
 #include "config.hpp"
+#include "buildconfig.hpp"
 #include "log.hpp"
 #include "utils.hpp"
 
@@ -19,34 +20,22 @@ static constexpr std::string_view MOD_FOLDER_FLAG = "--layered-data-mods-folder=
 
 config_t config;
 
+config_t::config_t()
+    : verbose_logs(g_build_config.verbose_logs)
+    , developer_mode(g_build_config.developer_mode)
+{
+    set_mod_folder("./data_mods");
+    if (g_build_config.external_logfile)
+        logfile = DEFAULT_LOGFILE;
+}
+
 static void parse_list(std::string_view arg, std::set<std::string, CaseInsensitiveCompare> &dest) {
     for (const auto el : std::views::split(arg, std::string_view(",")))
         dest.emplace(std::string_view(el));
 }
 
 void load_config() {
-    config.disable = false;
-    config.allowlist.clear();
-    config.blocklist.clear();
-    config.set_mod_folder(DEFAULT_MOD_FOLDER);
-
-#ifdef CFG_VERBOSE
-    config.verbose_logs = true;
-#else
-    config.verbose_logs = false;
-#endif
-
-#ifdef CFG_DEVMODE
-    config.developer_mode = true;
-#else
-    config.developer_mode = false;
-#endif
-
-#ifdef CFG_LOGFILE
-    config.logfile = DEFAULT_LOGFILE;
-#else
-    config.logfile = std::nullopt;
-#endif
+    config = config_t();
 
     int argc;
     auto argv = CommandLineToArgvW(GetCommandLineW(), &argc);

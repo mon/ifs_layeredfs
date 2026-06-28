@@ -14,6 +14,7 @@
 #include "3rd_party/MinHook.h"
 
 #include "ramfs_demangler.h"
+#include "buildconfig.hpp"
 #include "config.hpp"
 #include "log.hpp"
 #include "imagefs.hpp"
@@ -586,29 +587,29 @@ unsigned int hook_pkfs_open(const char *name) {
     // particular file - acceptable compromise IMO
     inside_pkfs_hook = true;
 
-#ifdef UNPAK
-    std::string pakdump_loc = "./data_unpak/" + file.norm_path;
-    if(!std::filesystem::is_regular_file(pakdump_loc)) {
-        auto folder_terminator = pakdump_loc.rfind("/");
-        auto out_folder = pakdump_loc.substr(0, folder_terminator);
-        auto data = file.load_to_vec();
-        if(data) {
-            if(mkdir_p(out_folder)) {
-                auto dump = fopen(pakdump_loc.c_str(), "wb");
-                if(dump) {
-                    fwrite(&(*data)[0], 1, data->size(), dump);
-                    fclose(dump);
+    if (g_build_config.pkfs_unpack) {
+        std::string pakdump_loc = "./data_unpak/" + file.norm_path;
+        if(!std::filesystem::is_regular_file(pakdump_loc)) {
+            auto folder_terminator = pakdump_loc.rfind("/");
+            auto out_folder = pakdump_loc.substr(0, folder_terminator);
+            auto data = file.load_to_vec();
+            if(data) {
+                if(mkdir_p(out_folder)) {
+                    auto dump = fopen(pakdump_loc.c_str(), "wb");
+                    if(dump) {
+                        fwrite(&(*data)[0], 1, data->size(), dump);
+                        fclose(dump);
 
-                    log_info("Dumped new pkfs file!");
+                        log_info("Dumped new pkfs file!");
+                    } else {
+                        log_warning("Pakdump: Couldn't open output file");
+                    }
                 } else {
-                    log_warning("Pakdump: Couldn't open output file");
+                    log_warning("Pakdump: Couldn't create output folder");
                 }
-            } else {
-                log_warning("Pakdump: Couldn't create output folder");
             }
         }
     }
-#endif
 
     auto ret = handle_file_open(file);
     inside_pkfs_hook = false;
@@ -657,14 +658,12 @@ extern "C" {
 
         // now we can say hello!
         log_info("IFS layeredFS v" VERSION " init");
-#ifdef SPECIAL_VER
-        log_info("Build config: " SPECIAL_VER);
-#endif
+        if (g_build_config.special_ver)
+            log_info("Build config: {}", *g_build_config.special_ver);
         log_info("AVS DLL detected: {}", avs_loaded_dll_name);
         print_config();
-#ifdef UNPAK
-        log_info(".pak dumper mode enabled");
-#endif
+        if (g_build_config.pkfs_unpack)
+            log_info(".pak dumper mode enabled");
 
         dump_loaded_dll_info();
 

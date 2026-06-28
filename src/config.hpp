@@ -4,16 +4,17 @@
 #include <set>
 #include <string>
 
-#include "src/utils.hpp"
 #include "utils.hpp"
 
 struct config_t {
-    bool verbose_logs;
-    bool developer_mode;
-    bool disable;
+    bool verbose_logs = false;
+    bool developer_mode = false;
+    bool disable = false;
     std::optional<std::string> logfile;
     std::set<std::string, CaseInsensitiveCompare> allowlist;
     std::set<std::string, CaseInsensitiveCompare> blocklist;
+
+    config_t();
 
     void set_mod_folder(std::string &&_mod_folder) {
         mod_folder = std::move(_mod_folder);
@@ -23,17 +24,9 @@ struct config_t {
         cache_folder = mod_folder + "/_cache";
     }
 
-    const std::string& get_mod_folder() {
-        return mod_folder;
-    }
-
-    const std::string& get_mod_folder_native() {
-        return mod_folder_native;
-    }
-
-    const std::string& get_cache_folder() {
-        return cache_folder;
-    }
+    inline const std::string& get_mod_folder() const { return mod_folder; }
+    inline const std::string& get_mod_folder_native() const { return mod_folder_native; }
+    inline const std::string& get_cache_folder() const { return cache_folder; }
 
     private:
     std::string mod_folder;
@@ -43,7 +36,6 @@ struct config_t {
 };
 
 #define DEFAULT_LOGFILE "ifs_hook.log"
-#define DEFAULT_MOD_FOLDER "./data_mods"
 
 extern config_t config;
 
