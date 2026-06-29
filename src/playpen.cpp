@@ -3,24 +3,27 @@
 
 #include <windows.h>
 
-#include "hook.hpp"
-#include "log.hpp"
-#include "3rd_party/lodepng.h"
-
 #include <fstream>
 
-#include "texbin.hpp"
+#include "3rd_party/lodepng.h"
+
 #include "avs_standalone.hpp"
+#include "hook.hpp"
+#include "log.hpp"
+#include "texbin.hpp"
 
-#define log_assert(cond) if(!(cond)) {log_fatal("Assertion failed:" #cond);}
+#define log_assert(cond)                                                                           \
+    if (!(cond)) {                                                                                 \
+        log_fatal("Assertion failed:" #cond);                                                      \
+    }
 
-void lz_unfuck(uint8_t *buf, size_t len) {
-    int repl = 0;
-    uint8_t *end = buf + len;
-    while(buf < end) {
+void lz_unfuck(uint8_t* buf, size_t len) {
+    int repl     = 0;
+    uint8_t* end = buf + len;
+    while (buf < end) {
         uint8_t flag = *buf++;
-        for(auto i = 0; i < 8; i++) {
-            if(!(flag & 1) && (buf+1) < end) {
+        for (auto i = 0; i < 8; i++) {
+            if (!(flag & 1) && (buf + 1) < end) {
                 uint8_t hi = buf[0];
                 uint8_t lo = buf[1];
 
@@ -38,13 +41,12 @@ void lz_unfuck(uint8_t *buf, size_t len) {
     log_info("unfucked {} bytes", repl);
 }
 
-optional<std::vector<uint8_t>> readFile(const char* filename)
-{
+optional<std::vector<uint8_t>> readFile(const char* filename) {
     // open the file:
     std::streampos fileSize;
     std::ifstream file(filename, std::ios::binary);
 
-    if(!file) {
+    if (!file) {
         log_warning("Couldn't open {}", filename);
         return nullopt;
     }
@@ -56,7 +58,7 @@ optional<std::vector<uint8_t>> readFile(const char* filename)
 
     // read the data:
     std::vector<uint8_t> fileData((size_t)fileSize);
-    file.read((char*) &fileData[0], fileSize);
+    file.read((char*)&fileData[0], fileSize);
     return fileData;
 }
 
@@ -113,7 +115,6 @@ void avs_playpen() {
 
     // return;
 
-
     // auto _tex = Texbin::from_path("tex_l44qb_smc_sm.bin");
     // auto tex = Texbin::from_path("tex_custom.bin");
     // auto tex = Texbin::from_path("tex_l44_paseli_info.bin");
@@ -122,14 +123,14 @@ void avs_playpen() {
     // }
     // tex->debug();
 
-// #ifdef TEXBIN_VERBOSE
-//     tex->debug();
-// #endif
+    // #ifdef TEXBIN_VERBOSE
+    //     tex->debug();
+    // #endif
 
-//     tex->add_or_replace_image("AAA_NEW_IMAGE", "new image test.png");
-//     tex->add_or_replace_image("SSM_000_T1000", "replace image test.png");
+    //     tex->add_or_replace_image("AAA_NEW_IMAGE", "new image test.png");
+    //     tex->add_or_replace_image("SSM_000_T1000", "replace image test.png");
 
-//     tex->save("tex_custom_modified.bin");
+    //     tex->save("tex_custom_modified.bin");
     // tex.save("tex_l44qb_smc_sm_modified.bin");
 
     /*string path = "testcases.xml";
@@ -209,24 +210,24 @@ void textypes() {
     int i = 0;
     // find . -type f | grep .bin$ | grep -Ev '^./(Groove|CHUNITHM|taiko|Crossbeats)' | grep -v 'DIVA AFT' > bins.txt
     ifstream files("bins.txt");
-    for (string line; getline(files, line); ) {
-        auto f = line;
+    for (string line; getline(files, line);) {
+        auto f   = line;
         auto bin = Texbin::from_path(f.c_str());
-        if(!bin) {
+        if (!bin) {
             continue;
         }
 
         // printf("%s\n", f.c_str());
-        for(auto &[name, image] : bin->images) {
+        for (auto& [name, image] : bin->images) {
             // printf("%s %s\n", _name.c_str(), image.tex_type_str().c_str());
             auto type = image.tex_type_str();
 
-            if(type == "BGR_16BIT" && ++i == 14) {
+            if (type == "BGR_16BIT" && ++i == 14) {
                 system(("\"gitadora-texbintool.exe --no-split \"" + f + "\"\"").c_str());
                 printf("%s %s\n", f.c_str(), name.c_str());
 
                 auto decode = image.tex_to_argb8888();
-                if(!decode) {
+                if (!decode) {
                     printf("Bailing, decode failed (type %s)\n", type.c_str());
                     exit(0);
                 }
@@ -247,7 +248,7 @@ void textypes() {
 }
 
 int main(int argc, char** argv) {
-    if(!avs_standalone::boot(false)) {
+    if (!avs_standalone::boot(false)) {
         log_fatal("avs_standalone boot failed");
         return 1;
     }

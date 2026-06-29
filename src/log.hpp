@@ -11,16 +11,15 @@
 
 inline constexpr char _log_module[] = LOG_MODULE;
 
-using log_formatter_t = void (*)(const char *module, const char *fmt, ...);
+using log_formatter_t = void (*)(const char* module, const char* fmt, ...);
 
-template<log_formatter_t* Logger, const char *Module>
+template <log_formatter_t* Logger, const char* Module>
 struct log_base {
-    template<class... Args>
+    template <class... Args>
     void operator()(fmt::format_string<Args...> fmt, Args&&... args) const {
         (*Logger)(Module, "%s", fmt::format(fmt, std::forward<Args>(args)...).c_str());
     }
 };
-
 
 // functions that default to file output, but will be overriden to point to AVS
 // logging functions if the user doesn't specify their own log file
@@ -34,7 +33,10 @@ inline constexpr log_base<&imp_log_body_warning, _log_module> log_warning;
 inline constexpr log_base<&imp_log_body_info, _log_module> log_info;
 inline constexpr log_base<&imp_log_body_misc, _log_module> log_misc;
 // layeredfs super-verbose (since most people have loglevel misc already)
-#define log_verbose(...) if(config.verbose_logs) {log_misc(__VA_ARGS__);}
+#define log_verbose(...)                                                                           \
+    if (config.verbose_logs) {                                                                     \
+        log_misc(__VA_ARGS__);                                                                     \
+    }
 
 // for the playpen
 void log_to_stdout();

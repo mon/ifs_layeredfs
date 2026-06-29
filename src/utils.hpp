@@ -1,21 +1,23 @@
 #pragma once
 
+#include <windows.h>
+
+#include <stdint.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <chrono>
-#include <functional>
-#include <windows.h>
-#include <stdint.h>
-
 #include <filesystem>
+#include <functional>
+#include <ranges>
 #include <span>
 #include <string>
-#include <ranges>
 #include <vector>
 
-#include "fmt/format.h"
 #include "3rd_party/md5.h"
+
+#include "fmt/format.h"
 
 // every in-game internal path uses ascii chars, so this is fine
 inline char toupper_ascii(char c) {
@@ -25,21 +27,10 @@ inline char toupper_ascii(char c) {
 }
 
 struct char_traits_insensitive : public std::char_traits<char> {
-    static bool eq(char c1, char c2) {
-        return toupper_ascii(c1) == toupper_ascii(c2);
-    }
-
-    static bool ne(char c1, char c2) {
-        return toupper_ascii(c1) != toupper_ascii(c2);
-    }
-
-    static bool lt(char c1, char c2) {
-        return toupper_ascii(c1) < toupper_ascii(c2);
-    }
-
-    static int compare(const char *s1, const char *s2, size_t n) {
-        return _memicmp(s1, s2, n);
-    }
+    static bool eq(char c1, char c2) { return toupper_ascii(c1) == toupper_ascii(c2); }
+    static bool ne(char c1, char c2) { return toupper_ascii(c1) != toupper_ascii(c2); }
+    static bool lt(char c1, char c2) { return toupper_ascii(c1) < toupper_ascii(c2); }
+    static int compare(const char* s1, const char* s2, size_t n) { return _memicmp(s1, s2, n); }
 
     static const char* find(const char* s, std::size_t n, char a) {
         const auto ua{toupper_ascii(a)};
@@ -59,12 +50,15 @@ class istring : public std::basic_string<char, char_traits_insensitive> {
 
     using base::base;
 
-    public:
+  public:
     // needed so the inherited methods (substr etc) can be cast back
-    istring(base &&s): base(std::move(s)) {}
+    istring(base&& s)
+        : base(std::move(s)) {}
 
-    istring(std::string&& s): base(std::move(reinterpret_cast<base&&>(s))) {}
-    istring(std::string_view s): base(s.data(), s.size()) {}
+    istring(std::string&& s)
+        : base(std::move(reinterpret_cast<base&&>(s))) {}
+    istring(std::string_view s)
+        : base(s.data(), s.size()) {}
 
     operator std::filesystem::path() const {
         return std::filesystem::path(data(), data() + size());
@@ -113,27 +107,26 @@ class istring : public std::basic_string<char, char_traits_insensitive> {
 
     void replace_all(istring_view from, istring_view to) {
         size_t off;
-        while((off = find(from)) != npos)
+        while ((off = find(from)) != npos)
             replace(off, from.size(), to);
     }
 };
 
 // needed when an istring is inside another container
-template<>
+template <>
 struct fmt::formatter<istring> : fmt::formatter<std::string_view> {
-    auto format(const istring &s, format_context &ctx) const {
+    auto format(const istring& s, format_context& ctx) const {
         return fmt::formatter<std::string_view>::format({s.data(), s.size()}, ctx);
     }
 };
 
-template<>
-struct std::hash<istring>
-{
+template <>
+struct std::hash<istring> {
     std::size_t operator()(const istring& s) const noexcept {
         // a probably terrible attempt to somewhat-copy murmurhash
         constexpr size_t m = 0x5bd1e995;
-        size_t h = s.size();
-        for(auto c : s) {
+        size_t h           = s.size();
+        for (auto c : s) {
             h ^= toupper_ascii(c);
             h *= m;
             h ^= h >> 15;
@@ -142,24 +135,23 @@ struct std::hash<istring>
     }
 };
 
-
 // the given path:
 // -  must be known to exist
 // - must start with "/" or "./"
 // - must not end with "/"
 std::string path_to_actual_case(std::string path);
-std::vector<istring> folders_in_folder(const std::filesystem::path &root);
-bool mkdir_p(const std::filesystem::path &path);
-std::filesystem::file_time_type file_time(const std::filesystem::path &path);
-bool write_bytes(const std::filesystem::path &path, std::span<const char> bytes);
-inline bool write_bytes(const std::filesystem::path &path, std::span<const uint8_t> bytes) {
+std::vector<istring> folders_in_folder(const std::filesystem::path& root);
+bool mkdir_p(const std::filesystem::path& path);
+std::filesystem::file_time_type file_time(const std::filesystem::path& path);
+bool write_bytes(const std::filesystem::path& path, std::span<const char> bytes);
+inline bool write_bytes(const std::filesystem::path& path, std::span<const uint8_t> bytes) {
     return write_bytes(path, {reinterpret_cast<const char*>(bytes.data()), bytes.size()});
 }
 
 // Hashes the names and timestamps of input files into a rebuilt output.
 // Invalidates on DLL timestamp change, input timestamp change, or input change
 class CacheHasher {
-    public:
+  public:
     CacheHasher(std::filesystem::path hash_file);
     // add a path and its timestamp to the hash. Should not be called after `finish`
     void add(istring_view path);
@@ -170,7 +162,7 @@ class CacheHasher {
     // write out an updated hashfile. Should be called after `finish`
     void commit();
 
-    private:
+  private:
     std::filesystem::path hash_file;
     MD5 digest;
     std::array<uint8_t, MD5::HashBytes> existing_hash;
@@ -178,21 +170,22 @@ class CacheHasher {
 };
 
 class Timer {
-    public:
+  public:
     Timer();
     std::chrono::milliseconds elapsed();
 
-    private:
+  private:
     std::chrono::steady_clock::time_point start;
 };
 
 class ScopeGuard {
-    public:
-    explicit ScopeGuard(std::function<void ()> &&cb): cb(std::move(cb)) {}
-    ScopeGuard(const ScopeGuard&) = delete;
-    ScopeGuard(ScopeGuard&&) = delete;
+  public:
+    explicit ScopeGuard(std::function<void()>&& cb)
+        : cb(std::move(cb)) {}
+    ScopeGuard(const ScopeGuard&)            = delete;
+    ScopeGuard(ScopeGuard&&)                 = delete;
     ScopeGuard& operator=(const ScopeGuard&) = delete;
-    ScopeGuard& operator=(ScopeGuard&&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&)      = delete;
 
     ~ScopeGuard() {
         if (cb)
@@ -201,6 +194,6 @@ class ScopeGuard {
 
     void cancel() { cb = nullptr; }
 
-    private:
-    std::function<void ()> cb;
+  private:
+    std::function<void()> cb;
 };

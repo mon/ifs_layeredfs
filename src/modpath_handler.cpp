@@ -1,12 +1,12 @@
-#include <filesystem>
+#include "modpath_handler.hpp"
+
 #include <algorithm>
+#include <filesystem>
 #include <set>
 
-#include "ramfs_demangler.hpp"
-
-#include "modpath_handler.hpp"
 #include "config.hpp"
 #include "log.hpp"
+#include "ramfs_demangler.hpp"
 #include "utils.hpp"
 
 typedef struct {
@@ -16,10 +16,10 @@ typedef struct {
 
 std::vector<mod_contents_t> cached_mods;
 
-std::set<NormPath> walk_dir(const std::filesystem::path &root) {
+std::set<NormPath> walk_dir(const std::filesystem::path& root) {
     std::set<NormPath> result;
 
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(root)) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
         auto& entry_path = entry.path();
 
         istring relative = entry_path.lexically_relative(root).string();
@@ -32,7 +32,8 @@ std::set<NormPath> walk_dir(const std::filesystem::path &root) {
 
         // sanity check a common mistake
         if (entry_path.parent_path() == root && entry_path.filename() == "data") {
-            log_warning("\"data\" folder detected in mod root. Move all files inside to the mod root, or it will not work");
+            log_warning("\"data\" folder detected in mod root. Move all files inside to the mod "
+                        "root, or it will not work");
         }
     }
 
@@ -41,12 +42,12 @@ std::set<NormPath> walk_dir(const std::filesystem::path &root) {
 
 void cache_mods() {
     // this is a bit hacky
-    bool devmode = config.developer_mode;
+    bool devmode          = config.developer_mode;
     config.developer_mode = true;
-    auto avail_mods = available_mods();
+    auto avail_mods       = available_mods();
     config.developer_mode = devmode;
 
-    for (auto &dir : avail_mods) {
+    for (auto& dir : avail_mods) {
         log_verbose("Walking {}", dir);
         mod_contents_t mod;
         mod.name = dir;
@@ -85,7 +86,7 @@ std::optional<NormPath> normalise_path(std::string _path, bool demangle) {
         ramfs_demangler_demangle_if_possible(_path);
 
     istring path(std::move(_path));
-    auto data_pos = path.find("data/");
+    auto data_pos  = path.find("data/");
     auto other_pos = std::string::npos;
 
     if (data_pos == std::string::npos) {
@@ -103,7 +104,7 @@ std::optional<NormPath> normalise_path(std::string _path, bool demangle) {
     }
     auto actual_pos = (data_pos != std::string::npos) ? data_pos : other_pos;
     // if data2 was found, for example, use root mod/data2/.../... instead of just mod/.../...
-    auto offset = (other_pos != std::string::npos) ? 0 : strlen("data/");
+    auto offset      = (other_pos != std::string::npos) ? 0 : strlen("data/");
     istring data_str = path.substr(actual_pos + offset);
     // nuke backslash
     data_str.replace_all("\\", "/");
@@ -149,9 +150,8 @@ std::vector<istring> available_mods() {
         }
 
         first_search = false;
-    }
-    else {
-        for (auto &dir : cached_mods) {
+    } else {
+        for (auto& dir : cached_mods) {
             ret.push_back(dir.name);
         }
     }
@@ -161,8 +161,8 @@ std::vector<istring> available_mods() {
 }
 
 // same for files and folders when cached
-std::optional<istring> find_first_cached_item(const NormPath &norm_path) {
-    for (auto &dir : cached_mods) {
+std::optional<istring> find_first_cached_item(const NormPath& norm_path) {
+    for (auto& dir : cached_mods) {
         auto file_search = dir.contents.find(norm_path);
         if (file_search == dir.contents.end()) {
             continue;
@@ -173,50 +173,47 @@ std::optional<istring> find_first_cached_item(const NormPath &norm_path) {
     return std::nullopt;
 }
 
-std::optional<istring> find_first_modfile(const NormPath &norm_path) {
-    //log_verbose("{}({})", __FUNCTION__, norm_path);
+std::optional<istring> find_first_modfile(const NormPath& norm_path) {
+    // log_verbose("{}({})", __FUNCTION__, norm_path);
     if (config.developer_mode) {
-        for (auto &dir : available_mods()) {
+        for (auto& dir : available_mods()) {
             auto mod_path = fmt::format("{}/{}", dir, norm_path);
             if (std::filesystem::is_regular_file(mod_path)) {
                 return path_to_actual_case(mod_path);
             }
         }
-    }
-    else {
+    } else {
         return find_first_cached_item(norm_path);
     }
     return std::nullopt;
 }
 
-std::optional<istring> find_first_modfolder(const NormPath &norm_path) {
+std::optional<istring> find_first_modfolder(const NormPath& norm_path) {
     if (config.developer_mode) {
-        for (auto &dir : available_mods()) {
+        for (auto& dir : available_mods()) {
             auto mod_path = fmt::format("{}/{}", dir, norm_path);
             if (std::filesystem::is_directory(mod_path)) {
                 return path_to_actual_case(mod_path) + "/";
             }
         }
-    }
-    else {
+    } else {
         return find_first_cached_item(norm_path / "");
     }
     return std::nullopt;
 }
 
-std::vector<istring> find_all_modfile(const NormPath &norm_path) {
+std::vector<istring> find_all_modfile(const NormPath& norm_path) {
     std::vector<istring> ret;
 
     if (config.developer_mode) {
-        for (auto &dir : available_mods()) {
+        for (auto& dir : available_mods()) {
             auto mod_path = fmt::format("{}/{}", dir, norm_path);
             if (std::filesystem::is_regular_file(mod_path)) {
                 ret.emplace_back(std::move(mod_path));
             }
         }
-    }
-    else {
-        for (auto &dir : cached_mods) {
+    } else {
+        for (auto& dir : cached_mods) {
             auto file_search = dir.contents.find(norm_path);
             if (file_search == dir.contents.end()) {
                 continue;

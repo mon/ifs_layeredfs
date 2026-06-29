@@ -1,6 +1,6 @@
 #include "buildconfig.hpp"
 
-const BuildConfig g_build_config {
+const BuildConfig g_build_config{
 #ifdef CFG_VERBOSE
     .verbose_logs = true,
 #endif

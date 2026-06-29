@@ -7,17 +7,17 @@
 #include "utils.hpp"
 
 struct config_t {
-    bool verbose_logs = false;
+    bool verbose_logs   = false;
     bool developer_mode = false;
-    bool disable = false;
+    bool disable        = false;
     std::optional<std::string> logfile;
     std::set<istring> allowlist;
     std::set<istring> blocklist;
 
     config_t();
 
-    void set_mod_folder(istring &&_mod_folder) {
-        mod_folder = std::move(_mod_folder);
+    void set_mod_folder(istring&& _mod_folder) {
+        mod_folder        = std::move(_mod_folder);
         mod_folder_native = mod_folder;
         mod_folder_native.replace_all("/", "\\");
 
@@ -28,7 +28,7 @@ struct config_t {
     inline const istring& get_mod_folder_native() const { return mod_folder_native; }
     inline const istring& get_cache_folder() const { return cache_folder; }
 
-    private:
+  private:
     istring mod_folder;
     // for the GetLongPathNameA hook which uses backslashes
     istring mod_folder_native;

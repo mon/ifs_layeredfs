@@ -9,10 +9,10 @@
 #include "utils.hpp"
 
 class ArcArchive {
-public:
+  public:
     std::map<istring, std::vector<uint8_t>> files;
 
-    static std::optional<ArcArchive> from_stream(std::istream &stream);
+    static std::optional<ArcArchive> from_stream(std::istream& stream);
     void add_or_replace(istring const& name, std::vector<uint8_t> data);
     bool save(const char* path);
 };

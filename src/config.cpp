@@ -1,11 +1,14 @@
+#include "config.hpp"
+
+#include <windows.h>
+
+#include <shellapi.h>
+
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string_view>
-#include <windows.h>
-#include <shellapi.h>
 
-#include "config.hpp"
 #include "buildconfig.hpp"
 #include "log.hpp"
 #include "utils.hpp"
@@ -22,14 +25,13 @@ config_t config;
 
 config_t::config_t()
     : verbose_logs(g_build_config.verbose_logs)
-    , developer_mode(g_build_config.developer_mode)
-{
+    , developer_mode(g_build_config.developer_mode) {
     set_mod_folder("./data_mods");
     if (g_build_config.external_logfile)
         logfile = DEFAULT_LOGFILE;
 }
 
-static void parse_list(std::string_view arg, std::set<istring> &dest) {
+static void parse_list(std::string_view arg, std::set<istring>& dest) {
     for (const auto el : std::views::split(arg, std::string_view(",")))
         // need to cast to string_view as the range can't directly construct a string
         dest.emplace(istring_view(el));
@@ -54,32 +56,26 @@ void load_config() {
 
         if (arg == VERBOSE_FLAG) {
             config.verbose_logs = true;
-        }
-        else if (arg == DEVMODE_FLAG) {
+        } else if (arg == DEVMODE_FLAG) {
             config.developer_mode = true;
-        }
-        else if (arg == DISABLE_FLAG) {
+        } else if (arg == DISABLE_FLAG) {
             config.disable = true;
-        }
-        else if (arg.starts_with(ALLOWLIST_FLAG)) {
+        } else if (arg.starts_with(ALLOWLIST_FLAG)) {
             arg.remove_prefix(ALLOWLIST_FLAG.size());
             parse_list(arg, config.allowlist);
-        }
-        else if (arg.starts_with(BLOCKLIST_FLAG)) {
+        } else if (arg.starts_with(BLOCKLIST_FLAG)) {
             arg.remove_prefix(BLOCKLIST_FLAG.size());
             parse_list(arg, config.blocklist);
-        }
-        else if (arg.starts_with(LOGFILE_FLAG)) {
+        } else if (arg.starts_with(LOGFILE_FLAG)) {
             arg.remove_prefix(LOGFILE_FLAG.size());
             // correct format: --layered-logfile=whatever.log
-            if(!arg.empty()) {
+            if (!arg.empty()) {
                 config.logfile = arg;
             }
-        }
-        else if (arg.starts_with(MOD_FOLDER_FLAG)) {
+        } else if (arg.starts_with(MOD_FOLDER_FLAG)) {
             arg.remove_prefix(MOD_FOLDER_FLAG.size());
             // correct format: --layered-data-mods-folder=./my_mods
-            if(arg.starts_with("./")) {
+            if (arg.starts_with("./")) {
                 config.set_mod_folder(std::string(arg));
             }
         }
@@ -87,6 +83,7 @@ void load_config() {
 }
 
 void print_config() {
+    // clang-format off
     log_info("Options: {}={} {}={} {}={} {}{} {}{} {}{} {}{}",
         VERBOSE_FLAG, config.verbose_logs,
         DEVMODE_FLAG, config.developer_mode,
@@ -96,4 +93,5 @@ void print_config() {
         BLOCKLIST_FLAG, config.blocklist,
         MOD_FOLDER_FLAG, config.get_mod_folder()
     );
+    // clang-format on
 }

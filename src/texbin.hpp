@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
 #include <map>
-#include <vector>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "utils.hpp"
 
@@ -11,20 +11,19 @@
 // from every other place konami games use it. smh.
 // This differs from texbintools in that it JUST compresses, and doesn't add
 // or parse the length headers
-std::vector<uint8_t> texbin_lz77_compress(const std::vector<uint8_t> &data);
+std::vector<uint8_t> texbin_lz77_compress(const std::vector<uint8_t>& data);
 // max_len is a soft clamp, you may get a few extra bytes
-std::vector<uint8_t> texbin_lz77_decompress(const std::vector<uint8_t> &comp_with_hdr, size_t max_len = 0, bool debug = true);
+std::vector<uint8_t> texbin_lz77_decompress(
+    const std::vector<uint8_t>& comp_with_hdr, size_t max_len = 0, bool debug = true);
 
 class ImageEntryParsed {
-    public:
+  public:
     std::vector<uint8_t> tex;
 
     ImageEntryParsed(std::vector<uint8_t> tex)
-        : tex(tex)
-    {}
+        : tex(tex) {}
     ImageEntryParsed()
-        : tex(std::vector<uint8_t>())
-    {}
+        : tex(std::vector<uint8_t>()) {}
 
     // w/h
     std::pair<uint16_t, uint16_t> peek_dimensions();
@@ -35,20 +34,19 @@ class ImageEntryParsed {
 };
 
 class RectEntryParsed {
-    public:
+  public:
     istring parent_name;
     uint16_t x, y, w, h;
     // if the image has been replaced, we defer until save-time so we replace
     // all images in the same base image at once, for better performance
     std::optional<std::vector<uint8_t>> dirty_data = std::nullopt;
 
-    inline uint16_t x2() {return x + w;};
-    inline uint16_t y2() {return y + h;};
+    inline uint16_t x2() { return x + w; };
+    inline uint16_t y2() { return y + h; };
 };
 
 class Texbin {
-    public:
-
+  public:
     // real .bin files don't seem to care about the order of names, so neither
     // will we
 
@@ -59,22 +57,18 @@ class Texbin {
     // remain a never-needed usecase)
     std::map<istring, RectEntryParsed> rects;
 
-    Texbin(
-        std::map<istring, ImageEntryParsed> images,
-        std::map<istring, RectEntryParsed> rects
-    )
+    Texbin(std::map<istring, ImageEntryParsed> images, std::map<istring, RectEntryParsed> rects)
         : images(images)
-        , rects(rects)
-    {}
+        , rects(rects) {}
 
     Texbin() = default;
 
-    static std::optional<Texbin> from_path(const char *path);
-    static std::optional<Texbin> from_stream(std::istream &f);
-    bool add_or_replace_image(const char *image_name, const char *png_path);
-    bool save(const char *dest);
+    static std::optional<Texbin> from_path(const char* path);
+    static std::optional<Texbin> from_stream(std::istream& f);
+    bool add_or_replace_image(const char* image_name, const char* png_path);
+    bool save(const char* dest);
     void debug();
 
-    private:
+  private:
     void process_dirty_rects();
 };

@@ -30,25 +30,26 @@
 		At worst, maybe a meg of memory will be lost to saving filename mappings.
 */
 
+#include "ramfs_demangler.hpp"
+
 #include <cstring>
 #include <map>
 #include <mutex>
-#include <unordered_map>
 #include <optional>
+#include <unordered_map>
 
 #include "3rd_party/hat-trie/htrie_map.h"
 
-#include "ramfs_demangler.hpp"
 #include "log.hpp"
 #include "modpath_handler.hpp"
 #include "utils.hpp"
 
 typedef struct {
-	AVS_FILE handle;
-	void* buffer;
-	std::optional<std::string> ramfs_path;
-	std::optional<std::string> link_path;
-	std::optional<std::string> mounted_path;
+    AVS_FILE handle;
+    void* buffer;
+    std::optional<std::string> ramfs_path;
+    std::optional<std::string> link_path;
+    std::optional<std::string> mounted_path;
 } file_cleanup_info_t;
 
 static std::map<std::string, file_cleanup_info_t> cleanup_map;
@@ -63,183 +64,179 @@ static std::unordered_map<std::string, std::string> arc_inner_by_basename;
 static std::recursive_mutex mangling_mtx;
 
 void ramfs_demangler_on_fs_open(std::string path, AVS_FILE open_result) {
-	istring_view iview(path);
-	if (open_result < 0
-		|| (!iview.ends_with(".ifs")
-			&& !iview.ends_with(".arc"))) {
-		return;
-	}
+    istring_view iview(path);
+    if (open_result < 0 || (!iview.ends_with(".ifs") && !iview.ends_with(".arc"))) {
+        return;
+    }
 
-	std::lock_guard lock(mangling_mtx);
+    std::lock_guard lock(mangling_mtx);
 
-	auto existing_info = cleanup_map.find(path);
-	if (existing_info != cleanup_map.end()) {
-		file_cleanup_info_t cleanup = existing_info->second;
+    auto existing_info = cleanup_map.find(path);
+    if (existing_info != cleanup_map.end()) {
+        file_cleanup_info_t cleanup = existing_info->second;
 
-		open_file_map.erase(cleanup.handle);
-		if (cleanup.buffer != NULL) {
-			ram_load_map.erase(cleanup.buffer);
-		}
-		if (cleanup.ramfs_path) {
-			ramfs_map.erase(*cleanup.ramfs_path);
-		}
-		if (cleanup.link_path) {
-			ramfs_map.erase(*cleanup.link_path);
-		}
-		if (cleanup.mounted_path) {
-			mangling_map.erase(*cleanup.mounted_path);
-		}
-		cleanup_map.erase(existing_info);
-	}
-	file_cleanup_info_t cleanup = {
-		open_result,
-		NULL,
-		std::nullopt,
-		std::nullopt
-	};
-	cleanup_map[path] = cleanup;
-	open_file_map[open_result] = std::move(path);
+        open_file_map.erase(cleanup.handle);
+        if (cleanup.buffer != NULL) {
+            ram_load_map.erase(cleanup.buffer);
+        }
+        if (cleanup.ramfs_path) {
+            ramfs_map.erase(*cleanup.ramfs_path);
+        }
+        if (cleanup.link_path) {
+            ramfs_map.erase(*cleanup.link_path);
+        }
+        if (cleanup.mounted_path) {
+            mangling_map.erase(*cleanup.mounted_path);
+        }
+        cleanup_map.erase(existing_info);
+    }
+    file_cleanup_info_t cleanup = {open_result, NULL, std::nullopt, std::nullopt};
+    cleanup_map[path]           = cleanup;
+    open_file_map[open_result]  = std::move(path);
 }
 
-void ramfs_demangler_register_arc_inner_ifs(const std::string& basename, const std::string& demangled_path) {
-	std::lock_guard lock(mangling_mtx);
-	auto existing = arc_inner_by_basename.find(basename);
-	if (existing != arc_inner_by_basename.end() && existing->second != demangled_path) {
-		log_warning("arc demangle: basename collision for '{}' ({} vs {}), later one wins",
-			basename, existing->second, demangled_path);
-	}
-	arc_inner_by_basename[basename] = demangled_path;
-	log_verbose("arc inner basename '{}' -> {}", basename, demangled_path);
+void ramfs_demangler_register_arc_inner_ifs(
+    const std::string& basename, const std::string& demangled_path) {
+    std::lock_guard lock(mangling_mtx);
+    auto existing = arc_inner_by_basename.find(basename);
+    if (existing != arc_inner_by_basename.end() && existing->second != demangled_path) {
+        log_warning("arc demangle: basename collision for '{}' ({} vs {}), later one wins",
+            basename, existing->second, demangled_path);
+    }
+    arc_inner_by_basename[basename] = demangled_path;
+    log_verbose("arc inner basename '{}' -> {}", basename, demangled_path);
 }
 
 void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest) {
-	std::lock_guard lock(mangling_mtx);
+    std::lock_guard lock(mangling_mtx);
 
-	auto find = open_file_map.find(context);
-	if (find != open_file_map.end()) {
-		auto path = find->second;
-		// even this is too verbose
-		// log_verbose("Mapped {:p} to {}", dest, path);
-		ram_load_map[dest] = path;
+    auto find = open_file_map.find(context);
+    if (find != open_file_map.end()) {
+        auto path = find->second;
+        // even this is too verbose
+        // log_verbose("Mapped {:p} to {}", dest, path);
+        ram_load_map[dest] = path;
 
-		auto cleanup = cleanup_map.find(path);
-		if (cleanup != cleanup_map.end()) {
-			cleanup->second.buffer = dest;
-		}
-	}
+        auto cleanup = cleanup_map.find(path);
+        if (cleanup != cleanup_map.end()) {
+            cleanup->second.buffer = dest;
+        }
+    }
 }
 
-void ramfs_demangler_on_fs_mount(std::string_view mountpoint, std::string_view fsroot, std::string_view fstype, std::optional<std::string_view> flags) {
-	std::lock_guard lock(mangling_mtx);
+void ramfs_demangler_on_fs_mount(std::string_view mountpoint, std::string_view fsroot,
+    std::string_view fstype, std::optional<std::string_view> flags) {
+    std::lock_guard lock(mangling_mtx);
 
-	if (fstype == "ramfs") {
-		void* buffer;
+    if (fstype == "ramfs") {
+        void* buffer;
 
-		if (!flags) {
-			log_verbose("ramfs has no flags?");
-			return;
-		}
-		auto baseptr = flags->find("base=");
-		if (baseptr == flags->npos) {
-			log_verbose("ramfs has no base pointer?");
-			return;
-		}
+        if (!flags) {
+            log_verbose("ramfs has no flags?");
+            return;
+        }
+        auto baseptr = flags->find("base=");
+        if (baseptr == flags->npos) {
+            log_verbose("ramfs has no base pointer?");
+            return;
+        }
 
-		std::string base(flags->substr(baseptr + strlen("base=")));
+        std::string base(flags->substr(baseptr + strlen("base=")));
 
-		// not using std::from_chars as we want base 0
-		buffer = (void*)strtoull(base.c_str(), NULL, 0);
+        // not using std::from_chars as we want base 0
+        buffer = (void*)strtoull(base.c_str(), NULL, 0);
 
-		std::string mount_path = fmt::format("{}/{}", mountpoint, fsroot);
-		// strip trailing '/' on mountpoint — DDR uses "/dev/ram/foo.ifs/"
-		while (mount_path.ends_with('/')) mount_path.pop_back();
+        std::string mount_path = fmt::format("{}/{}", mountpoint, fsroot);
+        // strip trailing '/' on mountpoint — DDR uses "/dev/ram/foo.ifs/"
+        while (mount_path.ends_with('/'))
+            mount_path.pop_back();
 
-		auto find = ram_load_map.find(buffer);
-		if (find != ram_load_map.end()) {
-			auto orig_path = find->second;
-			log_verbose("ramfs mount mapped to {}", orig_path);
-			ramfs_map[mount_path.c_str()] =  orig_path;
+        auto find = ram_load_map.find(buffer);
+        if (find != ram_load_map.end()) {
+            auto orig_path = find->second;
+            log_verbose("ramfs mount mapped to {}", orig_path);
+            ramfs_map[mount_path.c_str()] = orig_path;
 
-			auto cleanup = cleanup_map.find(orig_path);
-			if (cleanup != cleanup_map.end()) {
-				cleanup->second.ramfs_path = mount_path;
-			}
-		} else {
-			// ifs-inside-arc
-			auto basename_of = [](std::string_view path) -> std::string {
-				std::string s(path);
-				while (s.ends_with('/')) s.pop_back();
-				auto pos = s.rfind('/');
-				std::string bn = (pos == std::string::npos) ? s : s.substr(pos + 1);
-				istring_view iview(bn);
-				return iview.ends_with(".ifs") ? bn : std::string();
-			};
-			std::string bn = basename_of(mountpoint);
-			if (bn.empty()) bn = basename_of(fsroot);
-			if (bn.empty()) return;
+            auto cleanup = cleanup_map.find(orig_path);
+            if (cleanup != cleanup_map.end()) {
+                cleanup->second.ramfs_path = mount_path;
+            }
+        } else {
+            // ifs-inside-arc
+            auto basename_of = [](std::string_view path) -> std::string {
+                std::string s(path);
+                while (s.ends_with('/'))
+                    s.pop_back();
+                auto pos       = s.rfind('/');
+                std::string bn = (pos == std::string::npos) ? s : s.substr(pos + 1);
+                istring_view iview(bn);
+                return iview.ends_with(".ifs") ? bn : std::string();
+            };
+            std::string bn = basename_of(mountpoint);
+            if (bn.empty())
+                bn = basename_of(fsroot);
+            if (bn.empty())
+                return;
 
-			auto by_name = arc_inner_by_basename.find(bn);
-			if (by_name == arc_inner_by_basename.end())
-				return;
+            auto by_name = arc_inner_by_basename.find(bn);
+            if (by_name == arc_inner_by_basename.end())
+                return;
 
-			auto orig_path = by_name->second;
-			log_verbose("ramfs mount basename '{}' mapped to {}", bn, orig_path);
-			ramfs_map[mount_path.c_str()] = orig_path;
-			// No cleanup_map entry: we never saw the open for this inner ifs.
-		}
-	}
-	else if (fstype == "link") {
-		auto find = ramfs_map.find(fsroot);
-		if (find != ramfs_map.end()) {
-			auto orig_path = *find;
-			log_verbose("link mount mapped to {}", orig_path);
-			ramfs_map[mountpoint] = orig_path;
+            auto orig_path = by_name->second;
+            log_verbose("ramfs mount basename '{}' mapped to {}", bn, orig_path);
+            ramfs_map[mount_path.c_str()] = orig_path;
+            // No cleanup_map entry: we never saw the open for this inner ifs.
+        }
+    } else if (fstype == "link") {
+        auto find = ramfs_map.find(fsroot);
+        if (find != ramfs_map.end()) {
+            auto orig_path = *find;
+            log_verbose("link mount mapped to {}", orig_path);
+            ramfs_map[mountpoint] = orig_path;
 
-			auto cleanup = cleanup_map.find(orig_path);
-			if (cleanup != cleanup_map.end()) {
-				cleanup->second.link_path = mountpoint;
-			}
-		}
-	}
-	else if (fstype == "imagefs") {
-		auto find = ramfs_map.longest_prefix(fsroot);
-		if (find != ramfs_map.end()) {
-			auto orig_path = *find;
-			log_verbose("imagefs mount mapped to {}", orig_path);
-			mangling_map[mountpoint] = orig_path;
+            auto cleanup = cleanup_map.find(orig_path);
+            if (cleanup != cleanup_map.end()) {
+                cleanup->second.link_path = mountpoint;
+            }
+        }
+    } else if (fstype == "imagefs") {
+        auto find = ramfs_map.longest_prefix(fsroot);
+        if (find != ramfs_map.end()) {
+            auto orig_path = *find;
+            log_verbose("imagefs mount mapped to {}", orig_path);
+            mangling_map[mountpoint] = orig_path;
 
-			auto cleanup = cleanup_map.find(orig_path);
-			if (cleanup != cleanup_map.end()) {
-				cleanup->second.mounted_path = mountpoint;
-			}
-		}
-		else if(fsroot.ends_with(".ifs")) {
-			// Two scenarios reach here:
-			//  (1) imagefs mounted directly from a real file path (eg
-			//      ./data/foo.ifs). mountpoint -> fsroot is what makes
-			//      paths under the mountpoint normalise back to data-relative.
-			//  (2) ifs-inside-arc where the inner ifs is opaque/virtual
-			//      (no ramfs_map entry and not a real path) - registering
-			//      would lie about a mapping we don't actually have.
-			// Demangle first to handle ifs-inside-real-ifs, then check that
-			// the result is something normalise_path can use.
-			std::string root(fsroot);
-			ramfs_demangler_demangle_if_possible(root);
-			if (normalise_path(root, /* demangle */ false)) {
-				log_verbose("imagefs mount mapped to {}", root);
-				mangling_map[mountpoint] = root;
-			}
-		}
-	}
+            auto cleanup = cleanup_map.find(orig_path);
+            if (cleanup != cleanup_map.end()) {
+                cleanup->second.mounted_path = mountpoint;
+            }
+        } else if (fsroot.ends_with(".ifs")) {
+            // Two scenarios reach here:
+            //  (1) imagefs mounted directly from a real file path (eg
+            //      ./data/foo.ifs). mountpoint -> fsroot is what makes
+            //      paths under the mountpoint normalise back to data-relative.
+            //  (2) ifs-inside-arc where the inner ifs is opaque/virtual
+            //      (no ramfs_map entry and not a real path) - registering
+            //      would lie about a mapping we don't actually have.
+            // Demangle first to handle ifs-inside-real-ifs, then check that
+            // the result is something normalise_path can use.
+            std::string root(fsroot);
+            ramfs_demangler_demangle_if_possible(root);
+            if (normalise_path(root, /* demangle */ false)) {
+                log_verbose("imagefs mount mapped to {}", root);
+                mangling_map[mountpoint] = root;
+            }
+        }
+    }
 }
 
-void ramfs_demangler_demangle_if_possible(std::string &path) {
-	std::lock_guard lock(mangling_mtx);
+void ramfs_demangler_demangle_if_possible(std::string& path) {
+    std::lock_guard lock(mangling_mtx);
 
-	auto search = mangling_map.longest_prefix(path);
-	if (search == mangling_map.end())
-		return;
+    auto search = mangling_map.longest_prefix(path);
+    if (search == mangling_map.end())
+        return;
 
-	// log_verbose("can demangle {} to {}", search.key(), *search);
-	path.replace(0, search.key().size(), search.value());
+    // log_verbose("can demangle {} to {}", search.key(), *search);
+    path.replace(0, search.key().size(), search.value());
 }

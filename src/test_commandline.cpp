@@ -1,20 +1,20 @@
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include "config.hpp"
 #include "avs_standalone.hpp"
+#include "config.hpp"
 
 using ::testing::ElementsAre;
 
 TEST(Cmdline, ConfigParsingWorks) {
-   load_config();
+    load_config();
 
-   EXPECT_EQ(config.verbose_logs, 1);
-   EXPECT_EQ(config.developer_mode, 1);
-   EXPECT_EQ(config.disable, 1);
-   EXPECT_EQ(config.logfile, "some logfile.log");
-   EXPECT_THAT(config.allowlist, ElementsAre("allowed", "these folders"));
-   EXPECT_THAT(config.blocklist, ElementsAre("blocked", "these folders"));
-   EXPECT_EQ(config.get_mod_folder(), "./some modfolder");
-   EXPECT_EQ(config.get_mod_folder_native(), ".\\some modfolder");
+    EXPECT_EQ(config.verbose_logs, 1);
+    EXPECT_EQ(config.developer_mode, 1);
+    EXPECT_EQ(config.disable, 1);
+    EXPECT_EQ(config.logfile, "some logfile.log");
+    EXPECT_THAT(config.allowlist, ElementsAre("allowed", "these folders"));
+    EXPECT_THAT(config.blocklist, ElementsAre("blocked", "these folders"));
+    EXPECT_EQ(config.get_mod_folder(), "./some modfolder");
+    EXPECT_EQ(config.get_mod_folder_native(), ".\\some modfolder");
 }

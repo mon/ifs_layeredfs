@@ -1,8 +1,10 @@
 #pragma once
 
 #include <windows.h>
+
 #include <optional>
 #include <unordered_set>
+
 #include "avs.hpp"
 #include "log.hpp"
 #include "modpath_handler.hpp"
@@ -11,15 +13,16 @@
 extern std::filesystem::file_time_type dll_time;
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags);
-int hook_avs_fs_lstat(const char* name, struct avs_stat *st);
+int hook_avs_fs_lstat(const char* name, struct avs_stat* st);
 int hook_avs_fs_convert_path(char dest_name[256], const char* name);
-int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* flags);
+int hook_avs_fs_mount(
+    const char* mountpoint, const char* fsroot, const char* fstype, const char* flags);
 size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes);
 
-std::unordered_set<istring> list_pngs(NormPath const&folder);
+std::unordered_set<istring> list_pngs(NormPath const& folder);
 
 extern "C" {
-    __declspec(dllexport) int init();
+__declspec(dllexport) int init();
 }
 
 // Used to simplify file opens - pkfs/avs_fs have different signatures, but
@@ -31,7 +34,7 @@ extern "C" {
 // evidence the games are using XMLs in a way that anybody would want to mod.
 // May this decision not bite me later...
 class HookFile {
-    public:
+  public:
     // The original path requested by the game
     const istring path;
     const NormPath norm_path;
@@ -48,9 +51,7 @@ class HookFile {
     // Load the mod_path (if available) or path into a vector
     virtual std::optional<std::vector<uint8_t>> load_to_vec() = 0;
 
-    const istring& get_path_to_open() {
-        return mod_path ? *mod_path : path;
-    }
+    const istring& get_path_to_open() { return mod_path ? *mod_path : path; }
 
     void log_if_modfile() {
         if (mod_path) {
@@ -60,20 +61,19 @@ class HookFile {
 
     // Whether this should be included in the ramfs demangler machinery (yes for
     // avs/pkfs_open, no for lstat/convert_path)
-    virtual bool ramfs_demangle() {return false;};
+    virtual bool ramfs_demangle() { return false; };
 
-    HookFile(istring &&path, NormPath &&norm_path)
+    HookFile(istring&& path, NormPath&& norm_path)
         : path(std::move(path))
         , norm_path(std::move(norm_path))
-        , mod_path(std::nullopt)
-    {}
+        , mod_path(std::nullopt) {}
     virtual ~HookFile() {}
 };
 
 class AvsHookFile : public HookFile {
     using HookFile::HookFile;
 
-    public:
+  public:
     std::optional<std::vector<uint8_t>> load_to_vec() override {
         AVS_FILE f = avs_fs_open(get_path_to_open().c_str(), avs_open_mode_read(), 420);
         if (f >= 0) {
@@ -86,18 +86,17 @@ class AvsHookFile : public HookFile {
     }
 };
 class AvsOpenHookFile final : public AvsHookFile {
-    private:
+  private:
     uint16_t mode;
     int flags;
 
-    public:
-    AvsOpenHookFile(istring &&path, NormPath &&norm_path, uint16_t mode, int flags)
+  public:
+    AvsOpenHookFile(istring&& path, NormPath&& norm_path, uint16_t mode, int flags)
         : AvsHookFile(std::move(path), std::move(norm_path))
         , mode(mode)
-        , flags(flags)
-    {}
+        , flags(flags) {}
 
-    bool ramfs_demangle() override {return true;};
+    bool ramfs_demangle() override { return true; };
 
     uint32_t call_real() override {
         log_if_modfile();
@@ -106,14 +105,13 @@ class AvsOpenHookFile final : public AvsHookFile {
 };
 
 class AvsLstatHookFile final : public AvsHookFile {
-    private:
-    struct avs_stat *st;
+  private:
+    struct avs_stat* st;
 
-    public:
-    AvsLstatHookFile(istring &&path, NormPath &&norm_path, struct avs_stat *st)
+  public:
+    AvsLstatHookFile(istring&& path, NormPath&& norm_path, struct avs_stat* st)
         : AvsHookFile(std::move(path), std::move(norm_path))
-        , st(st)
-    {}
+        , st(st) {}
 
     uint32_t call_real() override {
         log_if_modfile();
@@ -122,14 +120,13 @@ class AvsLstatHookFile final : public AvsHookFile {
 };
 
 class AvsConvertPathHookFile final : public AvsHookFile {
-    private:
-    char *dest_name;
+  private:
+    char* dest_name;
 
-    public:
-    AvsConvertPathHookFile(istring &&path, NormPath &&norm_path, char *dest_name)
+  public:
+    AvsConvertPathHookFile(istring&& path, NormPath&& norm_path, char* dest_name)
         : AvsHookFile(std::move(path), std::move(norm_path))
-        , dest_name(dest_name)
-    {}
+        , dest_name(dest_name) {}
 
     uint32_t call_real() override {
         log_if_modfile();
@@ -138,4 +135,4 @@ class AvsConvertPathHookFile final : public AvsHookFile {
 };
 
 // for the tests
-void handle_arc(HookFile &file);
+void handle_arc(HookFile& file);

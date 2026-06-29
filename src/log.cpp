@@ -1,13 +1,15 @@
-#include <functional>
-#include <mutex>
+#include "log.hpp"
+
 #include <stdio.h>
 
+#include <functional>
+#include <mutex>
+
 #include "config.hpp"
-#include "log.hpp"
 
 #define SUPPRESS_PRINTF
 
-void stdout_log(char level, const char *fmt, va_list args) {
+void stdout_log(char level, const char* fmt, va_list args) {
     printf("%c:", level);
     vprintf(fmt, args);
     printf("\n");
@@ -35,12 +37,12 @@ static void log_to_file(char level, const char* fmt, va_list args) {
         vfprintf(logfile, fmt, args);
         fprintf(logfile, "\n");
 
-        if(config.developer_mode || level == 'F')
+        if (config.developer_mode || level == 'F')
             fflush(logfile);
     }
 }
 
-void default_log_body_fatal(const char *module, const char *fmt, ...) {
+void default_log_body_fatal(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_to_file('F', fmt, args);
@@ -48,31 +50,31 @@ void default_log_body_fatal(const char *module, const char *fmt, ...) {
 
     abort();
 }
-void default_log_body_warning(const char *module, const char *fmt, ...) {
+void default_log_body_warning(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_to_file('W', fmt, args);
     va_end(args);
 }
-void default_log_body_info(const char *module, const char *fmt, ...) {
+void default_log_body_info(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_to_file('I', fmt, args);
     va_end(args);
 }
-void default_log_body_misc(const char *module, const char *fmt, ...) {
+void default_log_body_misc(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_to_file('M', fmt, args);
     va_end(args);
 }
 
-log_formatter_t imp_log_body_fatal = default_log_body_fatal;
+log_formatter_t imp_log_body_fatal   = default_log_body_fatal;
 log_formatter_t imp_log_body_warning = default_log_body_warning;
-log_formatter_t imp_log_body_info = default_log_body_info;
-log_formatter_t imp_log_body_misc = default_log_body_misc;
+log_formatter_t imp_log_body_info    = default_log_body_info;
+log_formatter_t imp_log_body_misc    = default_log_body_misc;
 
-void stdout_log_body_fatal(const char *module, const char *fmt, ...) {
+void stdout_log_body_fatal(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     stdout_log('F', fmt, args);
@@ -80,19 +82,19 @@ void stdout_log_body_fatal(const char *module, const char *fmt, ...) {
 
     abort();
 }
-void stdout_log_body_warning(const char *module, const char *fmt, ...) {
+void stdout_log_body_warning(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     stdout_log('W', fmt, args);
     va_end(args);
 }
-void stdout_log_body_info(const char *module, const char *fmt, ...) {
+void stdout_log_body_info(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     stdout_log('I', fmt, args);
     va_end(args);
 }
-void stdout_log_body_misc(const char *module, const char *fmt, ...) {
+void stdout_log_body_misc(const char* module, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     stdout_log('M', fmt, args);
@@ -100,8 +102,8 @@ void stdout_log_body_misc(const char *module, const char *fmt, ...) {
 }
 
 void log_to_stdout() {
-    imp_log_body_fatal = stdout_log_body_fatal;
+    imp_log_body_fatal   = stdout_log_body_fatal;
     imp_log_body_warning = stdout_log_body_warning;
-    imp_log_body_info = stdout_log_body_info;
-    imp_log_body_misc = stdout_log_body_misc;
+    imp_log_body_info    = stdout_log_body_info;
+    imp_log_body_misc    = stdout_log_body_misc;
 }

@@ -6,14 +6,13 @@
 
 using namespace rbp;
 
-bool pack_textures(std::vector<Bitmap> &textures, std::vector<Packer> &packed_textures) {
+bool pack_textures(std::vector<Bitmap>& textures, std::vector<Packer>& packed_textures) {
     std::sort(textures.begin(), textures.end(), [](const Bitmap& a, const Bitmap& b) {
         return (a.width * a.height) < (b.width * b.height);
     });
 
-    //Pack the bitmaps
-    while (!textures.empty())
-    {
+    // Pack the bitmaps
+    while (!textures.empty()) {
         auto packer = Packer(MAX_TEXTURE);
         packer.Pack(textures);
 
@@ -28,20 +27,16 @@ bool pack_textures(std::vector<Bitmap> &textures, std::vector<Packer> &packed_te
 }
 
 Packer::Packer(int max_size)
-    : width(max_size), height(max_size)
-{
+    : width(max_size)
+    , height(max_size) {}
 
-}
-
-void Packer::Pack(std::vector<Bitmap> &bitmaps)
-{
+void Packer::Pack(std::vector<Bitmap>& bitmaps) {
     GuillotineBinPack packer(width, height);
 
     int ww = 0;
     int hh = 0;
-    while (!bitmaps.empty())
-    {
-        auto &bitmap = bitmaps.back();
+    while (!bitmaps.empty()) {
+        auto& bitmap = bitmaps.back();
 
         Rect rect = packer.Insert(bitmap.width, bitmap.height, false,
             GuillotineBinPack::FreeRectChoiceHeuristic::RectBestAreaFit,

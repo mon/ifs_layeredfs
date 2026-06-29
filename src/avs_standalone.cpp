@@ -6,21 +6,21 @@
 #include "hook.hpp"
 #include "log.hpp"
 
-namespace avs_standalone
-{
+namespace avs_standalone {
 
-typedef void (*avs_log_writer_t)(const char *chars, uint32_t nchars, void *ctx);
+typedef void (*avs_log_writer_t)(const char* chars, uint32_t nchars, void* ctx);
 
-static LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo);
-static size_t read_boot_cfg(int32_t context, void *dst_buf, size_t count);
-static void log_writer(const char *chars, uint32_t nchars, void *ctx);
+static LONG WINAPI exc_handler(_EXCEPTION_POINTERS* ExceptionInfo);
+static size_t read_boot_cfg(int32_t context, void* dst_buf, size_t count);
+static void log_writer(const char* chars, uint32_t nchars, void* ctx);
 
-#define FOREACH_EXTRA_FUNC(X)                                                                                                                              \
-    X("XCgsqzn0000129", void, avs_boot, node_t config, void *com_heap, size_t sz_com_heap, void *reserved, avs_log_writer_t log_writer, void *log_context) \
-    X("XCgsqzn000012a", void, avs_shutdown)                                                                                                                \
-    X("XCgsqzn00000a1", node_t, property_search, property_t prop, node_t node, const char *path)                                                           \
-    X("XCgsqzn0000048", int, avs_fs_addfs, void *filesys)                                                                                                  \
-    X("XCgsqzn0000159", void *, avs_filesys_ramfs)
+#define FOREACH_EXTRA_FUNC(X)                                                                      \
+    X("XCgsqzn0000129", void, avs_boot, node_t config, void* com_heap, size_t sz_com_heap,         \
+        void* reserved, avs_log_writer_t log_writer, void* log_context)                            \
+    X("XCgsqzn000012a", void, avs_shutdown)                                                        \
+    X("XCgsqzn00000a1", node_t, property_search, property_t prop, node_t node, const char* path)   \
+    X("XCgsqzn0000048", int, avs_fs_addfs, void* filesys)                                          \
+    X("XCgsqzn0000159", void*, avs_filesys_ramfs)
 
 #define AVS_FUNC_PTR(obfus_name, ret_type, name, ...) ret_type (*name)(__VA_ARGS__);
 FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
@@ -35,7 +35,7 @@ bool boot(bool _print_logs) {
 
     log_to_stdout();
 
-    if(!load_dll()) {
+    if (!load_dll()) {
         log_fatal("DLL load failed");
         return false;
     }
@@ -51,7 +51,8 @@ bool boot(bool _print_logs) {
         return false;
     }
     auto buffer = malloc(prop_len);
-    auto avs_config = property_create(PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND, buffer, prop_len);
+    auto avs_config =
+        property_create(PROP_READ | PROP_WRITE | PROP_CREATE | PROP_APPEND, buffer, prop_len);
     if (!avs_config) {
         log_fatal("cannot create property");
         return false;
@@ -63,7 +64,7 @@ bool boot(bool _print_logs) {
     }
 
     auto avs_config_root = property_search(avs_config, 0, "/config");
-    if(!avs_config_root) {
+    if (!avs_config_root) {
         log_fatal("no root config node");
         return false;
     }
@@ -75,22 +76,17 @@ bool boot(bool _print_logs) {
     return true;
 }
 
-void shutdown() {
-    avs_shutdown();
-}
+void shutdown() { avs_shutdown(); }
 
-#define LOAD_FUNC(obfus_name, ret_type, name, ...)                 \
-    if (!(name = (decltype(name))GetProcAddress(avs, obfus_name))) \
-    {                                                              \
-        log_fatal("avs_standalone: couldn't get " #name);          \
-        return false;                                              \
+#define LOAD_FUNC(obfus_name, ret_type, name, ...)                                                 \
+    if (!(name = (decltype(name))GetProcAddress(avs, obfus_name))) {                               \
+        log_fatal("avs_standalone: couldn't get " #name);                                          \
+        return false;                                                                              \
     }
 
-bool load_dll()
-{
+bool load_dll() {
     auto avs = LoadLibraryA("avs2-core.dll");
-    if (!avs)
-    {
+    if (!avs) {
         log_fatal("Playpen: Couldn't load avs dll");
         return false;
     }
@@ -100,8 +96,7 @@ bool load_dll()
     return true;
 }
 
-void log_writer(const char *chars, uint32_t nchars, void *ctx)
-{
+void log_writer(const char* chars, uint32_t nchars, void* ctx) {
     if (!g_print_logs)
         return;
 
@@ -142,27 +137,23 @@ static const std::string_view boot_cfg = R"(<?xml version="1.0" encoding="SHIFT_
 )";
 static std::string_view boot_cfg_reader;
 
-static void reset_boot_cfg_reader() {
-    boot_cfg_reader = boot_cfg;
-}
+static void reset_boot_cfg_reader() { boot_cfg_reader = boot_cfg; }
 
-static size_t read_boot_cfg(int32_t context, void *dst_buf, size_t count)
-{
+static size_t read_boot_cfg(int32_t context, void* dst_buf, size_t count) {
     count = std::min(count, boot_cfg_reader.size());
     memcpy(dst_buf, boot_cfg_reader.data(), count);
     boot_cfg_reader.remove_prefix(count);
     return count;
 }
 
-LONG WINAPI exc_handler(_EXCEPTION_POINTERS *ExceptionInfo) {
-    switch(ExceptionInfo->ExceptionRecord->ExceptionCode) {
+LONG WINAPI exc_handler(_EXCEPTION_POINTERS* ExceptionInfo) {
+    switch (ExceptionInfo->ExceptionRecord->ExceptionCode) {
         case DBG_PRINTEXCEPTION_C:
             break;
         default:
             log_warning("Unhandled exception code {:#x} at {:p}",
                 ExceptionInfo->ExceptionRecord->ExceptionCode,
-                ExceptionInfo->ExceptionRecord->ExceptionAddress
-            );
+                ExceptionInfo->ExceptionRecord->ExceptionAddress);
             break;
     }
 

@@ -27,7 +27,7 @@ constexpr uint32_t ARC_VERSION           = 1;
 constexpr uint32_t ARC_COMPRESSION_NONE  = 0;
 constexpr uint32_t ARC_COMPRESSION_AVSLZ = 2;
 
-std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
+std::optional<ArcArchive> ArcArchive::from_stream(std::istream& stream) {
     ArcHeader hdr;
     if (!stream.read(reinterpret_cast<char*>(&hdr), sizeof(hdr))) {
         log_warning("arc: couldn't read header");
@@ -49,7 +49,7 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
     }
 
     ArcArchive arc;
-    for (auto &e : entries) {
+    for (auto& e : entries) {
         stream.seekg(e.str_offset);
         std::string _name;
         std::getline(stream, _name, '\0');
@@ -83,9 +83,7 @@ void ArcArchive::add_or_replace(istring const& name, std::vector<uint8_t> data) 
 
 static constexpr uint32_t ARC_ALIGN = 64;
 
-static uint32_t align_up(uint32_t v, uint32_t align) {
-    return (v + align - 1) & ~(align - 1);
-}
+static uint32_t align_up(uint32_t v, uint32_t align) { return (v + align - 1) & ~(align - 1); }
 
 bool ArcArchive::save(const char* path) {
     std::ofstream f(path, std::ios::binary);
@@ -100,7 +98,7 @@ bool ArcArchive::save(const char* path) {
     std::vector<uint32_t> str_offsets;
     str_offsets.reserve(filecount);
     uint32_t str_cursor = str_table_offset;
-    for (auto &[name, _] : files) {
+    for (auto& [name, _] : files) {
         str_offsets.push_back(str_cursor);
         str_cursor += (uint32_t)name.size() + 1;
     }
@@ -109,7 +107,7 @@ bool ArcArchive::save(const char* path) {
     std::vector<uint32_t> file_offsets;
     file_offsets.reserve(filecount);
     uint32_t data_cursor = data_start;
-    for (auto &[_, data] : files) {
+    for (auto& [_, data] : files) {
         file_offsets.push_back(data_cursor);
         data_cursor = align_up(data_cursor + (uint32_t)data.size(), ARC_ALIGN);
     }
@@ -118,7 +116,7 @@ bool ArcArchive::save(const char* path) {
     f.write(reinterpret_cast<char*>(&hdr), sizeof(hdr));
 
     size_t i = 0;
-    for (auto &[_, data] : files) {
+    for (auto& [_, data] : files) {
         ArcEntry e;
         e.str_offset    = str_offsets[i];
         e.file_offset   = file_offsets[i];
@@ -128,15 +126,15 @@ bool ArcArchive::save(const char* path) {
         i++;
     }
 
-    for (auto &[name, _] : files) {
+    for (auto& [name, _] : files) {
         f.write(name.c_str(), name.size() + 1);
     }
 
     static const char zeros[ARC_ALIGN] = {};
-    uint32_t initial_pad = data_start - str_cursor;
+    uint32_t initial_pad               = data_start - str_cursor;
     f.write(zeros, initial_pad);
 
-    for (auto &[_, data] : files) {
+    for (auto& [_, data] : files) {
         f.write(reinterpret_cast<const char*>(data.data()), data.size());
         uint32_t pad = align_up((uint32_t)data.size(), ARC_ALIGN) - (uint32_t)data.size();
         f.write(zeros, pad);

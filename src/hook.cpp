@@ -1,31 +1,33 @@
-#include <filesystem>
-#include <stdint.h>
-#include <system_error>
-#include <windows.h>
-#include <winternl.h>
-
 #include "hook.hpp"
 
+#include <windows.h>
+
+#include <stdint.h>
+#include <winternl.h>
+
+#include <filesystem>
+#include <system_error>
+
 // all good code mixes C and C++, right?
-#include <unordered_set>
 #include <algorithm>
 #include <map>
 #include <ranges>
 #include <set>
 #include <sstream>
+#include <unordered_set>
 
 #include "3rd_party/MinHook.h"
 
-#include "ramfs_demangler.hpp"
+#include "arc.hpp"
+#include "avs.hpp"
 #include "buildconfig.hpp"
 #include "config.hpp"
-#include "log.hpp"
 #include "imagefs.hpp"
-#include "texbin.hpp"
-#include "arc.hpp"
-#include "utils.hpp"
-#include "avs.hpp"
+#include "log.hpp"
 #include "modpath_handler.hpp"
+#include "ramfs_demangler.hpp"
+#include "texbin.hpp"
+#include "utils.hpp"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"
@@ -41,24 +43,23 @@
 // used by pkfs hooks - we don't want to hook avs_fs_open if we just hooked pkfs
 thread_local static bool inside_pkfs_hook;
 
-unsigned int (*pkfs_fs_open)(const char *path);
-unsigned int (*pkfs_fs_fstat)(unsigned int f, struct avs_stat *stat);
-unsigned int (*pkfs_fs_read)(unsigned int f, void *buf, int sz);
+unsigned int (*pkfs_fs_open)(const char* path);
+unsigned int (*pkfs_fs_fstat)(unsigned int f, struct avs_stat* stat);
+unsigned int (*pkfs_fs_read)(unsigned int f, void* buf, int sz);
 unsigned int (*pkfs_fs_close)(unsigned int f);
 void (*pkfs_clear_hdd_error)();
 
 class PkfsHookFile final : public HookFile {
-    public:
-    PkfsHookFile(istring &&path, NormPath &&norm_path)
-        : HookFile(std::move(path), std::move(norm_path))
-    {}
+  public:
+    PkfsHookFile(istring&& path, NormPath&& norm_path)
+        : HookFile(std::move(path), std::move(norm_path)) {}
 
-    bool ramfs_demangle() override {return false;};
+    bool ramfs_demangle() override { return false; };
 
     uint32_t call_real() override {
         log_if_modfile();
         auto ret = pkfs_fs_open(get_path_to_open().c_str());
-        if(ret == 0) {
+        if (ret == 0) {
             log_verbose("pkfs_fs_open({}) failed in call_real", get_path_to_open());
         }
         return ret;
@@ -82,7 +83,8 @@ class PkfsHookFile final : public HookFile {
             // This of course is racey, so if there is a *real* error in another
             // thread, this resets it. But it's a tight race, and I'll take that
             // chance.
-            log_verbose("pkfs_open({}) failed in load_to_vec, clearing HDD error", get_path_to_open());
+            log_verbose(
+                "pkfs_open({}) failed in load_to_vec, clearing HDD error", get_path_to_open());
             pkfs_clear_hdd_error();
             return std::nullopt;
         }
@@ -90,7 +92,7 @@ class PkfsHookFile final : public HookFile {
 };
 
 // this should probably be part of the modpath h/cpp
-void list_pngs_onefolder(std::unordered_set<istring> &names, istring const&folder) {
+void list_pngs_onefolder(std::unordered_set<istring>& names, istring const& folder) {
     std::error_code err;
     for (const auto& entry : std::filesystem::directory_iterator(folder, err)) {
         if (!entry.is_regular_file())
@@ -104,10 +106,10 @@ void list_pngs_onefolder(std::unordered_set<istring> &names, istring const&folde
     }
 }
 
-std::unordered_set<istring> list_pngs(NormPath const&folder) {
+std::unordered_set<istring> list_pngs(NormPath const& folder) {
     std::unordered_set<istring> ret;
 
-    for (auto &mod : available_mods()) {
+    for (auto& mod : available_mods()) {
         auto path = mod / folder;
         list_pngs_onefolder(ret, path);
         list_pngs_onefolder(ret, path / "tex");
@@ -129,7 +131,8 @@ struct ArcModScan {
     std::set<istring> inner_ifs_paths;
 };
 
-static void scan_arc_mod_onefolder(ArcModScan &out, istring const& mod_folder, NormPath const& folder, istring const& rel_prefix = "") {
+static void scan_arc_mod_onefolder(ArcModScan& out, istring const& mod_folder,
+    NormPath const& folder, istring const& rel_prefix = "") {
     // don't do a recursive iterator, makes it more awkward to skip the _ifs folders
     std::error_code err;
     for (const auto& entry : std::filesystem::directory_iterator(mod_folder / folder, err)) {
@@ -141,30 +144,24 @@ static void scan_arc_mod_onefolder(ArcModScan &out, istring const& mod_folder, N
                 continue;
             }
 
-            scan_arc_mod_onefolder(out,
-                mod_folder,
-                folder / name,
-                rel_prefix + name + "/");
+            scan_arc_mod_onefolder(out, mod_folder, folder / name, rel_prefix + name + "/");
         } else if (entry.is_regular_file()) {
             istring rel = rel_prefix + name;
             if (out.files.find(rel) == out.files.end())
-                out.files[rel] = std::make_pair(
-                    mod_folder / folder / name,
-                    folder / name
-                );
+                out.files[rel] = std::make_pair(mod_folder / folder / name, folder / name);
         }
     }
 }
 
 static ArcModScan scan_arc_mod_folder(NormPath const& folder) {
     ArcModScan ret;
-    for (auto &mod : available_mods()) {
+    for (auto& mod : available_mods()) {
         scan_arc_mod_onefolder(ret, mod, folder);
     }
     return ret;
 }
 
-void handle_arc(HookFile &file) {
+void handle_arc(HookFile& file) {
     Timer timer;
 
     auto arc_mod_path = file.norm_path;
@@ -182,7 +179,8 @@ void handle_arc(HookFile &file) {
 
     for (auto const& inner_rel : scan.inner_ifs_paths) {
         auto pos = inner_rel.rfind('/');
-        istring basename = (pos == std::string::npos) ? inner_rel : istring(inner_rel.substr(pos + 1));
+        istring basename =
+            (pos == std::string::npos) ? inner_rel : istring(inner_rel.substr(pos + 1));
         istring demangled = istring("data") / arc_mod_path / inner_rel;
         ramfs_demangler_register_arc_inner_ifs(basename.downcast_ref(), demangled.downcast_ref());
     }
@@ -191,12 +189,12 @@ void handle_arc(HookFile &file) {
         return;
     }
 
-    auto out = config.get_cache_folder() / file.norm_path;
+    auto out          = config.get_cache_folder() / file.norm_path;
     auto cache_hasher = CacheHasher(out + ".hashed");
 
     auto starting = file.get_path_to_open();
     cache_hasher.add(starting);
-    for (auto &[_, path] : scan.files) {
+    for (auto& [_, path] : scan.files) {
         cache_hasher.add(path.first);
     }
     cache_hasher.finish();
@@ -211,7 +209,7 @@ void handle_arc(HookFile &file) {
     ArcArchive arc;
     auto _orig_data = file.load_to_vec();
     if (_orig_data) {
-        auto &orig_data = *_orig_data;
+        auto& orig_data = *_orig_data;
         std::istringstream stream(std::string((char*)orig_data.data(), orig_data.size()));
         auto _arc = ArcArchive::from_stream(stream);
         if (!_arc) {
@@ -232,14 +230,14 @@ void handle_arc(HookFile &file) {
     // TODO: this is a terrible hack really. XML merging assumes the file
     // exists on disk, so we need to make it so if it only exists inside of
     // the original .arc file
-    for (const auto &arc_file : arc.files) {
+    for (const auto& arc_file : arc.files) {
         if (!arc_file.first.ends_with(".xml")) {
             continue;
         }
 
         // do we have an overlaid base xml? If so, nothing to do
         bool found = false;
-        for (auto &[name, path] : scan.files) {
+        for (auto& [name, path] : scan.files) {
             // TODO: more hacks, make these paths less insane
             auto parent_pos = path.second.find("/");
             if (parent_pos == path.second.npos) {
@@ -256,20 +254,19 @@ void handle_arc(HookFile &file) {
         if (found)
             continue;
 
-
         // Do we have XMLs to merge? Only then, extract to cache and add a fake
         // extra entry. We don't need to add this particular file to the cache
         // because it gets its key off the original .arc file
         auto merged_fname = arc_file.first;
         merged_fname.replace_suffix(".xml", ".merged.xml");
         decltype(scan.files) extra_files;
-        for (auto &[name, path] : scan.files) {
+        for (auto& [name, path] : scan.files) {
             // TODO: more hacks, make these paths less insane
             auto parent_pos = path.second.find("/");
             if (parent_pos == path.second.npos) {
                 continue;
             }
-            auto path_noparent = path.second.substr(parent_pos + 1);
+            auto path_noparent   = path.second.substr(parent_pos + 1);
             auto path_justparent = path.second.substr(0, parent_pos);
 
             if (_stricmp(merged_fname.c_str(), path_noparent.c_str())) {
@@ -293,11 +290,11 @@ void handle_arc(HookFile &file) {
             }
             extra_files.emplace(arc_file.first, std::make_pair(xml_orig, xml_orig_norm));
         }
-        for (auto &[name, path] : extra_files)
+        for (auto& [name, path] : extra_files)
             scan.files.emplace(name, std::move(path));
     }
 
-    for (auto &[name, path] : scan.files) {
+    for (auto& [name, path] : scan.files) {
         if (name.ends_with(".merged.xml"))
             continue;
 
@@ -326,7 +323,7 @@ void handle_arc(HookFile &file) {
     log_misc("arc generation took {}", timer.elapsed());
 }
 
-void handle_texbin(HookFile &file) {
+void handle_texbin(HookFile& file) {
     Timer timer;
 
     auto bin_mod_path = file.norm_path;
@@ -349,21 +346,20 @@ void handle_texbin(HookFile &file) {
     // pairs of texname / mod path
     std::vector<std::pair<istring, istring>> pngs_list;
     pngs_list.reserve(pngs.size());
-    for (auto it = pngs.begin(); it != pngs.end(); ) {
-        auto png = std::move(pngs.extract(it++).value());
+    for (auto it = pngs.begin(); it != pngs.end();) {
+        auto png     = std::move(pngs.extract(it++).value());
         auto png_res = find_first_modfile(bin_mod_path / (png + ".png"));
-        if(png_res) {
+        if (png_res) {
             // I have yet to see a texbin without allcaps names for textures
-            for (auto &c : png)
+            for (auto& c : png)
                 c = toupper_ascii(c);
 
             pngs_list.emplace_back(std::move(png), std::move(*png_res));
         }
     }
     // sort by actual filename
-    std::sort(pngs_list.begin(), pngs_list.end(), [](auto &left, auto &right) {
-        return left.second < right.second;
-    });
+    std::sort(pngs_list.begin(), pngs_list.end(),
+        [](auto& left, auto& right) { return left.second < right.second; });
 
     // nothing to do...
     if (pngs_list.size() == 0) {
@@ -371,19 +367,19 @@ void handle_texbin(HookFile &file) {
         return;
     }
 
-    auto starting = file.get_path_to_open();
-    auto out = config.get_cache_folder() / file.norm_path;
-    auto out_hashed = out + ".hashed";
+    auto starting     = file.get_path_to_open();
+    auto out          = config.get_cache_folder() / file.norm_path;
+    auto out_hashed   = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 
     cache_hasher.add(starting);
-    for (auto &[_, path] : pngs_list) {
+    for (auto& [_, path] : pngs_list) {
         cache_hasher.add(path);
     }
     cache_hasher.finish();
 
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
-    if(cache_hasher.matches()) {
+    if (cache_hasher.matches()) {
         file.mod_path = out;
         log_verbose("texbin cache up to date, skip");
         return;
@@ -397,27 +393,28 @@ void handle_texbin(HookFile &file) {
         // one extra copy which *sucks* but whatever
         std::istringstream stream(std::string((char*)&orig_data[0], orig_data.size()));
         auto _texbin = Texbin::from_stream(stream);
-        if(!_texbin) {
+        if (!_texbin) {
             log_warning("Texbin load failed, aborting modding");
             return;
         }
         texbin = *_texbin;
     } else {
-        log_info("Found texbin mods but no original file, creating from scratch: \"{}\"", file.norm_path);
+        log_info("Found texbin mods but no original file, creating from scratch: \"{}\"",
+            file.norm_path);
     }
 
     auto folder_terminator = out.rfind("/");
-    auto out_folder = out.substr(0, folder_terminator);
+    auto out_folder        = out.substr(0, folder_terminator);
     if (!mkdir_p(out_folder)) {
         log_warning("Texbin: Couldn't create output cache folder");
         return;
     }
 
-    for (auto &[tex_name, path] : pngs_list) {
+    for (auto& [tex_name, path] : pngs_list) {
         texbin.add_or_replace_image(tex_name.c_str(), path.c_str());
     }
 
-    if(!texbin.save(out.c_str())) {
+    if (!texbin.save(out.c_str())) {
         log_warning("Texbin: Couldn't create output");
         return;
     }
@@ -428,9 +425,9 @@ void handle_texbin(HookFile &file) {
     log_misc("Texbin generation took {}", timer.elapsed());
 }
 
-uint32_t handle_file_open(HookFile &file) {
+uint32_t handle_file_open(HookFile& file) {
     auto norm_copy = file.norm_path;
-    file.mod_path = find_first_modfile(norm_copy);
+    file.mod_path  = find_first_modfile(norm_copy);
 
     if (!file.mod_path) {
         // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
@@ -447,21 +444,21 @@ uint32_t handle_file_open(HookFile &file) {
         }
     }
 
-    if(file.path.ends_with(".xml")) {
+    if (file.path.ends_with(".xml")) {
         merge_xmls(file);
     }
 
-    if(file.path.ends_with(".bin")) {
+    if (file.path.ends_with(".bin")) {
         handle_texbin(file);
     }
 
-    if(file.path.ends_with(".arc")) {
+    if (file.path.ends_with(".arc")) {
         handle_arc(file);
     }
 
     if (file.path.ends_with("texturelist.xml")) {
         parse_texturelist(file);
-    } else if(file.path.ends_with("afplist.xml")) {
+    } else if (file.path.ends_with("afplist.xml")) {
         parse_afplist(file);
     } else {
         handle_texture(file);
@@ -469,14 +466,14 @@ uint32_t handle_file_open(HookFile &file) {
     }
 
     auto ret = file.call_real();
-    if(file.ramfs_demangle()) {
+    if (file.ramfs_demangle()) {
         ramfs_demangler_on_fs_open(file.path.downcast_string(), ret);
     }
     // log_verbose("(returned {})", ret);
     return ret;
 }
 
-int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
+int hook_avs_fs_lstat(const char* name, struct avs_stat* st) {
     if (name == NULL)
         return avs_fs_lstat(name, st);
 
@@ -493,7 +490,7 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     return handle_file_open(file);
 }
 
-int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
+int hook_avs_fs_convert_path(char dest_name[256], const char* name) {
     if (name == NULL)
         return avs_fs_convert_path(dest_name, name);
 
@@ -510,7 +507,8 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
     return handle_file_open(file);
 }
 
-int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* _args) {
+int hook_avs_fs_mount(
+    const char* mountpoint, const char* fsroot, const char* fstype, const char* _args) {
     std::optional<std::string_view> args = _args ? std::optional(_args) : std::nullopt;
     log_verbose("mounting {} to {} with type {} and args {}", fsroot, mountpoint, fstype, args);
     ramfs_demangler_on_fs_mount(mountpoint, fsroot, fstype, args);
@@ -532,7 +530,8 @@ size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
     return avs_fs_read(context, bytes, nbytes);
 }
 
-static DWORD (WINAPI *real_GetLongPathNameA)(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer);
+static DWORD(WINAPI* real_GetLongPathNameA)(
+    LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer);
 
 DWORD WINAPI hook_GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWORD cchBuffer) {
     // have seen massive paths in DDR World ifs-in-arc cases, e.g:
@@ -547,7 +546,8 @@ DWORD WINAPI hook_GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWO
 
     DWORD ret = real_GetLongPathNameA(lpszShortPath, lpszLongPath, cchBuffer);
 
-    if(cchBuffer == 0x80 && ret > cchBuffer && strstr(lpszShortPath, config.get_mod_folder_native().c_str()) != nullptr) {
+    if (cchBuffer == 0x80 && ret > cchBuffer &&
+        strstr(lpszShortPath, config.get_mod_folder_native().c_str()) != nullptr) {
         SetLastError(ERROR_FILE_NOT_FOUND);
         return 0;
     }
@@ -556,7 +556,7 @@ DWORD WINAPI hook_GetLongPathNameA(LPCSTR lpszShortPath, LPSTR lpszLongPath, DWO
 }
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
-    if(name == NULL || inside_pkfs_hook)
+    if (name == NULL || inside_pkfs_hook)
         return avs_fs_open(name, mode, flags);
     log_verbose("opening {} mode {} flags {}", name, mode, flags);
     // only touch reads
@@ -575,7 +575,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     return handle_file_open(file);
 }
 
-unsigned int hook_pkfs_open(const char *name) {
+unsigned int hook_pkfs_open(const char* name) {
     log_verbose("pkfs_open {}", name);
 
     std::string path = name;
@@ -595,12 +595,12 @@ unsigned int hook_pkfs_open(const char *name) {
 
     if (g_build_config.pkfs_unpack) {
         std::filesystem::path pakdump_loc(fmt::format("./data_unpak/{}", file.norm_path));
-        if(!std::filesystem::is_regular_file(pakdump_loc)) {
+        if (!std::filesystem::is_regular_file(pakdump_loc)) {
             auto data = file.load_to_vec();
-            if(data) {
+            if (data) {
                 auto out_folder = pakdump_loc.parent_path();
-                if(mkdir_p(out_folder)) {
-                    if(write_bytes(pakdump_loc, *data)) {
+                if (mkdir_p(out_folder)) {
+                    if (write_bytes(pakdump_loc, *data)) {
                         log_info("Dumped new pkfs file!");
                     } else {
                         log_warning("Pakdump: Couldn't open output file {}", pakdump_loc);
@@ -612,104 +612,112 @@ unsigned int hook_pkfs_open(const char *name) {
         }
     }
 
-    auto ret = handle_file_open(file);
+    auto ret         = handle_file_open(file);
     inside_pkfs_hook = false;
     return ret;
 }
 
 static void dump_loaded_dll_info() {
     log_verbose("DLLs loaded:");
-    auto peb = NtCurrentTeb()->ProcessEnvironmentBlock;
-    auto head = peb->Ldr->InMemoryOrderModuleList.Flink;
+    auto peb   = NtCurrentTeb()->ProcessEnvironmentBlock;
+    auto head  = peb->Ldr->InMemoryOrderModuleList.Flink;
     bool first = true;
-    for(auto mod = head; mod && (first || mod != head); mod = mod->Flink) {
+    for (auto mod = head; mod && (first || mod != head); mod = mod->Flink) {
         auto ldr = reinterpret_cast<PLDR_DATA_TABLE_ENTRY>(mod);
-        std::string narrow_dll_name(ldr->FullDllName.Buffer, ldr->FullDllName.Buffer + ldr->FullDllName.Length);
+        std::string narrow_dll_name(
+            ldr->FullDllName.Buffer, ldr->FullDllName.Buffer + ldr->FullDllName.Length);
         log_verbose("  {}", narrow_dll_name);
         first = false;
     }
 }
 
 extern "C" {
-    __declspec(dllexport) int init() {
-        // all logs up until init_avs succeeds will go to a file for debugging purposes
+__declspec(dllexport) int init() {
+    // all logs up until init_avs succeeds will go to a file for debugging purposes
 
-        // find out where we're logging to
-        load_config();
+    // find out where we're logging to
+    load_config();
 
-        if (MH_Initialize() != MH_OK) {
-            dump_loaded_dll_info();
-            log_fatal("Couldn't initialize MinHook");
-            return 1;
-        }
-
-        if (!init_avs()) {
-            dump_loaded_dll_info();
-            log_fatal("Couldn't find ifs operations in dll. Send avs dll (libavs-winxx.dll or avs2-core.dll) to mon.");
-            return 2;
-        }
-
-        // re-route to AVS logs if no external file specified
-        if(!config.logfile) {
-            imp_log_body_fatal = log_body_fatal;
-            imp_log_body_warning = log_body_warning;
-            imp_log_body_info = log_body_info;
-            imp_log_body_misc = log_body_misc;
-        }
-
-        // now we can say hello!
-        log_info("IFS layeredFS v" VERSION " init");
-        if (g_build_config.special_ver)
-            log_info("Build config: {}", *g_build_config.special_ver);
-        log_info("AVS DLL detected: {}", avs_loaded_dll_name);
-        print_config();
-        if (g_build_config.pkfs_unpack)
-            log_info(".pak dumper mode enabled");
-
+    if (MH_Initialize() != MH_OK) {
         dump_loaded_dll_info();
-
-        init_modpath_handler();
-        cache_mods();
-
-        // hook pkfs, not big enough to be its own file
-        if(MH_CreateHookApi(L"libpackfs.dll", "?pkfs_fs_open@@YAIPBD@Z", (LPVOID)&hook_pkfs_open, (LPVOID*)&pkfs_fs_open) == MH_OK) {
-            auto mod = GetModuleHandleA("libpackfs.dll");
-            pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "?pkfs_fs_fstat@@YAEIPAUT_AVS_FS_STAT@@@Z");
-            pkfs_fs_read = (decltype(pkfs_fs_read))GetProcAddress(mod, "?pkfs_fs_read@@YAHIPAXH@Z");
-            pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "?pkfs_fs_close@@YAHI@Z");
-            pkfs_clear_hdd_error = (decltype(pkfs_clear_hdd_error))GetProcAddress(mod, "?pkfs_clear_hdd_error@@YAXXZ");
-        } else if(MH_CreateHookApi(L"pkfs.dll", "pkfs_fs_open", (LPVOID)&hook_pkfs_open, (LPVOID*)&pkfs_fs_open) == MH_OK) {
-            // jubeat DLL has no mangling - only one of these will succeed (if at all)
-            auto mod = GetModuleHandleA("pkfs.dll");
-            pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "pkfs_fs_fstat");
-            pkfs_fs_read = (decltype(pkfs_fs_read))GetProcAddress(mod, "pkfs_fs_read");
-            pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "pkfs_fs_close");
-            pkfs_clear_hdd_error = (decltype(pkfs_clear_hdd_error))GetProcAddress(mod, "pkfs_clear_hdd_error");
-        }
-
-        if(pkfs_fs_open) {
-            if(pkfs_fs_fstat && pkfs_fs_read && pkfs_fs_close && pkfs_clear_hdd_error) {
-                log_info("pkfs hooks activated");
-            } else {
-                log_fatal("Couldn't fully init pkfs hook - open an issue!");
-            }
-        }
-
-        if (MH_CreateHookApi(L"kernel32.dll", "GetLongPathNameA", (LPVOID)&hook_GetLongPathNameA, (LPVOID*)&real_GetLongPathNameA) != MH_OK) {
-            log_warning("Couldn't hook GetLongPathNameA");
-        }
-
-        if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
-            log_warning("Couldn't enable hooks");
-            return 2;
-        }
-        log_info("Hook DLL init success");
-
-        log_info("Detected mod folders:");
-        for (auto &p : available_mods()) {
-            log_info("{}", p);
-        }
-
-        return 0;
+        log_fatal("Couldn't initialize MinHook");
+        return 1;
     }
+
+    if (!init_avs()) {
+        dump_loaded_dll_info();
+        log_fatal("Couldn't find ifs operations in dll. Send avs dll (libavs-winxx.dll or "
+                  "avs2-core.dll) to mon.");
+        return 2;
+    }
+
+    // re-route to AVS logs if no external file specified
+    if (!config.logfile) {
+        imp_log_body_fatal   = log_body_fatal;
+        imp_log_body_warning = log_body_warning;
+        imp_log_body_info    = log_body_info;
+        imp_log_body_misc    = log_body_misc;
+    }
+
+    // now we can say hello!
+    log_info("IFS layeredFS v" VERSION " init");
+    if (g_build_config.special_ver)
+        log_info("Build config: {}", *g_build_config.special_ver);
+    log_info("AVS DLL detected: {}", avs_loaded_dll_name);
+    print_config();
+    if (g_build_config.pkfs_unpack)
+        log_info(".pak dumper mode enabled");
+
+    dump_loaded_dll_info();
+
+    init_modpath_handler();
+    cache_mods();
+
+    // hook pkfs, not big enough to be its own file
+    if (MH_CreateHookApi(L"libpackfs.dll", "?pkfs_fs_open@@YAIPBD@Z", (LPVOID)&hook_pkfs_open,
+            (LPVOID*)&pkfs_fs_open) == MH_OK) {
+        auto mod      = GetModuleHandleA("libpackfs.dll");
+        pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(
+            mod, "?pkfs_fs_fstat@@YAEIPAUT_AVS_FS_STAT@@@Z");
+        pkfs_fs_read  = (decltype(pkfs_fs_read))GetProcAddress(mod, "?pkfs_fs_read@@YAHIPAXH@Z");
+        pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "?pkfs_fs_close@@YAHI@Z");
+        pkfs_clear_hdd_error =
+            (decltype(pkfs_clear_hdd_error))GetProcAddress(mod, "?pkfs_clear_hdd_error@@YAXXZ");
+    } else if (MH_CreateHookApi(L"pkfs.dll", "pkfs_fs_open", (LPVOID)&hook_pkfs_open,
+                   (LPVOID*)&pkfs_fs_open) == MH_OK) {
+        // jubeat DLL has no mangling - only one of these will succeed (if at all)
+        auto mod      = GetModuleHandleA("pkfs.dll");
+        pkfs_fs_fstat = (decltype(pkfs_fs_fstat))GetProcAddress(mod, "pkfs_fs_fstat");
+        pkfs_fs_read  = (decltype(pkfs_fs_read))GetProcAddress(mod, "pkfs_fs_read");
+        pkfs_fs_close = (decltype(pkfs_fs_close))GetProcAddress(mod, "pkfs_fs_close");
+        pkfs_clear_hdd_error =
+            (decltype(pkfs_clear_hdd_error))GetProcAddress(mod, "pkfs_clear_hdd_error");
+    }
+
+    if (pkfs_fs_open) {
+        if (pkfs_fs_fstat && pkfs_fs_read && pkfs_fs_close && pkfs_clear_hdd_error) {
+            log_info("pkfs hooks activated");
+        } else {
+            log_fatal("Couldn't fully init pkfs hook - open an issue!");
+        }
+    }
+
+    if (MH_CreateHookApi(L"kernel32.dll", "GetLongPathNameA", (LPVOID)&hook_GetLongPathNameA,
+            (LPVOID*)&real_GetLongPathNameA) != MH_OK) {
+        log_warning("Couldn't hook GetLongPathNameA");
+    }
+
+    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
+        log_warning("Couldn't enable hooks");
+        return 2;
+    }
+    log_info("Hook DLL init success");
+
+    log_info("Detected mod folders:");
+    for (auto& p : available_mods()) {
+        log_info("{}", p);
+    }
+
+    return 0;
+}
 }

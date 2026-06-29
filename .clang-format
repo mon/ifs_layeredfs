@@ -1,0 +1,23 @@
+BasedOnStyle: LLVM
+ColumnLimit: 100
+IndentWidth: 4
+PointerAlignment: Left
+BreakConstructorInitializers: BeforeComma
+AlignConsecutiveAssignments: Consecutive
+ReflowComments: false
+AlignAfterOpenBracket: false
+BreakTemplateDeclarations: Yes
+IndentCaseLabels: true
+
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: "<windows.h>"
+    Priority: 1
+  - Regex: ".h>"
+    Priority: 2
+  - Regex: "^<"
+    Priority: 3
+  - Regex: '^"3rd_party/'
+    Priority: 4
+  - Regex: '^"'
+    Priority: 5

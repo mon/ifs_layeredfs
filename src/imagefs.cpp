@@ -1,17 +1,18 @@
 #include "imagefs.hpp"
 
 #include <inttypes.h>
-#include <map>
+
 #include <fstream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <sstream>
 #include <unordered_set>
 
 #include "3rd_party/lodepng.h"
-#include "3rd_party/stb_dxt.h"
-#include "3rd_party/rapidxml_print.hpp"
 #include "3rd_party/md5.h"
+#include "3rd_party/rapidxml_print.hpp"
+#include "3rd_party/stb_dxt.h"
 
 #include "avs.hpp"
 #include "log.hpp"
@@ -39,7 +40,7 @@ typedef struct image {
     NormPath ifs_mod_path;
     int width;
     int height;
-    istring cache_folder() const { return config.get_cache_folder() / ifs_mod_path;  }
+    istring cache_folder() const { return config.get_cache_folder() / ifs_mod_path; }
     istring cache_file() const { return cache_folder() / name_md5; };
 } image_t;
 
@@ -54,8 +55,7 @@ static std::mutex ifs_textures_mtx;
 static std::map<istring, std::shared_ptr<afp_t>> afp_md5_names;
 static std::mutex afp_md5_names_mtx;
 
-
-void rapidxml_dump_to_file(const std::filesystem::path &path, const rapidxml::xml_document<> &xml) {
+void rapidxml_dump_to_file(const std::filesystem::path& path, const rapidxml::xml_document<>& xml) {
     // this is 3x faster than writing directly to the output file
     std::string s;
     print(std::back_inserter(s), xml, rapidxml::print_no_indenting);
@@ -63,21 +63,20 @@ void rapidxml_dump_to_file(const std::filesystem::path &path, const rapidxml::xm
     write_bytes(path, s);
 }
 
-#define FMT_4U16(arr) "%" PRIu16 " %" PRIu16 " %" PRIu16 " %" PRIu16, (arr)[0],(arr)[1],(arr)[2],(arr)[3]
-#define FMT_2U16(arr) "%" PRIu16 " %" PRIu16, (arr)[0],(arr)[1]
+#define FMT_4U16(arr)                                                                              \
+    "%" PRIu16 " %" PRIu16 " %" PRIu16 " %" PRIu16, (arr)[0], (arr)[1], (arr)[2], (arr)[3]
+#define FMT_2U16(arr) "%" PRIu16 " %" PRIu16, (arr)[0], (arr)[1]
 
-rapidxml::xml_node<>* allocate_node_and_attrib(
-        rapidxml::xml_document<> *doc,
-        const char* node_name,
-        const char* node_value,
-        const char* attr_name,
-        const char* attr_value) {
+rapidxml::xml_node<>* allocate_node_and_attrib(rapidxml::xml_document<>* doc, const char* node_name,
+    const char* node_value, const char* attr_name, const char* attr_value) {
     auto node = doc->allocate_node(rapidxml::node_element, node_name, node_value);
     node->append_attribute(doc->allocate_attribute(attr_name, attr_value));
     return node;
 }
 
-bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_node<> *texturelist_node, NormPath const&ifs_path, NormPath const&ifs_mod_path, compress_type compress) {
+bool add_images_to_list(std::unordered_set<istring>& extra_pngs,
+    rapidxml::xml_node<>* texturelist_node, NormPath const& ifs_path, NormPath const& ifs_mod_path,
+    compress_type compress) {
     Timer timer;
     std::vector<Bitmap> textures;
 
@@ -86,7 +85,7 @@ bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_n
 
         auto png_tex = *it + ".png";
         auto png_loc = find_first_modfile(ifs_mod_path / png_tex);
-        if(!png_loc)
+        if (!png_loc)
             png_loc = find_first_modfile(ifs_mod_path / "tex" / png_tex);
         if (!png_loc)
             continue;
@@ -125,7 +124,7 @@ bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_n
 
     auto document = texturelist_node->document();
     for (unsigned int i = 0; i < packed_textures.size(); i++) {
-        Packer &canvas = packed_textures[i];
+        Packer& canvas = packed_textures[i];
         char tex_name[8];
         snprintf(tex_name, 8, "ctex%03d", i);
         auto canvas_node = document->allocate_node(rapidxml::node_element, "texture");
@@ -133,22 +132,25 @@ bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_n
         canvas_node->append_attribute(document->allocate_attribute("format", "argb8888rev"));
         canvas_node->append_attribute(document->allocate_attribute("mag_filter", "nearest"));
         canvas_node->append_attribute(document->allocate_attribute("min_filter", "nearest"));
-        canvas_node->append_attribute(document->allocate_attribute("name", document->allocate_string(tex_name)));
+        canvas_node->append_attribute(
+            document->allocate_attribute("name", document->allocate_string(tex_name)));
         canvas_node->append_attribute(document->allocate_attribute("wrap_s", "clamp"));
         canvas_node->append_attribute(document->allocate_attribute("wrap_t", "clamp"));
 
         char tmp[64];
 
-        uint16_t size[2] = { (uint16_t)canvas.width, (uint16_t)canvas.height };
+        uint16_t size[2] = {(uint16_t)canvas.width, (uint16_t)canvas.height};
 
         snprintf(tmp, sizeof(tmp), FMT_2U16(size));
-        canvas_node->append_node(allocate_node_and_attrib(document, "size", document->allocate_string(tmp), "__type", "2u16"));
+        canvas_node->append_node(allocate_node_and_attrib(
+            document, "size", document->allocate_string(tmp), "__type", "2u16"));
 
         for (unsigned int j = 0; j < canvas.bitmaps.size(); j++) {
-            Bitmap &texture = canvas.bitmaps[j];
-            auto tex_node = document->allocate_node(rapidxml::node_element, "image");
+            Bitmap& texture = canvas.bitmaps[j];
+            auto tex_node   = document->allocate_node(rapidxml::node_element, "image");
             canvas_node->append_node(tex_node);
-            tex_node->append_attribute(document->allocate_attribute("name", document->allocate_string(texture.name.c_str())));
+            tex_node->append_attribute(document->allocate_attribute(
+                "name", document->allocate_string(texture.name.c_str())));
 
             uint16_t coords[4];
             coords[0] = texture.packX * 2;
@@ -156,23 +158,25 @@ bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_n
             coords[2] = texture.packY * 2;
             coords[3] = (texture.packY + texture.height) * 2;
             snprintf(tmp, sizeof(tmp), FMT_4U16(coords));
-            tex_node->append_node(allocate_node_and_attrib(document, "imgrect", document->allocate_string(tmp), "__type", "4u16"));
+            tex_node->append_node(allocate_node_and_attrib(
+                document, "imgrect", document->allocate_string(tmp), "__type", "4u16"));
             coords[0] += 2;
             coords[1] -= 2;
             coords[2] += 2;
             coords[3] -= 2;
             snprintf(tmp, sizeof(tmp), FMT_4U16(coords));
-            tex_node->append_node(allocate_node_and_attrib(document, "uvrect", document->allocate_string(tmp), "__type", "4u16"));
+            tex_node->append_node(allocate_node_and_attrib(
+                document, "uvrect", document->allocate_string(tmp), "__type", "4u16"));
 
             image_t image_info;
             image_info.name = texture.name;
             MD5 md5;
-            image_info.name_md5 = md5(texture.name.downcast_ref());
-            image_info.format = ARGB8888REV;
-            image_info.compression = compress;
+            image_info.name_md5     = md5(texture.name.downcast_ref());
+            image_info.format       = ARGB8888REV;
+            image_info.compression  = compress;
             image_info.ifs_mod_path = ifs_mod_path;
-            image_info.width = texture.width;
-            image_info.height = texture.height;
+            image_info.width        = texture.width;
+            image_info.height       = texture.height;
 
             auto md5_path = ifs_path / "tex" / image_info.name_md5;
             std::lock_guard lock(ifs_textures_mtx);
@@ -184,7 +188,7 @@ bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_n
     return true;
 }
 
-void parse_texturelist(HookFile &file) {
+void parse_texturelist(HookFile& file) {
     bool prop_was_rewritten = false;
 
     // get a reasonable base path
@@ -217,19 +221,17 @@ void parse_texturelist(HookFile &file) {
     auto extra_pngs = list_pngs(ifs_mod_path);
 
     auto compress = NONE;
-    rapidxml::xml_attribute<> *compress_node;
+    rapidxml::xml_attribute<>* compress_node;
     if ((compress_node = texturelist_node->first_attribute("compress"))) {
         if (!_stricmp(compress_node->value(), "avslz")) {
             compress = AVSLZ;
-        }
-        else {
+        } else {
             compress = UNSUPPORTED_COMPRESS;
         }
     }
 
-    for(auto texture = texturelist_node->first_node("texture");
-            texture;
-            texture = texture->next_sibling("texture")) {
+    for (auto texture = texturelist_node->first_node("texture"); texture;
+        texture       = texture->next_sibling("texture")) {
 
         auto format = texture->first_attribute("format");
         if (!format) {
@@ -251,9 +253,8 @@ void parse_texturelist(HookFile &file) {
             format_type = DXT5;
         }
 
-        for(auto image = texture->first_node("image");
-            image;
-            image = image->next_sibling("image")) {
+        for (auto image = texture->first_node("image"); image;
+            image       = image->next_sibling("image")) {
             auto name = image->first_attribute("name");
             if (!name) {
                 log_warning("Texture missing name {}", path_to_open);
@@ -262,25 +263,26 @@ void parse_texturelist(HookFile &file) {
 
             uint16_t dimensions[4];
             auto imgrect = image->first_node("imgrect");
-            auto uvrect = image->first_node("uvrect");
+            auto uvrect  = image->first_node("uvrect");
             if (!imgrect || !uvrect) {
                 log_warning("Texture missing dimensions {}", path_to_open);
                 continue;
             }
 
             // it's a 4u16
-            sscanf(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0], &dimensions[1], &dimensions[2], &dimensions[3]);
+            sscanf(imgrect->value(), "%" SCNu16 " %" SCNu16 " %" SCNu16 " %" SCNu16, &dimensions[0],
+                &dimensions[1], &dimensions[2], &dimensions[3]);
 
             // log_misc("Image '{}' compress {} format {}", name->value(), compress, format_type);
             image_t image_info;
             image_info.name = name->value();
             MD5 md5;
-            image_info.name_md5 = md5(name->value());
-            image_info.format = format_type;
-            image_info.compression = compress;
+            image_info.name_md5     = md5(name->value());
+            image_info.format       = format_type;
+            image_info.compression  = compress;
             image_info.ifs_mod_path = ifs_mod_path;
-            image_info.width = (dimensions[1] - dimensions[0]) / 2;
-            image_info.height = (dimensions[3] - dimensions[2]) / 2;
+            image_info.width        = (dimensions[1] - dimensions[0]) / 2;
+            image_info.height       = (dimensions[3] - dimensions[2]) / 2;
 
             extra_pngs.erase(image_info.name);
 
@@ -307,7 +309,7 @@ void parse_texturelist(HookFile &file) {
     }
 }
 
-bool cache_texture(istring const&png_path, image_t const&tex) {
+bool cache_texture(istring const& png_path, image_t const& tex) {
     auto cache_path = tex.cache_folder();
     if (!mkdir_p(cache_path)) {
         log_warning("Couldn't create texture cache folder");
@@ -316,7 +318,7 @@ bool cache_texture(istring const&png_path, image_t const&tex) {
 
     auto cache_file = tex.cache_file();
     auto cache_time = file_time(cache_file);
-    auto png_time = file_time(png_path);
+    auto png_time   = file_time(png_path);
 
     // the cache is fresh, don't do the same work twice
 #ifndef ALWAYS_CACHE
@@ -337,32 +339,33 @@ bool cache_texture(istring const&png_path, image_t const&tex) {
     }
 
     if ((int)width != tex.width || (int)height != tex.height) {
-        log_warning("Loaded png ({}x{}) doesn't match texturelist.xml ({}x{}), ignoring", width, height, tex.width, tex.height);
+        log_warning("Loaded png ({}x{}) doesn't match texturelist.xml ({}x{}), ignoring", width,
+            height, tex.width, tex.height);
         return false;
     }
 
     switch (tex.format) {
-    case ARGB8888REV:
-        for (size_t i = 0; i < image.size(); i += 4) {
-            // swap r and b
-            std::swap(image[i], image[i + 2]);
-        }
-        break;
-    case DXT5: {
-        std::vector<uint8_t> dxt5_image(image.size() / 4);
-        rygCompress(dxt5_image.data(), image.data(), width, height, 1);
-        image = std::move(dxt5_image);
+        case ARGB8888REV:
+            for (size_t i = 0; i < image.size(); i += 4) {
+                // swap r and b
+                std::swap(image[i], image[i + 2]);
+            }
+            break;
+        case DXT5: {
+            std::vector<uint8_t> dxt5_image(image.size() / 4);
+            rygCompress(dxt5_image.data(), image.data(), width, height, 1);
+            image = std::move(dxt5_image);
 
-        // the data has swapped endianness for every WORD
-        for (size_t i = 0; i < image.size(); i += 2) {
-            std::swap(image[i], image[i + 1]);
-        }
+            // the data has swapped endianness for every WORD
+            for (size_t i = 0; i < image.size(); i += 2) {
+                std::swap(image[i], image[i + 1]);
+            }
 
-        // write_bytes("dxt_debug.bin", {dxt5_image, dxt5_size});
-        break;
-    }
-    default:
-        break;
+            // write_bytes("dxt_debug.bin", {dxt5_image, dxt5_size});
+            break;
+        }
+        default:
+            break;
     }
     auto uncompressed_size = image.size();
 
@@ -382,7 +385,7 @@ bool cache_texture(istring const&png_path, image_t const&tex) {
     }
     if (tex.compression == AVSLZ) {
         uint32_t uncomp_sz = _byteswap_ulong((uint32_t)uncompressed_size);
-        uint32_t comp_sz = _byteswap_ulong((uint32_t)image.size());
+        uint32_t comp_sz   = _byteswap_ulong((uint32_t)image.size());
         fwrite(&uncomp_sz, 4, 1, cache);
         fwrite(&comp_sz, 4, 1, cache);
     }
@@ -391,7 +394,7 @@ bool cache_texture(istring const&png_path, image_t const&tex) {
     return true;
 }
 
-void parse_afplist(HookFile &file) {
+void parse_afplist(HookFile& file) {
     // get a reasonable base path
     auto ifs_path = file.norm_path;
     // truncate
@@ -422,9 +425,7 @@ void parse_afplist(HookFile &file) {
 
     int mapped = 0;
 
-    for(auto afp = afplist_node->first_node("afp");
-            afp;
-            afp = afp->next_sibling("afp")) {
+    for (auto afp = afplist_node->first_node("afp"); afp; afp = afp->next_sibling("afp")) {
 
         auto name = afp->first_attribute("name");
         if (!name) {
@@ -440,8 +441,8 @@ void parse_afplist(HookFile &file) {
         }
 
         auto add_mapping = [&](std::string folder, std::string file) {
-            auto md5_path = ifs_path / folder / MD5()(file);
-            afp_md5_names[md5_path] = std::make_shared<afp_t>(afp_t {
+            auto md5_path           = ifs_path / folder / MD5()(file);
+            afp_md5_names[md5_path] = std::make_shared<afp_t>(afp_t{
                 .mod_path = ifs_mod_path / folder / file,
             });
             mapped++;
@@ -456,7 +457,7 @@ void parse_afplist(HookFile &file) {
         // iterate geos
         std::string index;
         std::stringstream ss(geo->value());
-        while(ss >> index) {
+        while (ss >> index) {
             add_mapping("geo", std::string(name->value()) + "_shape" + index);
         }
     }
@@ -464,7 +465,7 @@ void parse_afplist(HookFile &file) {
     log_verbose("Mapped {} AFP filenames", mapped);
 }
 
-std::optional<std::tuple<istring, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile &file) {
+std::optional<std::tuple<istring, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile& file) {
     std::unique_lock lock(ifs_textures_mtx);
     auto tex_search = ifs_textures.find(file.norm_path);
     if (tex_search == ifs_textures.end()) {
@@ -488,12 +489,12 @@ std::optional<std::tuple<istring, std::shared_ptr<image_t>>> lookup_png_from_md5
     return std::make_tuple(*png_path, tex);
 }
 
-void handle_texture(HookFile &file) {
+void handle_texture(HookFile& file) {
     auto lookup = lookup_png_from_md5(file);
-    if(!lookup)
+    if (!lookup)
         return;
 
-    auto &[png_path, tex] = *lookup;
+    auto& [png_path, tex] = *lookup;
 
     if (tex->compression == UNSUPPORTED_COMPRESS) {
         log_warning("Unsupported compression for {}", png_path);
@@ -511,7 +512,7 @@ void handle_texture(HookFile &file) {
     return;
 }
 
-std::optional<istring> lookup_afp_from_md5(HookFile &file) {
+std::optional<istring> lookup_afp_from_md5(HookFile& file) {
     std::unique_lock lock(afp_md5_names_mtx);
     auto afp_search = afp_md5_names.find(file.norm_path);
     if (afp_search == afp_md5_names.end()) {
@@ -525,9 +526,9 @@ std::optional<istring> lookup_afp_from_md5(HookFile &file) {
     return find_first_modfile(afp->mod_path);
 }
 
-void handle_afp(HookFile &file) {
+void handle_afp(HookFile& file) {
     auto lookup = lookup_afp_from_md5(file);
-    if(!lookup)
+    if (!lookup)
         return;
 
     log_verbose("Mapped file {} found!", *lookup);
@@ -535,7 +536,7 @@ void handle_afp(HookFile &file) {
     return;
 }
 
-void merge_xmls(HookFile &file) {
+void merge_xmls(HookFile& file) {
     Timer timer;
     rapidxml::xml_document<> merged_xml;
 
@@ -552,20 +553,20 @@ void merge_xmls(HookFile &file) {
             return;
     }
 
-    auto starting = file.get_path_to_open();
-    auto out = config.get_cache_folder() / file.norm_path;
+    auto starting     = file.get_path_to_open();
+    auto out          = config.get_cache_folder() / file.norm_path;
     auto cache_hasher = CacheHasher(out + ".hashed");
 
     cache_hasher.add(starting); // don't forget to take the input into account
     log_info("Merging into {}", starting);
-    for (auto &path : to_merge) {
+    for (auto& path : to_merge) {
         log_info("  {}", path);
         cache_hasher.add(path);
     }
     cache_hasher.finish();
 
     // no need to merge - timestamps all up to date, dll not newer, files haven't been deleted
-    if(cache_hasher.matches()) {
+    if (cache_hasher.matches()) {
         log_info("Merged XML up to date");
         file.mod_path = out;
         return;
@@ -577,9 +578,10 @@ void merge_xmls(HookFile &file) {
         return;
     }
 
-    for (auto &path : to_merge) {
+    for (auto& path : to_merge) {
         rapidxml::xml_document<> rapid_to_merge;
-        auto merge_load_result = rapidxml_from_avs_filepath(path.c_str(), rapid_to_merge, merged_xml);
+        auto merge_load_result =
+            rapidxml_from_avs_filepath(path.c_str(), rapid_to_merge, merged_xml);
         if (!merge_load_result) {
             log_warning("Couldn't merge (can't load xml) {}", path);
             return;
@@ -588,7 +590,8 @@ void merge_xmls(HookFile &file) {
         // toplevel nodes include doc declaration and mdb node
         // getting the last node grabs the mdb node
         // document -> mdb entry -> music entry
-        for (rapidxml::xml_node<> *node = rapid_to_merge.last_node()->first_node(); node; node = node->next_sibling()) {
+        for (rapidxml::xml_node<>* node = rapid_to_merge.last_node()->first_node(); node;
+            node                        = node->next_sibling()) {
             merged_xml.last_node()->append_node(merged_xml.clone_node(node));
         }
     }

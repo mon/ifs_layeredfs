@@ -1,7 +1,6 @@
-namespace avs_standalone
-{
+namespace avs_standalone {
 
-    bool boot(bool print_logs);
-    void shutdown();
-    bool load_dll();
-}
+bool boot(bool print_logs);
+void shutdown();
+bool load_dll();
+} // namespace avs_standalone
