@@ -10,25 +10,25 @@
 #include "utils.hpp"
 
 typedef struct {
-    std::string name;
-    std::set<std::string, CaseInsensitiveCompare> contents;
+    istring name;
+    std::set<NormPath> contents;
 } mod_contents_t;
 
 std::vector<mod_contents_t> cached_mods;
 
-std::set<std::string, CaseInsensitiveCompare> walk_dir(const std::filesystem::path &root) {
-    std::set<std::string, CaseInsensitiveCompare> result;
+std::set<NormPath> walk_dir(const std::filesystem::path &root) {
+    std::set<NormPath> result;
 
     for (const auto &entry : std::filesystem::recursive_directory_iterator(root)) {
         auto& entry_path = entry.path();
 
-        std::string relative = entry_path.lexically_relative(root).string();
-        string_replace_i(relative, "\\", "/");
+        istring relative = entry_path.lexically_relative(root).string();
+        relative.replace_all("\\", "/");
         if (entry.is_directory())
             relative += "/";
 
         log_verbose("  {}", relative);
-        result.insert(relative);
+        result.insert(NormPath(std::move(relative)));
 
         // sanity check a common mistake
         if (entry_path.parent_path() == root && entry_path.filename() == "data") {
@@ -60,7 +60,7 @@ void cache_mods() {
 
 // data, data2, data_op2 etc
 // data is "flat", all others must have their own special subfolders
-static std::vector<std::string> game_folders;
+static std::vector<istring> game_folders;
 
 void init_modpath_handler() {
     log_verbose("Top level folders:");
@@ -68,7 +68,7 @@ void init_modpath_handler() {
         log_verbose("  {}", folder);
 
         // data is the normal case we transparently handle
-        if (!strcasecmp(folder.c_str(), "data")) {
+        if (folder == "data") {
             continue;
         }
 
@@ -76,22 +76,22 @@ void init_modpath_handler() {
     }
 }
 
-void modpath_debug_add_folder(const std::string &folder) {
-    game_folders.push_back(folder + "/");
+void modpath_debug_add_folder(std::string_view folder) {
+    game_folders.push_back(fmt::format("{}/", folder));
 }
 
-std::optional<std::string> normalise_path(const std::string &_path, bool demangle) {
-    auto path = _path;
+std::optional<NormPath> normalise_path(std::string _path, bool demangle) {
     if (demangle)
-        ramfs_demangler_demangle_if_possible(path);
+        ramfs_demangler_demangle_if_possible(_path);
 
-    auto data_pos = string_find_i(path, "data/");
+    istring path(std::move(_path));
+    auto data_pos = path.find("data/");
     auto other_pos = std::string::npos;
 
     if (data_pos == std::string::npos) {
         // search all our other folders for anything that matches
         for (auto folder : game_folders) {
-            other_pos = string_find_i(path, folder);
+            other_pos = path.find(folder);
             if (other_pos != std::string::npos) {
                 break;
             }
@@ -104,18 +104,18 @@ std::optional<std::string> normalise_path(const std::string &_path, bool demangl
     auto actual_pos = (data_pos != std::string::npos) ? data_pos : other_pos;
     // if data2 was found, for example, use root mod/data2/.../... instead of just mod/.../...
     auto offset = (other_pos != std::string::npos) ? 0 : strlen("data/");
-    auto data_str = path.substr(actual_pos + offset);
+    istring data_str = path.substr(actual_pos + offset);
     // nuke backslash
-    string_replace_i(data_str, "\\", "/");
+    data_str.replace_all("\\", "/");
     // nuke double slash
-    string_replace_i(data_str, "//", "/");
+    data_str.replace_all("//", "/");
 
-    return data_str;
+    return NormPath(std::move(data_str));
 }
 
-std::vector<std::string> available_mods() {
-    std::vector<std::string> ret;
-    std::string mod_root = config.get_mod_folder() + "/";
+std::vector<istring> available_mods() {
+    std::vector<istring> ret;
+    istring mod_root = config.get_mod_folder() + "/";
 
     // just pretend we have no mods at all
     if (config.disable) {
@@ -125,7 +125,7 @@ std::vector<std::string> available_mods() {
     if (config.developer_mode) {
         static bool first_search = true;
         for (auto folder : folders_in_folder(config.get_mod_folder())) {
-            if (!strcasecmp(folder.c_str(), "_cache")) {
+            if (folder == "_cache") {
                 continue;
             }
 
@@ -156,30 +156,28 @@ std::vector<std::string> available_mods() {
         }
     }
     // case insensitive, so apple comes before English
-    std::sort(ret.begin(), ret.end(), [](const std::string& a, const std::string& b){
-            return strcasecmp(a.c_str(), b.c_str()) < 0;
-    });
+    std::sort(ret.begin(), ret.end());
     return ret;
 }
 
 // same for files and folders when cached
-std::optional<std::string> find_first_cached_item(const std::string &norm_path) {
+std::optional<istring> find_first_cached_item(const NormPath &norm_path) {
     for (auto &dir : cached_mods) {
         auto file_search = dir.contents.find(norm_path);
         if (file_search == dir.contents.end()) {
             continue;
         }
-        return dir.name + "/" + *file_search;
+        return fmt::format("{}/{}", dir.name, *file_search);
     }
 
     return std::nullopt;
 }
 
-std::optional<std::string> find_first_modfile(const std::string &norm_path) {
+std::optional<istring> find_first_modfile(const NormPath &norm_path) {
     //log_verbose("{}({})", __FUNCTION__, norm_path);
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
-            auto mod_path = dir + "/" + norm_path;
+            auto mod_path = fmt::format("{}/{}", dir, norm_path);
             if (std::filesystem::is_regular_file(mod_path)) {
                 return path_to_actual_case(mod_path);
             }
@@ -191,29 +189,29 @@ std::optional<std::string> find_first_modfile(const std::string &norm_path) {
     return std::nullopt;
 }
 
-std::optional<std::string> find_first_modfolder(const std::string &norm_path) {
+std::optional<istring> find_first_modfolder(const NormPath &norm_path) {
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
-            auto mod_path = dir + "/" + norm_path;
+            auto mod_path = fmt::format("{}/{}", dir, norm_path);
             if (std::filesystem::is_directory(mod_path)) {
                 return path_to_actual_case(mod_path) + "/";
             }
         }
     }
     else {
-        return find_first_cached_item(norm_path + "/");
+        return find_first_cached_item(norm_path / "");
     }
     return std::nullopt;
 }
 
-std::vector<std::string> find_all_modfile(const std::string &norm_path) {
-    std::vector<std::string> ret;
+std::vector<istring> find_all_modfile(const NormPath &norm_path) {
+    std::vector<istring> ret;
 
     if (config.developer_mode) {
         for (auto &dir : available_mods()) {
-            auto mod_path = dir + "/" + norm_path;
+            auto mod_path = fmt::format("{}/{}", dir, norm_path);
             if (std::filesystem::is_regular_file(mod_path)) {
-                ret.push_back(mod_path);
+                ret.emplace_back(std::move(mod_path));
             }
         }
     }
@@ -223,7 +221,7 @@ std::vector<std::string> find_all_modfile(const std::string &norm_path) {
             if (file_search == dir.contents.end()) {
                 continue;
             }
-            ret.push_back(dir.name + "/" + *file_search);
+            ret.emplace_back(fmt::format("{}/{}", dir.name, *file_search));
         }
     }
     // needed for consistency when hashing names

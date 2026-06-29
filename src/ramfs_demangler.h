@@ -1,12 +1,16 @@
 #pragma once
+#include <optional>
 #include <string>
 
 #include "avs.h"
 
-void ramfs_demangler_on_fs_open(const std::string& norm_path, AVS_FILE open_result);
+// note: the demangler works exclusively on game-provided paths and so doesn't
+// store/take istrings
+
+void ramfs_demangler_on_fs_open(std::string path, AVS_FILE open_result);
 void ramfs_demangler_on_fs_read(AVS_FILE context, void* dest);
-void ramfs_demangler_on_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* flags);
-void ramfs_demangler_demangle_if_possible(std::string& norm_path);
+void ramfs_demangler_on_fs_mount(std::string_view mountpoint, std::string_view fsroot, std::string_view fstype, std::optional<std::string_view> flags);
+void ramfs_demangler_demangle_if_possible(std::string &path);
 
 // Registers an inner-ifs basename ("foo.ifs") -> demangled path
 // ("<arc_norm_path with .arc->_arc>/.../foo.ifs"). When a later ramfs mount's

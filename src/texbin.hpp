@@ -36,7 +36,7 @@ class ImageEntryParsed {
 
 class RectEntryParsed {
     public:
-    std::string parent_name;
+    istring parent_name;
     uint16_t x, y, w, h;
     // if the image has been replaced, we defer until save-time so we replace
     // all images in the same base image at once, for better performance
@@ -53,15 +53,15 @@ class Texbin {
     // will we
 
     // name -> entry
-    std::map<std::string, ImageEntryParsed, CaseInsensitiveCompare> images;
+    std::map<istring, ImageEntryParsed> images;
     // name -> entry. Don't need to maintain a list of source rects, as we don't
     // support packing a new texture into an existing rect (please let this
     // remain a never-needed usecase)
-    std::map<std::string, RectEntryParsed, CaseInsensitiveCompare> rects;
+    std::map<istring, RectEntryParsed> rects;
 
     Texbin(
-        std::map<std::string, ImageEntryParsed, CaseInsensitiveCompare> images,
-        std::map<std::string, RectEntryParsed, CaseInsensitiveCompare> rects
+        std::map<istring, ImageEntryParsed> images,
+        std::map<istring, RectEntryParsed> rects
     )
         : images(images)
         , rects(rects)

@@ -6,10 +6,10 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <unordered_set>
 
 #include "3rd_party/lodepng.h"
 #include "3rd_party/stb_dxt.h"
-#include "3rd_party/GuillotineBinPack.h"
 #include "3rd_party/rapidxml_print.hpp"
 #include "3rd_party/md5.h"
 
@@ -32,39 +32,35 @@ enum compress_type {
 };
 
 typedef struct image {
-    std::string name;
+    istring name;
     std::string name_md5;
     img_format format;
     compress_type compression;
-    std::string ifs_mod_path;
+    NormPath ifs_mod_path;
     int width;
     int height;
-    std::string cache_folder() const { return config.get_cache_folder() + "/" + ifs_mod_path;  }
-    std::string cache_file() const { return cache_folder() + "/" + name_md5; };
+    istring cache_folder() const { return config.get_cache_folder() / ifs_mod_path;  }
+    istring cache_file() const { return cache_folder() / name_md5; };
 } image_t;
 
 typedef struct afp {
-    std::string mod_path;
+    NormPath mod_path;
 } afp_t;
 
 // ifs_textures["data/graphics/ver04/logo.ifs/tex/4f754d4f424f092637a49a5527ece9bb"] will be "konami"
-static std::map<std::string, std::shared_ptr<image_t>, CaseInsensitiveCompare> ifs_textures;
+static std::map<istring, std::shared_ptr<image_t>> ifs_textures;
 static std::mutex ifs_textures_mtx;
 
-static std::map<std::string, std::shared_ptr<afp_t>, CaseInsensitiveCompare> afp_md5_names;
+static std::map<istring, std::shared_ptr<afp_t>> afp_md5_names;
 static std::mutex afp_md5_names_mtx;
 
 
-void rapidxml_dump_to_file(const std::string& out, const rapidxml::xml_document<> &xml) {
-    std::ofstream out_file;
-    out_file.open(out.c_str());
-
+void rapidxml_dump_to_file(const std::filesystem::path &path, const rapidxml::xml_document<> &xml) {
     // this is 3x faster than writing directly to the output file
     std::string s;
     print(std::back_inserter(s), xml, rapidxml::print_no_indenting);
-    out_file << s;
 
-    out_file.close();
+    write_bytes(path, s);
 }
 
 #define FMT_4U16(arr) "%" PRIu16 " %" PRIu16 " %" PRIu16 " %" PRIu16, (arr)[0],(arr)[1],(arr)[2],(arr)[3]
@@ -81,41 +77,40 @@ rapidxml::xml_node<>* allocate_node_and_attrib(
     return node;
 }
 
-bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelist_node, std::string const&ifs_path, std::string const&ifs_mod_path, compress_type compress) {
+bool add_images_to_list(std::unordered_set<istring> &extra_pngs, rapidxml::xml_node<> *texturelist_node, NormPath const&ifs_path, NormPath const&ifs_mod_path, compress_type compress) {
     Timer timer;
-    std::vector<Bitmap*> textures;
+    std::vector<Bitmap> textures;
 
     for (auto it = extra_pngs.begin(); it != extra_pngs.end(); ++it) {
         log_verbose("New image: {}", *it);
 
-        std::string png_tex = *it + ".png";
-        auto png_loc = find_first_modfile(ifs_mod_path + "/" + png_tex);
+        auto png_tex = *it + ".png";
+        auto png_loc = find_first_modfile(ifs_mod_path / png_tex);
         if(!png_loc)
-            png_loc = find_first_modfile(ifs_mod_path + "/tex/" + png_tex);
+            png_loc = find_first_modfile(ifs_mod_path / "tex" / png_tex);
         if (!png_loc)
             continue;
 
-        FILE* f = fopen(png_loc->c_str(), "rb");
+        std::ifstream f(png_loc->c_str(), std::ios::binary);
         if (!f) // shouldn't happen but check anyway
             continue;
 
-        unsigned char header[33];
-        // this may read less bytes than expected but lodepng will die later anyway
-        fread(header, 1, 33, f);
-        fclose(f);
+        unsigned char header[33] = {};
+        // this may read fewer bytes than expected but lodepng will die later anyway
+        f.read(reinterpret_cast<char*>(header), sizeof(header));
 
         unsigned width, height;
         LodePNGState state = {};
-        if (lodepng_inspect(&width, &height, &state, header, 33)) {
+        if (lodepng_inspect(&width, &height, &state, header, sizeof(header))) {
             log_warning("couldn't inspect png");
             continue;
         }
 
-        textures.push_back(new Bitmap(*it, width, height));
+        textures.emplace_back(*it, width, height);
     }
 
     Timer pack_timer;
-    std::vector<Packer*> packed_textures;
+    std::vector<Packer> packed_textures;
     if (!pack_textures(textures, packed_textures)) {
         log_warning("Couldn't pack textures :(");
         return false;
@@ -130,7 +125,7 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
 
     auto document = texturelist_node->document();
     for (unsigned int i = 0; i < packed_textures.size(); i++) {
-        Packer *canvas = packed_textures[i];
+        Packer &canvas = packed_textures[i];
         char tex_name[8];
         snprintf(tex_name, 8, "ctex%03d", i);
         auto canvas_node = document->allocate_node(rapidxml::node_element, "texture");
@@ -144,22 +139,22 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
 
         char tmp[64];
 
-        uint16_t size[2] = { (uint16_t)canvas->width, (uint16_t)canvas->height };
+        uint16_t size[2] = { (uint16_t)canvas.width, (uint16_t)canvas.height };
 
         snprintf(tmp, sizeof(tmp), FMT_2U16(size));
         canvas_node->append_node(allocate_node_and_attrib(document, "size", document->allocate_string(tmp), "__type", "2u16"));
 
-        for (unsigned int j = 0; j < canvas->bitmaps.size(); j++) {
-            Bitmap *texture = canvas->bitmaps[j];
+        for (unsigned int j = 0; j < canvas.bitmaps.size(); j++) {
+            Bitmap &texture = canvas.bitmaps[j];
             auto tex_node = document->allocate_node(rapidxml::node_element, "image");
             canvas_node->append_node(tex_node);
-            tex_node->append_attribute(document->allocate_attribute("name", document->allocate_string(texture->name.c_str())));
+            tex_node->append_attribute(document->allocate_attribute("name", document->allocate_string(texture.name.c_str())));
 
             uint16_t coords[4];
-            coords[0] = texture->packX * 2;
-            coords[1] = (texture->packX + texture->width) * 2;
-            coords[2] = texture->packY * 2;
-            coords[3] = (texture->packY + texture->height) * 2;
+            coords[0] = texture.packX * 2;
+            coords[1] = (texture.packX + texture.width) * 2;
+            coords[2] = texture.packY * 2;
+            coords[3] = (texture.packY + texture.height) * 2;
             snprintf(tmp, sizeof(tmp), FMT_4U16(coords));
             tex_node->append_node(allocate_node_and_attrib(document, "imgrect", document->allocate_string(tmp), "__type", "4u16"));
             coords[0] += 2;
@@ -170,16 +165,16 @@ bool add_images_to_list(string_set &extra_pngs, rapidxml::xml_node<> *texturelis
             tex_node->append_node(allocate_node_and_attrib(document, "uvrect", document->allocate_string(tmp), "__type", "4u16"));
 
             image_t image_info;
-            image_info.name = texture->name;
+            image_info.name = texture.name;
             MD5 md5;
-            image_info.name_md5 = md5(texture->name);
+            image_info.name_md5 = md5(texture.name.downcast_ref());
             image_info.format = ARGB8888REV;
             image_info.compression = compress;
             image_info.ifs_mod_path = ifs_mod_path;
-            image_info.width = texture->width;
-            image_info.height = texture->height;
+            image_info.width = texture.width;
+            image_info.height = texture.height;
 
-            auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
+            auto md5_path = ifs_path / "tex" / image_info.name_md5;
             std::lock_guard lock(ifs_textures_mtx);
             ifs_textures[md5_path] = std::make_shared<image_t>(std::move(image_info));
         }
@@ -198,7 +193,7 @@ void parse_texturelist(HookFile &file) {
     ifs_path.resize(ifs_path.size() - strlen("/tex/texturelist.xml"));
     // log_misc("Reading ifs {}", ifs_path);
     auto ifs_mod_path = ifs_path;
-    string_replace_i(ifs_mod_path, ".ifs", "_ifs");
+    ifs_mod_path.replace_suffix_foreach_path_component(".ifs", "_ifs");
 
     if (!find_first_modfolder(ifs_mod_path)) {
         log_verbose("mod folder doesn't exist, skipping");
@@ -208,7 +203,7 @@ void parse_texturelist(HookFile &file) {
     // open the correct file
     auto path_to_open = file.get_path_to_open();
     rapidxml::xml_document<> texturelist;
-    auto success = rapidxml_from_avs_filepath(path_to_open, texturelist, texturelist);
+    auto success = rapidxml_from_avs_filepath(path_to_open.c_str(), texturelist, texturelist);
     if (!success)
         return;
 
@@ -289,7 +284,7 @@ void parse_texturelist(HookFile &file) {
 
             extra_pngs.erase(image_info.name);
 
-            auto md5_path = ifs_path + "/tex/" + image_info.name_md5;
+            auto md5_path = ifs_path / "tex" / image_info.name_md5;
             std::lock_guard lock(ifs_textures_mtx);
             ifs_textures[md5_path] = std::make_shared<image_t>(std::move(image_info));
         }
@@ -302,24 +297,24 @@ void parse_texturelist(HookFile &file) {
     }
 
     if (prop_was_rewritten) {
-        std::string outfolder = config.get_cache_folder() + "/" + ifs_mod_path;
+        auto outfolder = config.get_cache_folder() / ifs_mod_path;
         if (!mkdir_p(outfolder)) {
             log_warning("Couldn't create cache folder");
         }
-        std::string outfile = outfolder + "/texturelist.xml";
+        auto outfile = outfolder / "texturelist.xml";
         rapidxml_dump_to_file(outfile, texturelist);
         file.mod_path = outfile;
     }
 }
 
-bool cache_texture(std::string const&png_path, image_t const&tex) {
-    std::string cache_path = tex.cache_folder();
+bool cache_texture(istring const&png_path, image_t const&tex) {
+    auto cache_path = tex.cache_folder();
     if (!mkdir_p(cache_path)) {
         log_warning("Couldn't create texture cache folder");
         return false;
     }
 
-    std::string cache_file = tex.cache_file();
+    auto cache_file = tex.cache_file();
     auto cache_time = file_time(cache_file);
     auto png_time = file_time(png_path);
 
@@ -335,7 +330,7 @@ bool cache_texture(std::string const&png_path, image_t const&tex) {
     std::vector<uint8_t> image;
     unsigned width, height; // TODO use these to check against xml
 
-    error = lodepng::decode(image, width, height, png_path, LCT_RGBA);
+    error = lodepng::decode(image, width, height, png_path.downcast_ref(), LCT_RGBA);
     if (error) {
         log_warning("can't load png {}: {}\n", error, lodepng_error_text(error));
         return false;
@@ -363,9 +358,7 @@ bool cache_texture(std::string const&png_path, image_t const&tex) {
             std::swap(image[i], image[i + 1]);
         }
 
-        /*FILE* f = fopen("dxt_debug.bin", "wb");
-        fwrite(dxt5_image, 1, dxt5_size, f);
-        fclose(f);*/
+        // write_bytes("dxt_debug.bin", {dxt5_image, dxt5_size});
         break;
     }
     default:
@@ -405,7 +398,7 @@ void parse_afplist(HookFile &file) {
     ifs_path.resize(ifs_path.size() - strlen("/tex/afplist.xml"));
     // log_misc("Reading ifs {}", ifs_path);
     auto ifs_mod_path = ifs_path;
-    string_replace_i(ifs_mod_path, ".ifs", "_ifs");
+    ifs_mod_path.replace_suffix_foreach_path_component(".ifs", "_ifs");
 
     if (!find_first_modfolder(ifs_mod_path)) {
         // hide this print - the texturelist.xml will catch it
@@ -416,7 +409,7 @@ void parse_afplist(HookFile &file) {
     // open the correct file
     auto path_to_open = file.get_path_to_open();
     rapidxml::xml_document<> afplist;
-    auto success = rapidxml_from_avs_filepath(path_to_open, afplist, afplist);
+    auto success = rapidxml_from_avs_filepath(path_to_open.c_str(), afplist, afplist);
     if (!success)
         return;
 
@@ -447,9 +440,9 @@ void parse_afplist(HookFile &file) {
         }
 
         auto add_mapping = [&](std::string folder, std::string file) {
-            auto md5_path = ifs_path + folder + MD5()(file);
+            auto md5_path = ifs_path / folder / MD5()(file);
             afp_md5_names[md5_path] = std::make_shared<afp_t>(afp_t {
-                .mod_path = ifs_mod_path + folder + file,
+                .mod_path = ifs_mod_path / folder / file,
             });
             mapped++;
             // log_info("AFP {} -> {}", md5_path, ifs_mod_path + folder + file);
@@ -457,21 +450,21 @@ void parse_afplist(HookFile &file) {
 
         std::lock_guard lock(afp_md5_names_mtx);
 
-        add_mapping("/afp/", name->value());
-        add_mapping("/afp/bsi/", name->value());
+        add_mapping("afp", name->value());
+        add_mapping("afp/bsi", name->value());
 
         // iterate geos
         std::string index;
         std::stringstream ss(geo->value());
         while(ss >> index) {
-            add_mapping("/geo/", std::string(name->value()) + "_shape" + index);
+            add_mapping("geo", std::string(name->value()) + "_shape" + index);
         }
     }
 
     log_verbose("Mapped {} AFP filenames", mapped);
 }
 
-std::optional<std::tuple<std::string, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile &file) {
+std::optional<std::tuple<istring, std::shared_ptr<image_t>>> lookup_png_from_md5(HookFile &file) {
     std::unique_lock lock(ifs_textures_mtx);
     auto tex_search = ifs_textures.find(file.norm_path);
     if (tex_search == ifs_textures.end()) {
@@ -483,10 +476,11 @@ std::optional<std::tuple<std::string, std::shared_ptr<image_t>>> lookup_png_from
     lock.unlock(); // is it safe to unlock this early? Time will tell...
 
     // remove the /tex/, it's nicer to navigate
-    auto png_path = find_first_modfile(tex->ifs_mod_path + "/" + tex->name + ".png");
+    auto png_name = tex->name + ".png";
+    auto png_path = find_first_modfile(tex->ifs_mod_path / png_name);
     if (!png_path) {
         // but maybe they used it anyway
-        png_path = find_first_modfile(tex->ifs_mod_path + "/tex/" + tex->name + ".png");
+        png_path = find_first_modfile(tex->ifs_mod_path / "tex" / png_name);
         if (!png_path)
             return std::nullopt;
     }
@@ -517,7 +511,7 @@ void handle_texture(HookFile &file) {
     return;
 }
 
-std::optional<std::string> lookup_afp_from_md5(HookFile &file) {
+std::optional<istring> lookup_afp_from_md5(HookFile &file) {
     std::unique_lock lock(afp_md5_names_mtx);
     auto afp_search = afp_md5_names.find(file.norm_path);
     if (afp_search == afp_md5_names.end()) {
@@ -543,17 +537,14 @@ void handle_afp(HookFile &file) {
 
 void merge_xmls(HookFile &file) {
     Timer timer;
-    // initialize since we're GOTO-ing like naughty people
-    std::string out;
-    std::string out_folder;
     rapidxml::xml_document<> merged_xml;
 
     auto merge_path = file.norm_path;
-    string_replace_i(merge_path, ".xml", ".merged.xml");
+    merge_path.replace_suffix(".xml", ".merged.xml");
     auto to_merge = find_all_modfile(merge_path);
     if (to_merge.size() == 0) {
         // handle merging XML inside .ifs
-        string_replace_i(merge_path, ".ifs", "_ifs");
+        merge_path.replace_suffix_foreach_path_component(".ifs", "_ifs");
         to_merge = find_all_modfile(merge_path);
 
         // nothing to do...
@@ -562,9 +553,8 @@ void merge_xmls(HookFile &file) {
     }
 
     auto starting = file.get_path_to_open();
-    out = config.get_cache_folder() + "/" + file.norm_path;
-    auto out_hashed = out + ".hashed";
-    auto cache_hasher = CacheHasher(out_hashed);
+    auto out = config.get_cache_folder() / file.norm_path;
+    auto cache_hasher = CacheHasher(out + ".hashed");
 
     cache_hasher.add(starting); // don't forget to take the input into account
     log_info("Merging into {}", starting);
@@ -581,7 +571,7 @@ void merge_xmls(HookFile &file) {
         return;
     }
 
-    auto first_result = rapidxml_from_avs_filepath(starting, merged_xml, merged_xml);
+    auto first_result = rapidxml_from_avs_filepath(starting.c_str(), merged_xml, merged_xml);
     if (!first_result) {
         log_warning("Couldn't merge (can't load first xml {})", starting);
         return;
@@ -589,7 +579,7 @@ void merge_xmls(HookFile &file) {
 
     for (auto &path : to_merge) {
         rapidxml::xml_document<> rapid_to_merge;
-        auto merge_load_result = rapidxml_from_avs_filepath(path, rapid_to_merge, merged_xml);
+        auto merge_load_result = rapidxml_from_avs_filepath(path.c_str(), rapid_to_merge, merged_xml);
         if (!merge_load_result) {
             log_warning("Couldn't merge (can't load xml) {}", path);
             return;
@@ -603,9 +593,7 @@ void merge_xmls(HookFile &file) {
         }
     }
 
-    auto folder_terminator = out.rfind("/");
-    out_folder = out.substr(0, folder_terminator);
-    if (!mkdir_p(out_folder)) {
+    if (!mkdir_p(std::filesystem::path(out).parent_path())) {
         log_warning("Couldn't create merged cache folder");
     }
 

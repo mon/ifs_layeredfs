@@ -1,4 +1,6 @@
+#include <filesystem>
 #include <stdint.h>
+#include <system_error>
 #include <windows.h>
 #include <winternl.h>
 
@@ -8,6 +10,7 @@
 #include <unordered_set>
 #include <algorithm>
 #include <map>
+#include <ranges>
 #include <set>
 #include <sstream>
 
@@ -46,8 +49,8 @@ void (*pkfs_clear_hdd_error)();
 
 class PkfsHookFile final : public HookFile {
     public:
-    PkfsHookFile(const std::string path, const std::string norm_path)
-        : HookFile(path, norm_path)
+    PkfsHookFile(istring &&path, NormPath &&norm_path)
+        : HookFile(std::move(path), std::move(norm_path))
     {}
 
     bool ramfs_demangle() override {return false;};
@@ -87,31 +90,27 @@ class PkfsHookFile final : public HookFile {
 };
 
 // this should probably be part of the modpath h/cpp
-void list_pngs_onefolder(string_set &names, std::string const& folder) {
-    auto search_path = folder + "/*.png";
-    const auto extension_len = strlen(".png");
-    WIN32_FIND_DATAA fd;
-    HANDLE hFind = FindFirstFileA(search_path.c_str(), &fd);
-    if (hFind != INVALID_HANDLE_VALUE) {
-        do {
-            // read all (real) files in current folder
-            // , delete '!' read other 2 default folder . and ..
-            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-                fd.cFileName[strlen(fd.cFileName) - extension_len] = '\0';
-                names.insert(fd.cFileName);
-            }
-        } while (FindNextFileA(hFind, &fd));
-        FindClose(hFind);
+void list_pngs_onefolder(std::unordered_set<istring> &names, istring const&folder) {
+    std::error_code err;
+    for (const auto& entry : std::filesystem::directory_iterator(folder, err)) {
+        if (!entry.is_regular_file())
+            continue;
+
+        istring ext(entry.path().extension().string());
+        if (ext != ".png")
+            continue;
+
+        names.emplace(istring(entry.path().stem().string()));
     }
 }
 
-string_set list_pngs(std::string const&folder) {
-    string_set ret;
+std::unordered_set<istring> list_pngs(NormPath const&folder) {
+    std::unordered_set<istring> ret;
 
     for (auto &mod : available_mods()) {
-        auto path = mod + "/" + folder;
+        auto path = mod / folder;
         list_pngs_onefolder(ret, path);
-        list_pngs_onefolder(ret, path + "/tex");
+        list_pngs_onefolder(ret, path / "tex");
     }
 
     return ret;
@@ -120,51 +119,47 @@ string_set list_pngs(std::string const&folder) {
 struct ArcModScan {
     // Per-entry overrides. Keyed by relative path within the arc, e.g. "shader/foo.bin".
     // Tuple of actual path / norm path
-    std::map<std::string, std::pair<std::string, std::string>> files;
+    std::map<istring, std::pair<istring, NormPath>> files;
     // Inner-ifs paths inside the arc, derived from "*_ifs" mod subdirs. Paths
     // are arc-relative with the dot restored: a mod dir "sub/inner_ifs/" yields
     // "sub/inner.ifs". These get registered with the demangler so the game's
     // ramfs mount of the extracted inner ifs maps back to the arc-qualified
     // path our mod-folder lookup expects. Set, so multiple mods declaring the
     // same inner ifs dedupe.
-    std::set<std::string> inner_ifs_paths;
+    std::set<istring> inner_ifs_paths;
 };
 
-static void scan_arc_mod_onefolder(ArcModScan &out, std::string const& mod_folder, std::string const& folder, std::string const& rel_prefix) {
-    WIN32_FIND_DATAA fd;
-    HANDLE hFind = FindFirstFileA((mod_folder + "/" + folder + "/*").c_str(), &fd);
-    if (hFind == INVALID_HANDLE_VALUE)
-        return;
-    do {
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
-                continue;
-            if (string_ends_with_i(fd.cFileName, "_ifs")) {
-                std::string name = fd.cFileName;
+static void scan_arc_mod_onefolder(ArcModScan &out, istring const& mod_folder, NormPath const& folder, istring const& rel_prefix = "") {
+    // don't do a recursive iterator, makes it more awkward to skip the _ifs folders
+    std::error_code err;
+    for (const auto& entry : std::filesystem::directory_iterator(mod_folder / folder, err)) {
+        istring name(entry.path().filename().string());
+        if (entry.is_directory()) {
+            if (name.ends_with("_ifs")) {
                 name.replace(name.size() - 4, 4, ".ifs");
                 out.inner_ifs_paths.insert(rel_prefix + name);
                 continue;
             }
+
             scan_arc_mod_onefolder(out,
                 mod_folder,
-                folder + "/" + fd.cFileName,
-                rel_prefix + fd.cFileName + "/");
-        } else {
-            std::string rel = rel_prefix + fd.cFileName;
+                folder / name,
+                rel_prefix + name + "/");
+        } else if (entry.is_regular_file()) {
+            istring rel = rel_prefix + name;
             if (out.files.find(rel) == out.files.end())
                 out.files[rel] = std::make_pair(
-                    mod_folder + "/" + folder + "/" + fd.cFileName,
-                    folder + "/" + fd.cFileName
+                    mod_folder / folder / name,
+                    folder / name
                 );
         }
-    } while (FindNextFileA(hFind, &fd));
-    FindClose(hFind);
+    }
 }
 
-static ArcModScan scan_arc_mod_folder(std::string const& folder) {
+static ArcModScan scan_arc_mod_folder(NormPath const& folder) {
     ArcModScan ret;
     for (auto &mod : available_mods()) {
-        scan_arc_mod_onefolder(ret, mod, folder, "");
+        scan_arc_mod_onefolder(ret, mod, folder);
     }
     return ret;
 }
@@ -173,7 +168,7 @@ void handle_arc(HookFile &file) {
     Timer timer;
 
     auto arc_mod_path = file.norm_path;
-    string_replace_i(arc_mod_path, ".arc", "_arc");
+    arc_mod_path.replace_suffix(".arc", "_arc");
 
     if (!find_first_modfolder(arc_mod_path)) {
         return;
@@ -187,18 +182,17 @@ void handle_arc(HookFile &file) {
 
     for (auto const& inner_rel : scan.inner_ifs_paths) {
         auto pos = inner_rel.rfind('/');
-        std::string basename = (pos == std::string::npos) ? inner_rel : inner_rel.substr(pos + 1);
-        std::string demangled = "data/" + arc_mod_path + "/" + inner_rel;
-        ramfs_demangler_register_arc_inner_ifs(basename, demangled);
+        istring basename = (pos == std::string::npos) ? inner_rel : istring(inner_rel.substr(pos + 1));
+        istring demangled = istring("data") / arc_mod_path / inner_rel;
+        ramfs_demangler_register_arc_inner_ifs(basename.downcast_ref(), demangled.downcast_ref());
     }
 
     if (scan.files.empty()) {
         return;
     }
 
-    std::string out = config.get_cache_folder() + "/" + file.norm_path;
-    auto out_hashed = out + ".hashed";
-    auto cache_hasher = CacheHasher(out_hashed);
+    auto out = config.get_cache_folder() / file.norm_path;
+    auto cache_hasher = CacheHasher(out + ".hashed");
 
     auto starting = file.get_path_to_open();
     cache_hasher.add(starting);
@@ -239,7 +233,7 @@ void handle_arc(HookFile &file) {
     // exists on disk, so we need to make it so if it only exists inside of
     // the original .arc file
     for (const auto &arc_file : arc.files) {
-        if (!string_ends_with_i(arc_file.first, ".xml")) {
+        if (!arc_file.first.ends_with(".xml")) {
             continue;
         }
 
@@ -266,8 +260,8 @@ void handle_arc(HookFile &file) {
         // Do we have XMLs to merge? Only then, extract to cache and add a fake
         // extra entry. We don't need to add this particular file to the cache
         // because it gets its key off the original .arc file
-        std::string merged_fname = arc_file.first;
-        string_replace_i(merged_fname, ".xml", ".merged.xml");
+        auto merged_fname = arc_file.first;
+        merged_fname.replace_suffix(".xml", ".merged.xml");
         decltype(scan.files) extra_files;
         for (auto &[name, path] : scan.files) {
             // TODO: more hacks, make these paths less insane
@@ -282,10 +276,10 @@ void handle_arc(HookFile &file) {
                 continue;
             }
 
-            auto xml_orig = config.get_cache_folder() + "/" + file.norm_path + "/" + arc_file.first + ".orig";
-            auto xml_orig_norm = file.norm_path + "/" + arc_file.first;
-            string_replace_i(xml_orig, ".arc", "_arc");
-            string_replace_i(xml_orig_norm, ".arc", "_arc");
+            auto xml_orig = config.get_cache_folder() / file.norm_path / (arc_file.first + ".orig");
+            auto xml_orig_norm = file.norm_path / arc_file.first;
+            xml_orig.replace_suffix_foreach_path_component(".arc", "_arc");
+            xml_orig_norm.replace_suffix_foreach_path_component(".arc", "_arc");
 
             auto out_folder = xml_orig.substr(0, xml_orig.rfind("/"));
             if (!mkdir_p(out_folder)) {
@@ -293,13 +287,10 @@ void handle_arc(HookFile &file) {
                 continue;
             }
 
-            FILE *f = fopen(xml_orig.c_str(), "wb");
-            if (!f) {
+            if (!write_bytes(xml_orig, arc_file.second)) {
                 log_warning("Couldn't create arc xml base at {}", xml_orig);
                 continue;
             }
-            fwrite(arc_file.second.data(), 1, arc_file.second.size(), f);
-            fclose(f);
             extra_files.emplace(arc_file.first, std::make_pair(xml_orig, xml_orig_norm));
         }
         for (auto &[name, path] : extra_files)
@@ -307,12 +298,13 @@ void handle_arc(HookFile &file) {
     }
 
     for (auto &[name, path] : scan.files) {
-        if (string_ends_with_i(name, ".merged.xml"))
+        if (name.ends_with(".merged.xml"))
             continue;
 
-        AvsOpenHookFile f(path.first, path.second, 0, 0);
+        // can't move, so clone
+        AvsOpenHookFile f(istring(path.first), NormPath(path.second), 0, 0);
 
-        if (string_ends_with_i(name, ".xml"))
+        if (name.ends_with(".xml"))
             merge_xmls(f);
 
         auto data = f.load_to_vec();
@@ -341,7 +333,7 @@ void handle_texbin(HookFile &file) {
     // mod texbins strip the .bin off the end. This isn't consistent with the _ifs
     // used for ifs files, but it's consistent with gitadora-texbintool, the *only*
     // tool to extract .bin files currently.
-    string_replace_i(bin_mod_path, ".bin", "");
+    bin_mod_path.replace_suffix(".bin", "");
 
     if (!find_first_modfolder(bin_mod_path)) {
         // log_verbose("texbin: mod folder doesn't exist, skipping");
@@ -353,20 +345,25 @@ void handle_texbin(HookFile &file) {
     //// This whole hashing section is just a tiny bit different from the XML
     //// hashing :(
 
-    // convert the string_set to a vec for repeatable hashes
-    std::vector<std::string> pngs_list;
+    // convert the string set to a vec for repeatable hashes
+    // pairs of texname / mod path
+    std::vector<std::pair<istring, istring>> pngs_list;
     pngs_list.reserve(pngs.size());
     for (auto it = pngs.begin(); it != pngs.end(); ) {
         auto png = std::move(pngs.extract(it++).value());
-        // todo: hacky as hell, list_pngs should do better
-        png = png + ".png";
-        auto png_res = find_first_modfile(bin_mod_path + "/" + png);
+        auto png_res = find_first_modfile(bin_mod_path / (png + ".png"));
         if(png_res) {
-            pngs_list.push_back(*png_res);
+            // I have yet to see a texbin without allcaps names for textures
+            for (auto &c : png)
+                c = toupper_ascii(c);
+
+            pngs_list.emplace_back(std::move(png), std::move(*png_res));
         }
     }
-    // sort
-    std::sort(pngs_list.begin(), pngs_list.end());
+    // sort by actual filename
+    std::sort(pngs_list.begin(), pngs_list.end(), [](auto &left, auto &right) {
+        return left.second < right.second;
+    });
 
     // nothing to do...
     if (pngs_list.size() == 0) {
@@ -375,12 +372,12 @@ void handle_texbin(HookFile &file) {
     }
 
     auto starting = file.get_path_to_open();
-    std::string out = config.get_cache_folder() + "/" + file.norm_path;
+    auto out = config.get_cache_folder() / file.norm_path;
     auto out_hashed = out + ".hashed";
     auto cache_hasher = CacheHasher(out_hashed);
 
     cache_hasher.add(starting);
-    for (auto &path : pngs_list) {
+    for (auto &[_, path] : pngs_list) {
         cache_hasher.add(path);
     }
     cache_hasher.finish();
@@ -416,10 +413,7 @@ void handle_texbin(HookFile &file) {
         return;
     }
 
-    for (auto &path : pngs_list) {
-        // I have yet to see a texbin without allcaps names for textures
-        auto tex_name = std::filesystem::path(path).stem().string();
-        str_toupper_inline(tex_name);
+    for (auto &[tex_name, path] : pngs_list) {
         texbin.add_or_replace_image(tex_name.c_str(), path.c_str());
     }
 
@@ -437,26 +431,37 @@ void handle_texbin(HookFile &file) {
 uint32_t handle_file_open(HookFile &file) {
     auto norm_copy = file.norm_path;
     file.mod_path = find_first_modfile(norm_copy);
-    // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
-    while (!file.mod_path && string_replace_first_i(norm_copy, ".ifs", "_ifs")) {
-        file.mod_path = find_first_modfile(norm_copy);
+
+    if (!file.mod_path) {
+        // mod ifs paths use _ifs, go one at a time for ifs-inside-ifs
+        for (auto el : std::views::split(norm_copy, std::string_view("/"))) {
+            istring_view segment(el);
+            if (!segment.ends_with(".ifs"))
+                continue;
+
+            el[el.size() - 4] = '_';
+
+            file.mod_path = find_first_modfile(norm_copy);
+            if (file.mod_path)
+                break;
+        }
     }
 
-    if(string_ends_with_i(file.path, ".xml")) {
+    if(file.path.ends_with(".xml")) {
         merge_xmls(file);
     }
 
-    if(string_ends_with_i(file.path, ".bin")) {
+    if(file.path.ends_with(".bin")) {
         handle_texbin(file);
     }
 
-    if(string_ends_with_i(file.path, ".arc")) {
+    if(file.path.ends_with(".arc")) {
         handle_arc(file);
     }
 
-    if (string_ends_with_i(file.path, "texturelist.xml")) {
+    if (file.path.ends_with("texturelist.xml")) {
         parse_texturelist(file);
-    } else if(string_ends_with_i(file.path, "afplist.xml")) {
+    } else if(file.path.ends_with("afplist.xml")) {
         parse_afplist(file);
     } else {
         handle_texture(file);
@@ -465,7 +470,7 @@ uint32_t handle_file_open(HookFile &file) {
 
     auto ret = file.call_real();
     if(file.ramfs_demangle()) {
-        ramfs_demangler_on_fs_open(file.path, ret);
+        ramfs_demangler_on_fs_open(file.path.downcast_string(), ret);
     }
     // log_verbose("(returned {})", ret);
     return ret;
@@ -475,15 +480,15 @@ int hook_avs_fs_lstat(const char* name, struct avs_stat *st) {
     if (name == NULL)
         return avs_fs_lstat(name, st);
 
-    log_verbose("statting {}", name);
     std::string path = name;
+    log_verbose("statting {}", name);
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
     if (!norm_path)
         return avs_fs_lstat(name, st);
     // unpack success
-    AvsLstatHookFile file(path, *norm_path, st);
+    AvsLstatHookFile file(std::move(path), std::move(*norm_path), st);
 
     return handle_file_open(file);
 }
@@ -492,21 +497,22 @@ int hook_avs_fs_convert_path(char dest_name[256], const char *name) {
     if (name == NULL)
         return avs_fs_convert_path(dest_name, name);
 
-    log_verbose("convert_path {}", name);
     std::string path = name;
+    log_verbose("convert_path {}", name);
 
     // can it be modded ie is it under /data ?
     auto norm_path = normalise_path(path);
     if (!norm_path)
         return avs_fs_convert_path(dest_name, name);
     // unpack success
-    AvsConvertPathHookFile file(path, *norm_path, dest_name);
+    AvsConvertPathHookFile file(std::move(path), std::move(*norm_path), dest_name);
 
     return handle_file_open(file);
 }
 
-int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* args) {
-    log_verbose("mounting {} to {} with type {} and args {}", fsroot, mountpoint, fstype, args ? args : "(null)");
+int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fstype, const char* _args) {
+    std::optional<std::string_view> args = _args ? std::optional(_args) : std::nullopt;
+    log_verbose("mounting {} to {} with type {} and args {}", fsroot, mountpoint, fstype, args);
     ramfs_demangler_on_fs_mount(mountpoint, fsroot, fstype, args);
 
     // In new jubeat, a modded IFS file will be loaded as such:
@@ -518,7 +524,7 @@ int hook_avs_fs_mount(const char* mountpoint, const char* fsroot, const char* fs
     // they use .bin files instead of .ifs files.
     inside_pkfs_hook = false;
 
-    return avs_fs_mount(mountpoint, fsroot, fstype, args);
+    return avs_fs_mount(mountpoint, fsroot, fstype, _args);
 }
 
 size_t hook_avs_fs_read(AVS_FILE context, void* bytes, size_t nbytes) {
@@ -564,7 +570,7 @@ AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags) {
     if (!norm_path)
         return avs_fs_open(name, mode, flags);
     // unpack success
-    AvsOpenHookFile file(path, *norm_path, mode, flags);
+    AvsOpenHookFile file(std::move(path), std::move(*norm_path), mode, flags);
 
     return handle_file_open(file);
 }
@@ -581,31 +587,26 @@ unsigned int hook_pkfs_open(const char *name) {
         return pkfs_fs_open(name);
     }
     // unpack success
-    PkfsHookFile file(path, *norm_path);
+    PkfsHookFile file(std::move(path), std::move(*norm_path));
 
     // note that this also hides the avs_fs_open of the pakfile holding a
     // particular file - acceptable compromise IMO
     inside_pkfs_hook = true;
 
     if (g_build_config.pkfs_unpack) {
-        std::string pakdump_loc = "./data_unpak/" + file.norm_path;
+        std::filesystem::path pakdump_loc(fmt::format("./data_unpak/{}", file.norm_path));
         if(!std::filesystem::is_regular_file(pakdump_loc)) {
-            auto folder_terminator = pakdump_loc.rfind("/");
-            auto out_folder = pakdump_loc.substr(0, folder_terminator);
             auto data = file.load_to_vec();
             if(data) {
+                auto out_folder = pakdump_loc.parent_path();
                 if(mkdir_p(out_folder)) {
-                    auto dump = fopen(pakdump_loc.c_str(), "wb");
-                    if(dump) {
-                        fwrite(&(*data)[0], 1, data->size(), dump);
-                        fclose(dump);
-
+                    if(write_bytes(pakdump_loc, *data)) {
                         log_info("Dumped new pkfs file!");
                     } else {
-                        log_warning("Pakdump: Couldn't open output file");
+                        log_warning("Pakdump: Couldn't open output file {}", pakdump_loc);
                     }
                 } else {
-                    log_warning("Pakdump: Couldn't create output folder");
+                    log_warning("Pakdump: Couldn't create output folder {}", out_folder);
                 }
             }
         }

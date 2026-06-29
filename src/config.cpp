@@ -29,9 +29,10 @@ config_t::config_t()
         logfile = DEFAULT_LOGFILE;
 }
 
-static void parse_list(std::string_view arg, std::set<std::string, CaseInsensitiveCompare> &dest) {
+static void parse_list(std::string_view arg, std::set<istring> &dest) {
     for (const auto el : std::views::split(arg, std::string_view(",")))
-        dest.emplace(std::string_view(el));
+        // need to cast to string_view as the range can't directly construct a string
+        dest.emplace(istring_view(el));
 }
 
 void load_config() {
@@ -93,6 +94,6 @@ void print_config() {
         LOGFILE_FLAG, config.logfile,
         ALLOWLIST_FLAG, config.allowlist,
         BLOCKLIST_FLAG, config.blocklist,
-        MOD_FOLDER_FLAG, config.get_mod_folder().c_str()
+        MOD_FOLDER_FLAG, config.get_mod_folder()
     );
 }

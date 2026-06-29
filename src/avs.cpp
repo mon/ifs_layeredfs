@@ -370,11 +370,11 @@ static bool is_binary_prop(AVS_FILE f) {
 }
 
 bool rapidxml_from_avs_filepath(
-    std::string const& path,
+    const char* path,
     rapidxml::xml_document<>& doc,
     rapidxml::xml_document<>& doc_to_allocate_with
 ) {
-    AVS_FILE f = avs_fs_open(path.c_str(), avs_open_mode_read(), 420);
+    AVS_FILE f = avs_fs_open(path, avs_open_mode_read(), 420);
     if (f < 0) {
         log_warning("Couldn't open prop");
         return false;
@@ -407,9 +407,8 @@ bool rapidxml_from_avs_file(
         // parse_declaration_node: to get the header <?xml version="1.0" encoding="shift-jis"?>
         doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_utf8>(xml);
     } catch (const rapidxml::parse_error& e) {
-        log_warning("Couldn't parse xml ({} byte {})", e.what(), (int)(e.where<char>() - xml));
-        auto f = fopen("debug.xml", "wb");
-        fwrite(xml, strlen(xml), 1, f);
+        log_warning("Couldn't parse xml({} byte {})", e.what(), (int)(e.where<char>() - xml));
+        write_bytes("debug.xml", {xml, strlen(xml)});
         return false;
     }
 

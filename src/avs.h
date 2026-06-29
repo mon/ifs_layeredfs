@@ -217,7 +217,7 @@ void prop_free(property_t prop);
 property_t prop_from_file_path(std::string const&path);
 property_t prop_from_file_handle(AVS_FILE f);
 bool rapidxml_from_avs_filepath(
-    std::string const& path,
+    const char* path,
     rapidxml::xml_document<>& doc,
     rapidxml::xml_document<>& doc_to_allocate_with
 );

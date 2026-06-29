@@ -6,21 +6,22 @@
 
 using namespace rbp;
 
-bool pack_textures(std::vector<Bitmap*> &textures, std::vector<Packer*> &packed_textures) {
-    std::sort(textures.begin(), textures.end(), [](const Bitmap* a, const Bitmap* b) {
-        return (a->width * a->height) < (b->width * b->height);
+bool pack_textures(std::vector<Bitmap> &textures, std::vector<Packer> &packed_textures) {
+    std::sort(textures.begin(), textures.end(), [](const Bitmap& a, const Bitmap& b) {
+        return (a.width * a.height) < (b.width * b.height);
     });
 
     //Pack the bitmaps
     while (!textures.empty())
     {
-        auto packer = new Packer(MAX_TEXTURE);
-        packer->Pack(textures);
-        packed_textures.push_back(packer);
+        auto packer = Packer(MAX_TEXTURE);
+        packer.Pack(textures);
 
         // failed
-        if (packer->bitmaps.empty())
+        if (packer.bitmaps.empty())
             return false;
+
+        packed_textures.emplace_back(std::move(packer));
     }
 
     return true;
@@ -32,7 +33,7 @@ Packer::Packer(int max_size)
 
 }
 
-void Packer::Pack(std::vector<Bitmap*> &bitmaps)
+void Packer::Pack(std::vector<Bitmap> &bitmaps)
 {
     GuillotineBinPack packer(width, height);
 
@@ -40,18 +41,18 @@ void Packer::Pack(std::vector<Bitmap*> &bitmaps)
     int hh = 0;
     while (!bitmaps.empty())
     {
-        auto bitmap = bitmaps.back();
+        auto &bitmap = bitmaps.back();
 
-        Rect rect = packer.Insert(bitmap->width, bitmap->height, false,
+        Rect rect = packer.Insert(bitmap.width, bitmap.height, false,
             GuillotineBinPack::FreeRectChoiceHeuristic::RectBestAreaFit,
             GuillotineBinPack::GuillotineSplitHeuristic::SplitLongerAxis);
 
         if (rect.width == 0 || rect.height == 0)
             break;
 
-        bitmap->packX = rect.x;
-        bitmap->packY = rect.y;
-        this->bitmaps.push_back(bitmap);
+        bitmap.packX = rect.x;
+        bitmap.packY = rect.y;
+        this->bitmaps.emplace_back(std::move(bitmap));
         bitmaps.pop_back();
 
         ww = std::max(rect.x + rect.width, ww);

@@ -1,6 +1,5 @@
 #define LOG_MODULE "layeredfs-texbin"
 
-#include <cinttypes>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -214,8 +213,8 @@ static std::vector<uint8_t> argb8888_to_texture_data(
     return texbin_lz77_compress(data);
 }
 
-static std::vector<std::string> load_names(std::istream &f, uint32_t name_offset) {
-    std::vector<std::string> ret;
+static std::vector<istring> load_names(std::istream &f, uint32_t name_offset) {
+    std::vector<istring> ret;
 
     f.seekg(name_offset);
 
@@ -244,7 +243,7 @@ static std::vector<std::string> load_names(std::istream &f, uint32_t name_offset
         auto pos = f.tellg();
 
         f.seekg(name_offset + entry.str_offset);
-        std::string name = "";
+        istring name = "";
         char ch;
         while(f.get(ch) && ch > '\0') {
             name += ch;
@@ -343,7 +342,7 @@ void pad32(std::ofstream &f) {
 }
 
 template<typename T>
-void write_names(std::ofstream &f, std::map<std::string, T, CaseInsensitiveCompare> &names) {
+void write_names(std::ofstream &f, std::map<istring, T> &names) {
     auto start = f.tellp();
     TexbinNamesHdr hdr;
     f.write((char*)&hdr, sizeof(hdr)); // update with real values later
@@ -486,14 +485,14 @@ std::optional<Texbin> Texbin::from_stream(std::istream &f) {
 
     auto data = load_data(f, hdr);
 
-    std::map<std::string, ImageEntryParsed, CaseInsensitiveCompare> images;
+    std::map<istring, ImageEntryParsed> images;
     // images.reserve(hdr.file_count);
 
     for(uint32_t i = 0; i < hdr.file_count; i++) {
         images[names[i]] = ImageEntryParsed(data[i]);
     }
 
-    std::map<std::string, RectEntryParsed, CaseInsensitiveCompare> rects;
+    std::map<istring, RectEntryParsed> rects;
     if(hdr.rect_offset) {
         TexbinRectHdr rect_hdr;
         f.seekg(hdr.rect_offset);
@@ -568,7 +567,7 @@ std::optional<Texbin> Texbin::from_path(const char *path) {
 }
 
 void Texbin::process_dirty_rects() {
-    std::unordered_map<std::string, std::vector<RectEntryParsed*>> updates;
+    std::unordered_map<istring, std::vector<RectEntryParsed*>> updates;
     for(auto &[key, rect] : rects) {
         if(rect.dirty_data) {
             auto [it, _] = updates.emplace(rect.parent_name, std::vector<RectEntryParsed*>());

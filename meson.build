@@ -245,7 +245,7 @@ if host_machine.cpu_family() == 'x86_64'
     test('commandline parsing test', executable('test_commandline',
             sources: 'src/test_commandline.cpp',
             link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
-            dependencies: [gtest_main_dep, gmock_dep],
+            dependencies: [gtest_main_dep, gmock_dep, fmt_dep],
             build_by_default: false,
         ),
         workdir: meson.current_source_dir(),

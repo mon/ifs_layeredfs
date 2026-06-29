@@ -58,7 +58,7 @@ class Environment : public ::testing::Environment {
         print_config();
         cache_mods();
 
-        ASSERT_THAT(available_mods(), Contains(config.get_mod_folder() + "/empty"));
+        ASSERT_THAT(available_mods(), Contains(config.get_mod_folder() / "empty"));
      }
 
      // Override this to define how to tear down the environment.
@@ -101,13 +101,13 @@ TEST_P(DevModeOnOff, MissingFileNullopt) {
 }
 
 TEST_P(DevModeOnOff, CaseInsensitiveFiles) {
-   EXPECT_THAT(find_first_modfile("OhNo/oWo"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/oWo"));
-   EXPECT_THAT(find_first_modfile("ohno/owo"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/oWo"));
+   EXPECT_THAT(find_first_modfile("OhNo/oWo"), Optional(config.get_mod_folder() / "Case_Sensitive/OhNO/oWo"));
+   EXPECT_THAT(find_first_modfile("ohno/owo"), Optional(config.get_mod_folder() / "Case_Sensitive/OhNO/oWo"));
 }
 
 TEST_P(DevModeOnOff, CaseInsensitiveFolders) {
-   EXPECT_THAT(find_first_modfolder("OhNO"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/"));
-   EXPECT_THAT(find_first_modfolder("ohno"), Optional(config.get_mod_folder() + "/Case_Sensitive/OhNO/"));
+   EXPECT_THAT(find_first_modfolder("OhNO"), Optional(config.get_mod_folder() / "Case_Sensitive/OhNO/"));
+   EXPECT_THAT(find_first_modfolder("ohno"), Optional(config.get_mod_folder() / "Case_Sensitive/OhNO/"));
 }
 
 TEST(ImageFs, MD5DemanglingWorks) {
@@ -131,13 +131,13 @@ TEST(ImageFs, MD5DemanglingWorks) {
       auto path = mount + "/" + folder + "/" + hash;
       auto norm = normalise_path(path);
       EXPECT_NE(norm, std::nullopt);
-      if(!norm) return std::string();
+      if(!norm) return istring();
 
-      TestHookFile file(path, *norm);
       log_info("Lookup {} norm {}", path, *norm);
+      TestHookFile file(std::move(path), std::move(*norm));
       auto lookup = lookup_png_from_md5(file);
       EXPECT_NE(lookup, std::nullopt);
-      if(!lookup) return std::string();
+      if(!lookup) return istring();
       auto &[png, tex] = *lookup;
 
       return png;
@@ -148,13 +148,13 @@ TEST(ImageFs, MD5DemanglingWorks) {
       auto path = mount + "/" + folder + "/" + hash;
       auto norm = normalise_path(path);
       EXPECT_NE(norm, std::nullopt);
-      if(!norm) return std::string();
+      if(!norm) return istring();
 
-      TestHookFile file(path, *norm);
       log_info("Lookup {} norm {}", path, *norm);
+      TestHookFile file(std::move(path), std::move(*norm));
       auto lookup = lookup_afp_from_md5(file);
       EXPECT_NE(lookup, std::nullopt);
-      if(!lookup) return std::string();
+      if(!lookup) return istring();
 
       return *lookup;
    };
@@ -235,9 +235,9 @@ TEST(RamFs, DemanglingWorks) {
 
     ramfs_demangler_on_fs_read(fake_handle, fake_buffer);
     std::string flags = std::format("base={:#x}", (uintptr_t)fake_buffer);
-    ramfs_demangler_on_fs_mount("/sd0", "test.ifs", "ramfs", flags.c_str());
+    ramfs_demangler_on_fs_mount("/sd0", "test.ifs", "ramfs", flags);
 
-    ramfs_demangler_on_fs_mount("/game/test", "/sd0/test.ifs", "imagefs", nullptr);
+    ramfs_demangler_on_fs_mount("/game/test", "/sd0/test.ifs", "imagefs", std::nullopt);
 
     std::string path = "/game/test/somefile";
     ramfs_demangler_demangle_if_possible(path);
@@ -268,10 +268,10 @@ TEST(RamFs, DemanglingWorksNabla) {
 
    ramfs_demangler_on_fs_read(fake_handle, fake_buffer);
    std::string flags = std::format("base={:#x}", (uintptr_t)fake_buffer);
-   ramfs_demangler_on_fs_mount("/mnt/bm2d/rmp_89_2714881", "image.bin", "ramfs", flags.c_str());
+   ramfs_demangler_on_fs_mount("/mnt/bm2d/rmp_89_2714881", "image.bin", "ramfs", flags);
 
    ramfs_demangler_on_fs_mount("/mnt/bm2d/rfs88r89/logo.ifs", "/mnt/bm2d/rmp_89_2714881/image.bin", "link", "");
-   ramfs_demangler_on_fs_mount("/mnt/bm2d/ngp88/logo.ifs", "/mnt/bm2d/rfs88r89/logo.ifs", "imagefs", nullptr);
+   ramfs_demangler_on_fs_mount("/mnt/bm2d/ngp88/logo.ifs", "/mnt/bm2d/rfs88r89/logo.ifs", "imagefs", std::nullopt);
 
    ramfs_demangler_on_fs_open("/mnt/bm2d/rfs88r89/logo.ifs", 9001);
 
@@ -280,8 +280,8 @@ TEST(RamFs, DemanglingWorksNabla) {
    EXPECT_EQ(path, "/data/graphics/ver07/logo.ifs/tex/texturelist.xml");
 }
 
-static std::vector<uint8_t> read_arc_file(std::string const& arc_path, std::string const& name) {
-    std::ifstream f(arc_path, std::ios::binary);
+static std::vector<uint8_t> read_arc_file(istring const& arc_path, istring const& name) {
+    std::ifstream f(arc_path.c_str(), std::ios::binary);
     if (!f) return {};
     auto arc = ArcArchive::from_stream(f);
     if (!arc) return {};
@@ -381,18 +381,18 @@ TEST(ArcArchive, MergedXmlInsideArcWithOriginalInsideArc) {
 // the inner-ifs basename: simulates the ramfs/imagefs mount sequence and
 // asserts that a path inside the inner ifs's imagefs mountpoint demangles back
 // to "<arc_path with .arc->_arc>/inner.ifs/<file>".
-static void exercise_inner_ifs_demangle(std::string const& arc_path) {
+static void exercise_inner_ifs_demangle(NormPath const& arc_path) {
     // The buffer pointer doesn't matter — basename lookup is the fallback path
     uint8_t fake_buffer[1];
     std::string flags = std::format("base={:#x}", (uintptr_t)fake_buffer);
-    ramfs_demangler_on_fs_mount("/sd9", "inner.ifs", "ramfs", flags.c_str());
-    ramfs_demangler_on_fs_mount("/game/inner_test", "/sd9/inner.ifs", "imagefs", nullptr);
+    ramfs_demangler_on_fs_mount("/sd9", "inner.ifs", "ramfs", flags);
+    ramfs_demangler_on_fs_mount("/game/inner_test", "/sd9/inner.ifs", "imagefs", std::nullopt);
 
     std::string p = "/game/inner_test/some_subfile";
     ramfs_demangler_demangle_if_possible(p);
-    std::string expected_arc = arc_path;
-    string_replace_i(expected_arc, ".arc", "_arc");
-    EXPECT_EQ(p, "data/" + expected_arc + "/inner.ifs/some_subfile");
+    NormPath expected_arc = arc_path;
+    expected_arc.replace_suffix_foreach_path_component(".arc", "_arc");
+    EXPECT_EQ(p, fmt::format("data/{}/inner.ifs/some_subfile", expected_arc));
 }
 
 TEST(ArcArchive, IfsOnlySubtreeSkipsRepack) {
@@ -413,11 +413,11 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     orig.add_or_replace("inner.ifs", inner_ifs_bytes);
     orig.add_or_replace("other.bin", other_bin_bytes);
 
-    std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/ifs_with_extras_orig.arc";
-    mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
+    auto tmp_path = config.get_mod_folder() / "_cache/ifs_with_extras_orig.arc";
+    mkdir_p(config.get_mod_folder() / "_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
-    AvsOpenHookFile file(tmp_path, "ifs_with_extras.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file(std::move(tmp_path), "ifs_with_extras.arc", avs_open_mode_read(), 42);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 
@@ -435,11 +435,11 @@ TEST(ArcArchive, OverlayWithTwoMods) {
     orig.add_or_replace("original_file", {'o','r','i','g','i','n','a','l'});
     orig.add_or_replace("override_file", {'o','l','d'});
 
-    std::string tmp_path = std::string(config.get_mod_folder()) + "/_cache/overlay_test_orig.arc";
-    mkdir_p(std::string(config.get_mod_folder()) + "/_cache");
+    auto tmp_path = config.get_mod_folder() / "_cache/overlay_test_orig.arc";
+    mkdir_p(config.get_mod_folder() / "_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
-    AvsOpenHookFile file(tmp_path, "overlay_test.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file(std::move(tmp_path), "overlay_test.arc", avs_open_mode_read(), 42);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 

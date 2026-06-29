@@ -51,8 +51,9 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
     ArcArchive arc;
     for (auto &e : entries) {
         stream.seekg(e.str_offset);
-        std::string name;
-        std::getline(stream, name, '\0');
+        std::string _name;
+        std::getline(stream, _name, '\0');
+        istring name(std::move(_name));
 
         stream.seekg(e.file_offset);
         std::vector<uint8_t> packed(e.packed_size);
@@ -76,7 +77,7 @@ std::optional<ArcArchive> ArcArchive::from_stream(std::istream &stream) {
     return arc;
 }
 
-void ArcArchive::add_or_replace(std::string const& name, std::vector<uint8_t> data) {
+void ArcArchive::add_or_replace(istring const& name, std::vector<uint8_t> data) {
     files[name] = std::move(data);
 }
 
