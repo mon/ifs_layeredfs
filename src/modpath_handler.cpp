@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <set>
 
-#include "ramfs_demangler.h"
+#include "ramfs_demangler.hpp"
 
-#include "modpath_handler.h"
+#include "modpath_handler.hpp"
 #include "config.hpp"
 #include "log.hpp"
 #include "utils.hpp"

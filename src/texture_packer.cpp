@@ -1,4 +1,4 @@
-#include "texture_packer.h"
+#include "texture_packer.hpp"
 
 #include <algorithm>
 

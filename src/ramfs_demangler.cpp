@@ -38,9 +38,9 @@
 
 #include "3rd_party/hat-trie/htrie_map.h"
 
-#include "ramfs_demangler.h"
+#include "ramfs_demangler.hpp"
 #include "log.hpp"
-#include "modpath_handler.h"
+#include "modpath_handler.hpp"
 #include "utils.hpp"
 
 typedef struct {

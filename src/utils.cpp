@@ -5,7 +5,7 @@
 #include <windows.h>
 
 #include "utils.hpp"
-#include "hook.h"
+#include "hook.hpp"
 
 std::string path_to_actual_case(std::string path) {
     WIN32_FIND_DATAA ffd;

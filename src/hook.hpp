@@ -3,9 +3,9 @@
 #include <windows.h>
 #include <optional>
 #include <unordered_set>
-#include "avs.h"
+#include "avs.hpp"
 #include "log.hpp"
-#include "modpath_handler.h"
+#include "modpath_handler.hpp"
 #include "utils.hpp"
 
 extern std::filesystem::file_time_type dll_time;

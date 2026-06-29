@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <winternl.h>
 
-#include "hook.h"
+#include "hook.hpp"
 
 // all good code mixes C and C++, right?
 #include <unordered_set>
@@ -16,7 +16,7 @@
 
 #include "3rd_party/MinHook.h"
 
-#include "ramfs_demangler.h"
+#include "ramfs_demangler.hpp"
 #include "buildconfig.hpp"
 #include "config.hpp"
 #include "log.hpp"
@@ -24,8 +24,8 @@
 #include "texbin.hpp"
 #include "arc.hpp"
 #include "utils.hpp"
-#include "avs.h"
-#include "modpath_handler.h"
+#include "avs.hpp"
+#include "modpath_handler.hpp"
 
 #ifdef _DEBUG
 #define DBG_VER_STRING "_DEBUG"

@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 
-#include "avs.h"
+#include "avs.hpp"
 
 // note: the demangler works exclusively on game-provided paths and so doesn't
 // store/take istrings

@@ -3,7 +3,7 @@
 #include <cstring>
 #include <fstream>
 
-#include "avs.h"
+#include "avs.hpp"
 #include "log.hpp"
 
 #pragma pack(push, 1)

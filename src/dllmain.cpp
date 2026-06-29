@@ -1,6 +1,6 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include <windows.h>
-#include "hook.h"
+#include "hook.hpp"
 #include "utils.hpp"
 
 extern "C" __declspec(dllexport) const char __layeredfs_version[] = VER_STRING;

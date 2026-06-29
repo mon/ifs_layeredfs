@@ -2,8 +2,8 @@
 #include <windows.h>
 #include <stdio.h>
 
-#include "avs.h"
-#include "hook.h"
+#include "avs.hpp"
+#include "hook.hpp"
 #include "log.hpp"
 #include "3rd_party/MinHook.h"
 #include "utils.hpp"

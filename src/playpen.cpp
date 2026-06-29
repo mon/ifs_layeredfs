@@ -3,7 +3,7 @@
 
 #include <windows.h>
 
-#include "hook.h"
+#include "hook.hpp"
 #include "log.hpp"
 #include "3rd_party/lodepng.h"
 

@@ -3,11 +3,11 @@
 #include <gmock/gmock.h>
 
 #include "config.hpp"
-#include "hook.h"
+#include "hook.hpp"
 #include "imagefs.hpp"
 #include "avs_standalone.hpp"
-#include "modpath_handler.h"
-#include "ramfs_demangler.h"
+#include "modpath_handler.hpp"
+#include "ramfs_demangler.hpp"
 
 #include "3rd_party/rapidxml_print.hpp"
 #include "src/3rd_party/rapidxml.hpp"

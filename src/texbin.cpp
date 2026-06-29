@@ -14,7 +14,7 @@
 #include <unordered_map>
 
 #include "texbin.hpp"
-#include "avs.h"
+#include "avs.hpp"
 #include "log.hpp"
 #include "3rd_party/lodepng.h"
 #include "3rd_party/libsquish/squish.h"

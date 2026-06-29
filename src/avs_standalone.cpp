@@ -2,8 +2,8 @@
 
 #include <windows.h>
 
-#include "avs.h"
-#include "hook.h"
+#include "avs.hpp"
+#include "hook.hpp"
 #include "log.hpp"
 
 namespace avs_standalone

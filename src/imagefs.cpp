@@ -13,10 +13,10 @@
 #include "3rd_party/rapidxml_print.hpp"
 #include "3rd_party/md5.h"
 
-#include "avs.h"
+#include "avs.hpp"
 #include "log.hpp"
-#include "modpath_handler.h"
-#include "texture_packer.h"
+#include "modpath_handler.hpp"
+#include "texture_packer.hpp"
 #include "utils.hpp"
 
 enum img_format {

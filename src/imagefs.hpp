@@ -2,7 +2,7 @@
 #include <optional>
 #include <tuple>
 
-#include "hook.h"
+#include "hook.hpp"
 
 void handle_texture(HookFile &file);
 void handle_afp(HookFile &file);
