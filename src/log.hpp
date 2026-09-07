@@ -34,8 +34,9 @@ inline constexpr log_base<&imp_log_body_info, _log_module> log_info;
 inline constexpr log_base<&imp_log_body_misc, _log_module> log_misc;
 // layeredfs super-verbose (since most people have loglevel misc already)
 #define log_verbose(...)                                                                           \
-    if (config.verbose_logs) {                                                                     \
+    while (config.verbose_logs) {                                                                  \
         log_misc(__VA_ARGS__);                                                                     \
+        break;                                                                                     \
     }
 
 // for the playpen
