@@ -1,4 +1,5 @@
 BasedOnStyle: LLVM
+LineEnding: LF
 ColumnLimit: 100
 IndentWidth: 4
 PointerAlignment: Left
