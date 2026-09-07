@@ -321,6 +321,20 @@ TEST(RamFs, DemanglingWorksNabla) {
     EXPECT_EQ(path, "/data/graphics/ver07/logo.ifs/tex/texturelist.xml");
 }
 
+TEST(RamFs, DemanglingWorksLovePlus) {
+    // LovePlus mounts straight from a real path, with a trailing slash on the mountpoint:
+    // M:mounting data/img/script/today.ifs to /data/script/today/ with type imagefs and args (null)
+    // M:imagefs mount mapped to data/img/script/today.ifs
+    // M:opening /data/script/today/n_today_009.txt mode 0 flags 420
+
+    ramfs_demangler_on_fs_mount(
+        "/data/script/today/", "data/img/script/today.ifs", "imagefs", std::nullopt);
+
+    std::string path = "/data/script/today/n_today_009.txt";
+    ramfs_demangler_demangle_if_possible(path);
+    EXPECT_EQ(path, "data/img/script/today.ifs/n_today_009.txt");
+}
+
 static std::vector<uint8_t> read_arc_file(istring const& arc_path, istring const& name) {
     std::ifstream f(arc_path.c_str(), std::ios::binary);
     if (!f)

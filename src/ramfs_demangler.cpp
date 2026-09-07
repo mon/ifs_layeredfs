@@ -200,6 +200,10 @@ void ramfs_demangler_on_fs_mount(std::string_view mountpoint, std::string_view f
             }
         }
     } else if (fstype == "imagefs") {
+        // strip trailing '/' on mountpoint — LovePlus uses "/data/script/today/"
+        while (mountpoint.ends_with('/'))
+            mountpoint.remove_suffix(1);
+
         auto find = ramfs_map.longest_prefix(fsroot);
         if (find != ramfs_map.end()) {
             auto orig_path = *find;
