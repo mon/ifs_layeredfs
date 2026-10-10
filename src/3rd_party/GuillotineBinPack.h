@@ -59,7 +59,8 @@ public:
     ///		some extra time.
     /// @param rectChoice The free rectangle choice heuristic rule to use.
     /// @param splitMethod The free rectangle split heuristic rule to use.
-    Rect Insert(int width, int height, bool merge, FreeRectChoiceHeuristic rectChoice, GuillotineSplitHeuristic splitMethod);
+    /// @param allowRotate If false, preserves the supplied width and height.
+    Rect Insert(int width, int height, bool merge, FreeRectChoiceHeuristic rectChoice, GuillotineSplitHeuristic splitMethod, bool allowRotate = true);
 
     /// Inserts a list of rectangles into the bin.
     /// @param rects The list of rectangles to add. This list will be destroyed in the packing process.
@@ -109,7 +110,7 @@ private:
     /// @param nodeIndex [out] The index of the free rectangle in the freeRectangles array into which the new
     ///		rect was placed.
     /// @return A Rect structure that represents the placement of the new rect into the best free rectangle.
-    Rect FindPositionForNewNode(int width, int height, FreeRectChoiceHeuristic rectChoice, int *nodeIndex);
+    Rect FindPositionForNewNode(int width, int height, FreeRectChoiceHeuristic rectChoice, int *nodeIndex, bool allowRotate);
 
     static int ScoreByHeuristic(int width, int height, const Rect &freeRect, FreeRectChoiceHeuristic rectChoice);
     // The following functions compute (penalty) score values if a rect of the given size was placed into the

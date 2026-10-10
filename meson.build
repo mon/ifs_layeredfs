@@ -229,6 +229,15 @@ if host_machine.cpu_family() == 'x86_64'
     gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
     gmock_dep = gtest_proj.get_variable('gmock_dep')
 
+    # Packing is independent of the AVS runtime used by tests_bin.
+    test('texture packing', executable('texture_packer_tests',
+            sources: 'src/texture_packer_tests.cpp',
+            link_with: layeredfs_lib,
+            dependencies: [gtest_main_dep, fmt_dep],
+            build_by_default: false,
+        ),
+    )
+
     default_build_config = static_library('default_build_config',
         sources: 'src/buildconfig.cpp'
     )

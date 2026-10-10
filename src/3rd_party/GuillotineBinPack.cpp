@@ -340,11 +340,11 @@ void GuillotineBinPack::InsertMaxFitting(std::vector<RectSize> &rects, std::vect
 */
 
 Rect GuillotineBinPack::Insert(int width, int height, bool merge, FreeRectChoiceHeuristic rectChoice,
-    GuillotineSplitHeuristic splitMethod)
+    GuillotineSplitHeuristic splitMethod, bool allowRotate)
 {
     // Find where to put the new rectangle.
     int freeNodeIndex = 0;
-    Rect newRect = FindPositionForNewNode(width, height, rectChoice, &freeNodeIndex);
+    Rect newRect = FindPositionForNewNode(width, height, rectChoice, &freeNodeIndex, allowRotate);
 
     // Abort if we didn't have enough space in the bin.
     if (newRect.height == 0)
@@ -430,7 +430,7 @@ int GuillotineBinPack::ScoreWorstLongSideFit(int width, int height, const Rect &
     return -ScoreBestLongSideFit(width, height, freeRect);
 }
 
-Rect GuillotineBinPack::FindPositionForNewNode(int width, int height, FreeRectChoiceHeuristic rectChoice, int *nodeIndex)
+Rect GuillotineBinPack::FindPositionForNewNode(int width, int height, FreeRectChoiceHeuristic rectChoice, int *nodeIndex, bool allowRotate)
 {
     Rect bestNode;
     memset(&bestNode, 0, sizeof(Rect));
@@ -453,7 +453,7 @@ Rect GuillotineBinPack::FindPositionForNewNode(int width, int height, FreeRectCh
             break;
         }
         // If this is a perfect fit sideways, choose it.
-        else if (height == freeRectangles[i].width && width == freeRectangles[i].height)
+        else if (allowRotate && height == freeRectangles[i].width && width == freeRectangles[i].height)
         {
             bestNode.x = freeRectangles[i].x;
             bestNode.y = freeRectangles[i].y;
@@ -481,7 +481,7 @@ Rect GuillotineBinPack::FindPositionForNewNode(int width, int height, FreeRectCh
             }
         }
         // Does the rectangle fit sideways?
-        else if (height <= freeRectangles[i].width && width <= freeRectangles[i].height)
+        else if (allowRotate && height <= freeRectangles[i].width && width <= freeRectangles[i].height)
         {
             int score = ScoreByHeuristic(height, width, freeRectangles[i], rectChoice);
 

@@ -38,9 +38,10 @@ void Packer::Pack(std::vector<Bitmap>& bitmaps) {
     while (!bitmaps.empty()) {
         auto& bitmap = bitmaps.back();
 
+        // PNG pixels and imagefs UVs stay upright, so the allocation must too.
         Rect rect = packer.Insert(bitmap.width, bitmap.height, false,
             GuillotineBinPack::FreeRectChoiceHeuristic::RectBestAreaFit,
-            GuillotineBinPack::GuillotineSplitHeuristic::SplitLongerAxis);
+            GuillotineBinPack::GuillotineSplitHeuristic::SplitLongerAxis, false);
 
         if (rect.width == 0 || rect.height == 0)
             break;
