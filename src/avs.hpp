@@ -173,6 +173,8 @@ typedef node_info* node_t;
 typedef int32_t AVS_FILE;
 
 typedef size_t (*avs_reader_t)(AVS_FILE context, void* bytes, size_t nbytes);
+typedef void (*avs_log_writer_lt_1500_t)(void* ctx, const char* chars, uint32_t nchars);
+typedef void (*avs_log_writer_gte_1500_t)(const char* chars, uint32_t nchars, void* ctx);
 
 #define ELLIPSIS ...
 // because the functions are repeated in 3 places, we format them with an X macro
@@ -204,13 +206,21 @@ typedef size_t (*avs_reader_t)(AVS_FILE context, void* bytes, size_t nbytes);
     X(cstream_t*, cstream_create, compression_type type)                                           \
     X(bool, cstream_operate, cstream_t* compressor)                                                \
     X(bool, cstream_finish, cstream_t* compressor)                                                 \
-    X(bool, cstream_destroy, cstream_t* compressor)
+    X(bool, cstream_destroy, cstream_t* compressor)                                                \
+    /* only used in unit tests but doesn't hurt to load them normally. avs_boot is hacky tho... */ \
+    X(void, avs_fs_umount_by_desc, uint32_t desc)                                                  \
+    X(void, avs_boot_lt_1600, node_t config, void* std_heap, size_t sz_std_heap, void* avs_heap,   \
+        size_t sz_avs_heap, const void* log_writer, void* log_context)                             \
+    X(void, avs_boot_gte_1600, node_t config, void* com_heap, size_t sz_com_heap, void* reserved,  \
+        avs_log_writer_gte_1500_t log_writer, void* log_context)                                   \
+    X(void, avs_shutdown)                                                                          \
+    X(node_t, property_search, property_t prop, node_t node, const char* path)
 
 // Functions missing from extremely old AVS versions (2.8.3)
-#define FOREACH_AVS_FUNC_OPTIONAL(X)                                                                  \
-    /* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use    \
-     * the plain names (which requires memsize_long) */ \
-    X(int32_t, property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f, int* unk0,          \
+#define FOREACH_AVS_FUNC_OPTIONAL(X)                                                               \
+    /* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use */ \
+    /* the plain names (which requires memsize_long) */                                            \
+    X(int32_t, property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f, int* unk0,       \
         int* unk1, int* unk2)
 
 #define AVS_FUNC_PROTOTYPE(ret_type, name, ...) extern ret_type (*name)(__VA_ARGS__);
@@ -233,6 +243,8 @@ std::optional<std::vector<uint8_t>> lz_decompress(
 
 extern std::string_view avs_loaded_dll_name;
 extern uint16_t avs_loaded_version; // uses bemanitools form, e.g. 2.17.3 = 1703
+// TODO: 800 doesn't, 1000 does. I don't have a 900 avs build to confirm exactly when imagefs got added
+static inline bool avs_loaded_version_supports_imagefs() { return avs_loaded_version >= 900; }
 
 static inline uint16_t avs_open_mode_read() {
     // new AVS has bitflags (R=1,W=2), old AVS has enum (R=0,W=1,RW=2)
@@ -241,4 +253,11 @@ static inline uint16_t avs_open_mode_read() {
     } else {
         return 0;
     }
+}
+
+static inline bool avs_file_open_ok(AVS_FILE f) {
+    if (avs_loaded_version >= 1100)
+        return f >= 0;
+    else
+        return f > 0;
 }

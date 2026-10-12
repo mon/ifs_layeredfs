@@ -642,7 +642,10 @@ static void dump_loaded_dll_info() {
 }
 
 extern "C" {
-__declspec(dllexport) int init() {
+__declspec(dllexport) int init() { return init_internal(); }
+}
+
+int init_internal(bool for_tests) {
     // all logs up until init_avs succeeds will go to a file for debugging purposes
 
     // find out where we're logging to
@@ -662,7 +665,7 @@ __declspec(dllexport) int init() {
     }
 
     // re-route to AVS logs if no external file specified
-    if (!config.logfile) {
+    if (!for_tests && !config.logfile) {
         imp_log_body_fatal   = log_body_fatal;
         imp_log_body_warning = log_body_warning;
         imp_log_body_info    = log_body_info;
@@ -673,12 +676,13 @@ __declspec(dllexport) int init() {
     log_info("IFS layeredFS v" VERSION " init");
     if (g_build_config.special_ver)
         log_info("Build config: {}", *g_build_config.special_ver);
-    log_info("AVS DLL detected: {}", avs_loaded_dll_name);
+    log_info("AVS DLL detected: {}, {}", avs_loaded_version, avs_loaded_dll_name);
     print_config();
     if (g_build_config.pkfs_unpack)
         log_info(".pak dumper mode enabled");
 
-    dump_loaded_dll_info();
+    if (!for_tests)
+        dump_loaded_dll_info();
 
     init_modpath_handler();
     cache_mods();
@@ -729,5 +733,4 @@ __declspec(dllexport) int init() {
     }
 
     return 0;
-}
 }

@@ -248,7 +248,7 @@ void textypes() {
 }
 
 int main(int argc, char** argv) {
-    if (!avs_standalone::boot(false)) {
+    if (!avs_standalone::preboot() || !avs_standalone::boot(false)) {
         log_fatal("avs_standalone boot failed");
         return 1;
     }

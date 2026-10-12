@@ -25,6 +25,8 @@ extern "C" {
 __declspec(dllexport) int init();
 }
 
+int init_internal(bool for_tests = false);
+
 // Used to simplify file opens - pkfs/avs_fs have different signatures, but
 // otherwise have almost the exact same semantics and mod behaviour. It lets you
 // replace a file's path, or read the original file (using the correct API) into
@@ -76,7 +78,7 @@ class AvsHookFile : public HookFile {
   public:
     std::optional<std::vector<uint8_t>> load_to_vec() override {
         AVS_FILE f = avs_fs_open(get_path_to_open().c_str(), avs_open_mode_read(), 420);
-        if (f >= 0) {
+        if (avs_file_open_ok(f)) {
             auto ret = avs_file_to_vec(f);
             avs_fs_close(f);
             return ret;

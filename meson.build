@@ -16,6 +16,14 @@ add_project_arguments(
     language: 'cpp',
 )
 
+if host_machine.cpu_family() == 'x86_64'
+    bits = 64
+elif host_machine.cpu_family() == 'x86'
+    bits = 32
+else
+    error('Unsupported CPU family: ' + host_machine.cpu_family())
+endif
+
 # note: not using fmt from the wrapdb because it needs pkgconfig which doesn't
 # work for cross builds
 fmt_lib = static_library('fmt',
@@ -121,7 +129,7 @@ special_cfgs = [
 ]
 
 # documentation for pkfs_unpak
-if host_machine.cpu_family() == 'x86'
+if bits == 32
     install_data(
         'pkfs_unpack_readme.txt',
         install_dir: '/special_builds/pkfs_unpack',
@@ -130,7 +138,7 @@ if host_machine.cpu_family() == 'x86'
 endif
 
 windows_dll_compat_checker = find_program('windows_dll_compat_checker', required: false)
-if host_machine.cpu_family() == 'x86_64'
+if bits == 64
     xp_check_ini = 'PREMADE/winxp_x86_64.ini'
 else
     xp_check_ini = 'PREMADE/winxp_x86_64_32bit_dlls.ini'
@@ -140,7 +148,7 @@ foreach cfg : special_cfgs
     folder_name = cfg[0]
     defines = cfg[1]
 
-    if folder_name.contains('pkfs_unpack') and host_machine.cpu_family() != 'x86'
+    if folder_name.contains('pkfs_unpack') and bits != 32
         continue
     endif
 
@@ -191,7 +199,7 @@ foreach cfg : injector_cfgs
     def_file = 'src_injector' / dll_name + '.def'
 
     if dll_name == 'dxgi_for_bombergirl'
-        if host_machine.cpu_family() != 'x86_64'
+        if bits != 64
             continue
         endif
         def_file = 'src_injector/dxgi.def'
@@ -224,48 +232,72 @@ foreach cfg : injector_cfgs
     endif
 endforeach
 
-if host_machine.cpu_family() == 'x86_64'
-    gtest_proj = subproject('gtest', required: false, default_options: {'default_library': 'static'})
-    gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
-    gmock_dep = gtest_proj.get_variable('gmock_dep')
+gtest_proj = subproject('gtest', required: false, default_options: {'default_library': 'static'})
+gtest_main_dep = gtest_proj.get_variable('gtest_main_dep')
+gmock_dep = gtest_proj.get_variable('gmock_dep')
 
-    # Packing is independent of the AVS runtime used by tests_bin.
-    test('texture packing', executable('texture_packer_tests',
-            sources: 'src/texture_packer_tests.cpp',
-            link_with: layeredfs_lib,
-            dependencies: [gtest_main_dep, fmt_dep],
-            build_by_default: false,
-        ),
-    )
+# Packing is independent of the AVS runtime used by tests_bin.
+test('texture packing', executable('texture_packer_tests',
+        sources: 'src/texture_packer_tests.cpp',
+        link_with: layeredfs_lib,
+        dependencies: [gtest_main_dep, fmt_dep],
+        build_by_default: false,
+    ),
+)
 
-    default_build_config = static_library('default_build_config',
-        sources: 'src/buildconfig.cpp'
-    )
+default_build_config = static_library('default_build_config',
+    sources: 'src/buildconfig.cpp'
+)
 
-    test('unit tests', executable('tests_bin',
-            sources: 'src/tests.cpp',
-            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
-            dependencies: [gtest_main_dep, gmock_dep, fmt_dep],
-            build_by_default: false,
-        ),
+test('commandline parsing test', executable('test_commandline',
+        sources: 'src/test_commandline.cpp',
+        link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
+        dependencies: [gtest_main_dep, gmock_dep, fmt_dep],
+        build_by_default: false,
+    ),
+    workdir: meson.current_source_dir(),
+    args: [
+        '--layered-disable',
+        '--layered-verbose',
+        '--layered-devmode',
+        '--layered-allowlist=allowed,these folders',
+        '--layered-blocklist=blocked,these folders',
+        '--layered-logfile=some logfile.log',
+        '--layered-data-mods-folder=./some modfolder',
+    ]
+)
+
+tests_bin = executable('tests_bin',
+    sources: 'src/tests.cpp',
+    link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
+    dependencies: [gtest_main_dep, gmock_dep, fmt_dep],
+    build_by_default: false,
+)
+
+# not a complete set but pretty comprehensive, handles the 1601/1603 renaming etc
+avs_dlls = [
+    '32_504',
+    '32_1304',
+    '32_1403',
+    '32_1504',
+    '32_1601',
+    '32_1603',
+    '32_1703',
+    '64_1509',
+    '64_1703',
+]
+
+foreach avs_dll : avs_dlls
+    if not avs_dll.startswith(bits.to_string())
+        continue
+    endif
+
+    env = environment()
+    env.prepend('PATH', 'avs_dlls/' + avs_dll)
+
+    test('unit tests_' + avs_dll, tests_bin,
         workdir: meson.current_source_dir(),
+        env: env,
+        is_parallel: false,
     )
-
-    test('commandline parsing test', executable('test_commandline',
-            sources: 'src/test_commandline.cpp',
-            link_with: [layeredfs_lib, texbin_lib, avs_standalone_lib, default_build_config],
-            dependencies: [gtest_main_dep, gmock_dep, fmt_dep],
-            build_by_default: false,
-        ),
-        workdir: meson.current_source_dir(),
-        args: [
-            '--layered-disable',
-            '--layered-verbose',
-            '--layered-devmode',
-            '--layered-allowlist=allowed,these folders',
-            '--layered-blocklist=blocked,these folders',
-            '--layered-logfile=some logfile.log',
-            '--layered-data-mods-folder=./some modfolder',
-        ]
-    )
-endif
+endforeach

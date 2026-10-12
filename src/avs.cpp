@@ -61,6 +61,11 @@ const avs_exports_t avs_exports[] = {
         .cstream_operate                  = "cstream_operate",
         .cstream_finish                   = "cstream_finish",
         .cstream_destroy                  = "cstream_destroy",
+        .avs_fs_umount_by_desc            = "avs_fs_umount_by_desc",
+        .avs_boot_lt_1600                 = "avs_boot",
+        .avs_boot_gte_1600                = "avs_boot",
+        .avs_shutdown                     = "avs_shutdown",
+        .property_search                  = "property_search",
         .property_read_query_memsize_long = "property_read_query_memsize_long",
     },
     {
@@ -88,6 +93,11 @@ const avs_exports_t avs_exports[] = {
         .cstream_operate                  = "XC058ba5000078",
         .cstream_finish                   = "XC058ba5000130",
         .cstream_destroy                  = "XC058ba500012b",
+        .avs_fs_umount_by_desc            = "XC058ba50000be",
+        .avs_boot_lt_1600                 = "XC058ba50000f4",
+        .avs_boot_gte_1600                = "XC058ba50000f4",
+        .avs_shutdown                     = "XC058ba5000154",
+        .property_search                  = "XC058ba50000fb",
         .property_read_query_memsize_long = "XC058ba5000091",
     },
     {
@@ -115,6 +125,11 @@ const avs_exports_t avs_exports[] = {
         .cstream_operate                  = "XCd229cc00008c",
         .cstream_finish                   = "XCd229cc000025",
         .cstream_destroy                  = "XCd229cc0000e3",
+        .avs_fs_umount_by_desc            = "XCd229cc0000b6",
+        .avs_boot_lt_1600                 = "XCd229cc0000aa",
+        .avs_boot_gte_1600                = "XCd229cc0000aa",
+        .avs_shutdown                     = "XCd229cc00001d",
+        .property_search                  = "XCd229cc00012e",
         .property_read_query_memsize_long = "XCd229cc00002b",
     },
     {
@@ -143,6 +158,11 @@ const avs_exports_t avs_exports[] = {
         .cstream_operate                  = "XCnbrep7000132",
         .cstream_finish                   = "XCnbrep7000133",
         .cstream_destroy                  = "XCnbrep7000134",
+        .avs_fs_umount_by_desc            = "XCnbrep700004d",
+        .avs_boot_lt_1600                 = "XCnbrep7000129",
+        .avs_boot_gte_1600                = "XCnbrep7000129",
+        .avs_shutdown                     = "XCnbrep700012a",
+        .property_search                  = "XCnbrep70000a1",
         .property_read_query_memsize_long = "XCnbrep70000b1",
     },
     {
@@ -171,6 +191,11 @@ const avs_exports_t avs_exports[] = {
         .cstream_operate                  = "XCnbrep7000126",
         .cstream_finish                   = "XCnbrep7000127",
         .cstream_destroy                  = "XCnbrep7000128",
+        .avs_fs_umount_by_desc            = "XCnbrep7000038",
+        .avs_boot_lt_1600                 = "XCnbrep700011a",
+        .avs_boot_gte_1600                = "XCnbrep700011a",
+        .avs_shutdown                     = "XCnbrep700011b",
+        .property_search                  = "XCnbrep700008c",
         .property_read_query_memsize_long = "XCnbrep700009c",
     },
     {
@@ -199,6 +224,11 @@ const avs_exports_t avs_exports[] = {
         .cstream_operate                  = "XCgsqzn0000132",
         .cstream_finish                   = "XCgsqzn0000133",
         .cstream_destroy                  = "XCgsqzn0000134",
+        .avs_fs_umount_by_desc            = "XCgsqzn000004d",
+        .avs_boot_lt_1600                 = "XCgsqzn0000129",
+        .avs_boot_gte_1600                = "XCgsqzn0000129",
+        .avs_shutdown                     = "XCgsqzn000012a",
+        .property_search                  = "XCgsqzn00000a1",
         .property_read_query_memsize_long = "XCgsqzn00000b1",
     },
 };
@@ -270,6 +300,20 @@ bool init_avs() {
         success             = true;
         avs_loaded_dll_name = exports.version_name;
         avs_loaded_version  = exports.version;
+
+        // further narrow down the really old ones
+        if (avs_loaded_version == 1200) {
+            if (GetProcAddress(mod_handle, "array_get_statistics") == nullptr)
+                avs_loaded_version = 500; // TODO: might also be 600
+            else if (GetProcAddress(mod_handle, "avs_thread_attr") == nullptr)
+                avs_loaded_version = 700;
+            else if (GetProcAddress(mod_handle, "avs_filesys_imagefs") == nullptr)
+                avs_loaded_version = 800; // TODO: might also be 900
+            else if (GetProcAddress(mod_handle, "avs_desc_setdata") == nullptr)
+                avs_loaded_version = 1000;
+            else if (GetProcAddress(mod_handle, "avs_net_sockname") == nullptr)
+                avs_loaded_version = 1100;
+        }
 
         break;
     }

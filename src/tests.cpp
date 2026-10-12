@@ -6,6 +6,7 @@
 #include "3rd_party/rapidxml_print.hpp"
 
 #include "arc.hpp"
+#include "avs.hpp"
 #include "avs_standalone.hpp"
 #include "config.hpp"
 #include "hook.hpp"
@@ -17,14 +18,6 @@
 
 using ::testing::Contains;
 using ::testing::Optional;
-
-#define FOREACH_EXTRA_FUNC(X) X("XCgsqzn000004d", void, avs_fs_umount_by_desc, uint32_t desc)
-
-#define AVS_FUNC_PTR(obfus_name, ret_type, name, ...) ret_type (*name)(__VA_ARGS__);
-FOREACH_EXTRA_FUNC(AVS_FUNC_PTR)
-
-#define LOAD_FUNC(obfus_name, ret_type, name, ...)                                                 \
-    ASSERT_TRUE((name = (decltype(name))GetProcAddress(avs, obfus_name)));
 
 void PrintTo(const istring& s, std::ostream* os) { *os << s.downcast_ref(); }
 
@@ -46,13 +39,15 @@ class Environment : public ::testing::Environment {
         ASSERT_TRUE(GetModuleFileNameA(NULL, exe_path, MAX_PATH));
         dll_time = file_time(exe_path);
 
-        ASSERT_TRUE(avs_standalone::boot(false));
+        ASSERT_TRUE(avs_standalone::preboot());
+        ASSERT_EQ(init_internal(/*for_tests=*/true), 0);
+        ASSERT_TRUE(avs_standalone::boot(true));
 
-        auto avs = GetModuleHandleA("avs2-core.dll");
-        ASSERT_TRUE(avs);
-        FOREACH_EXTRA_FUNC(LOAD_FUNC);
-
-        ASSERT_EQ(init(), 0);
+        // *now* we can redirect logs
+        imp_log_body_fatal   = log_body_fatal;
+        imp_log_body_warning = log_body_warning;
+        imp_log_body_info    = log_body_info;
+        imp_log_body_misc    = log_body_misc;
 
         config.set_mod_folder("./testcases_data_mods");
         config.verbose_logs = true;
@@ -142,6 +137,9 @@ TEST_P(DevModeOnOff, AllowlistBlocklist) {
 }
 
 TEST(ImageFs, MD5DemanglingWorks) {
+    if (!avs_loaded_version_supports_imagefs())
+        GTEST_SKIP_("Too old");
+
     std::string mount = "/afp/data/mount/test.ifs";
     auto desc         = hook_avs_fs_mount(mount.c_str(), "./data/test.ifs", "imagefs", NULL);
     ASSERT_GT(desc, 0);
@@ -360,7 +358,7 @@ TEST(ArcArchive, ScratchFromTwoMods) {
 }
 
 TEST(ArcArchive, MergedXmlInsideArc) {
-    AvsOpenHookFile file("xml_merge.arc", "xml_merge.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file("xml_merge.arc", "xml_merge.arc", avs_open_mode_read(), 420);
     // note: only two tests where we have an original .arc so we need a tiny bit of
     // copied extra work from handle_file
     auto norm_copy = file.norm_path;
@@ -398,7 +396,7 @@ TEST(ArcArchive, MergedXmlInsideArc) {
 }
 
 TEST(ArcArchive, MergedXmlInsideArcWithOriginalInsideArc) {
-    AvsOpenHookFile file("xml_merge.arc", "xml_merge.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file("xml_merge.arc", "xml_merge.arc", avs_open_mode_read(), 420);
     // note: only two tests where we have an original .arc so we need a tiny bit of
     // copied extra work from handle_file
     auto norm_copy = file.norm_path;
@@ -457,7 +455,7 @@ TEST(ArcArchive, IfsOnlySubtreeSkipsRepack) {
     // Mod folder has only an _ifs subtree (no per-entry overrides). No repack
     // should happen — the original arc is left alone — but the inner-ifs
     // basename still gets registered with the demangler.
-    AvsOpenHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file("ifs_only_repack.arc", "ifs_only_repack.arc", avs_open_mode_read(), 420);
     handle_arc(file);
     EXPECT_FALSE(file.mod_path.has_value());
 
@@ -475,7 +473,7 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     mkdir_p(config.get_mod_folder() / "_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
-    AvsOpenHookFile file(std::move(tmp_path), "ifs_with_extras.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file(std::move(tmp_path), "ifs_with_extras.arc", avs_open_mode_read(), 420);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 
@@ -498,7 +496,7 @@ TEST(ArcArchive, OverlayWithTwoMods) {
     mkdir_p(config.get_mod_folder() / "_cache");
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
-    AvsOpenHookFile file(std::move(tmp_path), "overlay_test.arc", avs_open_mode_read(), 42);
+    AvsOpenHookFile file(std::move(tmp_path), "overlay_test.arc", avs_open_mode_read(), 420);
     handle_arc(file);
     ASSERT_TRUE(file.mod_path.has_value());
 
@@ -511,6 +509,9 @@ TEST(ArcArchive, OverlayWithTwoMods) {
 }
 
 TEST(Regression, BeatStreamAfpXml) {
+    if (!avs_loaded_version_supports_imagefs())
+        GTEST_SKIP_("Too old");
+
     // M:mounting /data2/graphic/psd_result.ifs to /afp22/data2/graphic/psd_result.ifs with type imagefs and args (null)
     int mnt = hook_avs_fs_mount(
         "/afp22/data2/graphic/psd_result.ifs", "/data2/graphic/psd_result.ifs", "imagefs", nullptr);
