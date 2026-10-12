@@ -1,3 +1,5 @@
+#include <windows.h>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -38,6 +40,11 @@ class Environment : public ::testing::Environment {
         char exe_path[MAX_PATH];
         ASSERT_TRUE(GetModuleFileNameA(NULL, exe_path, MAX_PATH));
         dll_time = file_time(exe_path);
+
+        // Can't just set PATH due to: https://github.com/mesonbuild/meson/issues/14401
+        auto args = testing::internal::GetArgvs();
+        if (args.size() > 1)
+            SetDllDirectoryA(args.back().c_str());
 
         ASSERT_TRUE(avs_standalone::preboot());
         ASSERT_EQ(init_internal(/*for_tests=*/true), 0);

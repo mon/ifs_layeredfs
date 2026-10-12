@@ -292,12 +292,10 @@ foreach avs_dll : avs_dlls
         continue
     endif
 
-    env = environment()
-    env.prepend('PATH', 'avs_dlls/' + avs_dll)
-
     test('unit tests_' + avs_dll, tests_bin,
+        # Can't just set PATH due to: https://github.com/mesonbuild/meson/issues/14401
+        args: ['avs_dlls/' + avs_dll],
         workdir: meson.current_source_dir(),
-        env: env,
         is_parallel: false,
     )
 endforeach
