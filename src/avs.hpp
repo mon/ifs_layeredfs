@@ -216,10 +216,10 @@ typedef void (*avs_log_writer_gte_1500_t)(const char* chars, uint32_t nchars, vo
     X(void, avs_shutdown)                                                                          \
     X(node_t, property_search, property_t prop, node_t node, const char* path)
 
-// Functions missing from extremely old AVS versions (2.8.3)
+// Functions missing from extremely old AVS versions
 #define FOREACH_AVS_FUNC_OPTIONAL(X)                                                               \
-    /* property_read_query_memsize has a limit of 65535 nodes, which SDVX breaches. we must use */ \
-    /* the plain names (which requires memsize_long) */                                            \
+    /* Added in 2.10.x. property_read_query_memsize has a limit of 65535 nodes, which SDVX */      \
+    /* breaches. We must use the plain names (which requires memsize_long) */                      \
     X(int32_t, property_read_query_memsize_long, avs_reader_t reader, AVS_FILE f, int* unk0,       \
         int* unk1, int* unk2)
 

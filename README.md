@@ -18,10 +18,10 @@ can be completely bypassed.
 Game support is based on AVS version, not any particular game, and LayeredFS
 supports almost all in-use AVS versions. However, these are games that LayeredFS
 should work on:
-- Beatmania IIDX (9th Style (untested) to latest release)
+- Beatmania IIDX (15, DJ Troopers (untested) to latest release)
 - Sound Voltex (all versions)
 - DDR (X (untested) to latest release)
-- pop'n music (15, ADVENTURE (untested) to latest release)
+- pop'n music (16, PARTY (untested) to latest release)
 - jubeat (all versions)
 - GFDM (v4 to XG3)
 - GITADORA (all versions)

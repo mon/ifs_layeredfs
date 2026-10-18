@@ -291,7 +291,7 @@ bool init_avs() {
     for (const auto& exports : avs_exports) {
 #define VERBOSE_EXPORT_CHECK(ret_type, name, ...)                                                  \
     if (exports.name == NULL)                                                                      \
-        log_warning("MISSING EXPORT {}: {}", i, #name);
+        log_warning("MISSING EXPORT {}: {}", exports.version_name, #name);
         FOREACH_AVS_FUNC(VERBOSE_EXPORT_CHECK)
         FOREACH_AVS_FUNC_OPTIONAL(VERBOSE_EXPORT_CHECK)
     }
@@ -336,8 +336,15 @@ bool init_avs() {
         // further narrow down the really old ones
         if (avs_loaded_version == 1200) {
             if (GetProcAddress(mod_handle, "avs_boot") == nullptr)
+                // we will never get here due to several functions missing in 2.1.x:
+                //   property_read_query_memsize
+                //   property_mem_write
+                //   cstream_*
+                //   avs_boot/shutdown
+                // If someone begs for 2.1.x support, they can be shimmed later
                 avs_loaded_version = 100; // TODO: might also be 200 or 300
             else if (GetProcAddress(mod_handle, "avs_net_bind") == nullptr)
+                // we will never get here due to missing property_mem_write
                 avs_loaded_version = 400;
             else if (GetProcAddress(mod_handle, "array_get_statistics") == nullptr)
                 avs_loaded_version = 500;
