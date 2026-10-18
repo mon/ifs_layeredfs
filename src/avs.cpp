@@ -335,8 +335,14 @@ bool init_avs() {
 
         // further narrow down the really old ones
         if (avs_loaded_version == 1200) {
-            if (GetProcAddress(mod_handle, "array_get_statistics") == nullptr)
-                avs_loaded_version = 500; // TODO: might also be 600
+            if (GetProcAddress(mod_handle, "avs_boot") == nullptr)
+                avs_loaded_version = 100; // TODO: might also be 200 or 300
+            else if (GetProcAddress(mod_handle, "avs_net_bind") == nullptr)
+                avs_loaded_version = 400;
+            else if (GetProcAddress(mod_handle, "array_get_statistics") == nullptr)
+                avs_loaded_version = 500;
+            else if (GetProcAddress(mod_handle, "mdigest_create") == nullptr)
+                avs_loaded_version = 600;
             else if (GetProcAddress(mod_handle, "avs_thread_attr") == nullptr)
                 avs_loaded_version = 700;
             else if (GetProcAddress(mod_handle, "avs_is_active") == nullptr)
