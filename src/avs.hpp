@@ -243,8 +243,7 @@ std::optional<std::vector<uint8_t>> lz_decompress(
 
 extern std::string_view avs_loaded_dll_name;
 extern uint16_t avs_loaded_version; // uses bemanitools form, e.g. 2.17.3 = 1703
-// TODO: 800 doesn't, 1000 does. I don't have a 900 avs build to confirm exactly when imagefs got added
-static inline bool avs_loaded_version_supports_imagefs() { return avs_loaded_version >= 900; }
+static inline bool avs_loaded_version_supports_imagefs() { return avs_loaded_version >= 1000; }
 
 static inline uint16_t avs_open_mode_read() {
     // new AVS has bitflags (R=1,W=2), old AVS has enum (R=0,W=1,RW=2)

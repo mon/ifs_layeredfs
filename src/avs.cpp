@@ -339,8 +339,10 @@ bool init_avs() {
                 avs_loaded_version = 500; // TODO: might also be 600
             else if (GetProcAddress(mod_handle, "avs_thread_attr") == nullptr)
                 avs_loaded_version = 700;
+            else if (GetProcAddress(mod_handle, "avs_is_active") == nullptr)
+                avs_loaded_version = 800;
             else if (GetProcAddress(mod_handle, "avs_filesys_imagefs") == nullptr)
-                avs_loaded_version = 800; // TODO: might also be 900
+                avs_loaded_version = 900;
             else if (GetProcAddress(mod_handle, "avs_desc_setdata") == nullptr)
                 avs_loaded_version = 1000;
             else if (GetProcAddress(mod_handle, "avs_net_sockname") == nullptr)
