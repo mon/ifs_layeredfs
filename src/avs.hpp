@@ -188,6 +188,7 @@ typedef void (*avs_log_writer_gte_1500_t)(const char* chars, uint32_t nchars, vo
     /* file functions */                                                                           \
     X(AVS_FILE, avs_fs_open, const char* name, uint16_t mode, int flags)                           \
     X(void, avs_fs_close, AVS_FILE f)                                                              \
+    /* TODO: claude reckons this buffer is 512 bytes on AVS 2.13.x and below */                    \
     X(int, avs_fs_convert_path, char dest_path[256], const char* path)                             \
     X(int, avs_fs_fstat, AVS_FILE f, struct avs_stat* st)                                          \
     X(int, avs_fs_lstat, const char* path, struct avs_stat* st)                                    \
@@ -244,6 +245,8 @@ std::optional<std::vector<uint8_t>> lz_decompress(
 extern std::string_view avs_loaded_dll_name;
 extern uint16_t avs_loaded_version; // uses bemanitools form, e.g. 2.17.3 = 1703
 static inline bool avs_loaded_version_supports_imagefs() { return avs_loaded_version >= 1000; }
+// tests use a newer-format IFS with the 16 bytes of extra MD5 in the header that the old folks can't deal with
+static inline bool avs_loaded_version_supports_imagefs_md5() { return avs_loaded_version >= 1300; }
 
 static inline uint16_t avs_open_mode_read() {
     // new AVS has bitflags (R=1,W=2), old AVS has enum (R=0,W=1,RW=2)

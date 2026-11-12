@@ -100,9 +100,11 @@ void log_writer(const char* chars, uint32_t nchars, void* ctx) {
 
     std::string_view msg(chars, nchars);
 
-    // lol, ancient avs will emit a bonus NUL when adding the newline
-    if (avs_loaded_version <= 1300 && msg.ends_with('\0'))
-        msg.remove_suffix(1);
+    // lol, ancient avs will emit a bonus NUL + garbage char when adding the
+    // newline, and NUL when there isn't one to emit.
+    // Due to log level header, nchars won't ever be less than 4, but check anyway...
+    if (avs_loaded_version <= 1300 && nchars >= 2)
+        msg = msg.substr(0, msg.find('\0', nchars - 2));
 
     // don't print noisy shutdown logs
     if (msg.starts_with("[----/--/-- --:--:--] "))

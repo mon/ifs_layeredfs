@@ -277,6 +277,13 @@ tests_bin = executable('tests_bin',
 # not a complete set but pretty comprehensive, handles the 1601/1603 renaming etc
 avs_dlls = [
     '32_504',
+    '32_650',
+    '32_710',
+    '32_830',
+    '32_900',
+    '32_1010',
+    '32_1110',
+    '32_1200',
     '32_1304',
     '32_1403',
     '32_1504',

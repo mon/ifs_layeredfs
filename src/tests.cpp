@@ -144,7 +144,7 @@ TEST_P(DevModeOnOff, AllowlistBlocklist) {
 }
 
 TEST(ImageFs, MD5DemanglingWorks) {
-    if (!avs_loaded_version_supports_imagefs())
+    if (!avs_loaded_version_supports_imagefs_md5())
         GTEST_SKIP_("Too old");
 
     std::string mount = "/afp/data/mount/test.ifs";
@@ -516,7 +516,7 @@ TEST(ArcArchive, OverlayWithTwoMods) {
 }
 
 TEST(Regression, BeatStreamAfpXml) {
-    if (!avs_loaded_version_supports_imagefs())
+    if (!avs_loaded_version_supports_imagefs_md5())
         GTEST_SKIP_("Too old");
 
     // M:mounting /data2/graphic/psd_result.ifs to /afp22/data2/graphic/psd_result.ifs with type imagefs and args (null)
