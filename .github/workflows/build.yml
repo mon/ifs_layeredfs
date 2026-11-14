@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
 
@@ -22,11 +22,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Docker 29's default seccomp profile breaks 32-bit wine (socket -> ENOSYS)
       - name: Build
-        run: docker run --rm -v "$PWD:/work" layeredfs/deps bash build.sh
+        run: docker run --rm --security-opt seccomp=unconfined -v "$PWD:/work" layeredfs/deps bash build.sh
 
       - name: Test
-        run: docker run --rm -v "$PWD:/work" layeredfs/deps bash test.sh
+        run: docker run --rm --security-opt seccomp=unconfined -v "$PWD:/work" layeredfs/deps bash test.sh
 
       - uses: actions/upload-artifact@v7
         with:
