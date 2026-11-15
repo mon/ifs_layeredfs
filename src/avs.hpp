@@ -63,9 +63,9 @@ struct avs_stat_generic {
     int64_t st_atime;
     int32_t _;
     uint32_t filesize;
-    uint32_t __;
-    uint16_t ___;
-    uint16_t ____;
+    uint32_t _;
+    uint16_t _;
+    uint16_t _;
 };
 
 namespace detail {
