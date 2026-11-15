@@ -47,7 +47,7 @@
 thread_local static bool inside_pkfs_hook;
 
 unsigned int (*pkfs_fs_open)(const char* path);
-unsigned int (*pkfs_fs_fstat)(unsigned int f, struct avs_stat* stat);
+unsigned int (*pkfs_fs_fstat)(unsigned int f, struct avs_stat_generic* stat);
 unsigned int (*pkfs_fs_read)(unsigned int f, void* buf, int sz);
 unsigned int (*pkfs_fs_close)(unsigned int f);
 void (*pkfs_clear_hdd_error)();
@@ -71,7 +71,7 @@ class PkfsHookFile final : public HookFile {
     std::optional<std::vector<uint8_t>> load_to_vec() override {
         AVS_FILE f = pkfs_fs_open(get_path_to_open().c_str());
         if (f != 0) {
-            avs_stat stat = {0}; // stat type is shared!
+            avs_stat_generic stat = {0}; // stat type is shared!
             pkfs_fs_fstat(f, &stat);
             std::vector<uint8_t> ret;
             ret.resize(stat.filesize);
@@ -476,7 +476,7 @@ uint32_t handle_file_open(HookFile& file) {
     return ret;
 }
 
-int hook_avs_fs_lstat(const char* name, struct avs_stat* st) {
+int hook_avs_fs_lstat(const char* name, struct avs_stat_generic* st) {
     if (name == NULL)
         return avs_fs_lstat(name, st);
 

@@ -13,7 +13,7 @@
 extern std::filesystem::file_time_type dll_time;
 
 AVS_FILE hook_avs_fs_open(const char* name, uint16_t mode, int flags);
-int hook_avs_fs_lstat(const char* name, struct avs_stat* st);
+int hook_avs_fs_lstat(const char* name, struct avs_stat_generic* st);
 int hook_avs_fs_convert_path(char dest_name[256], const char* name);
 int hook_avs_fs_mount(
     const char* mountpoint, const char* fsroot, const char* fstype, const char* flags);
@@ -108,10 +108,10 @@ class AvsOpenHookFile final : public AvsHookFile {
 
 class AvsLstatHookFile final : public AvsHookFile {
   private:
-    struct avs_stat* st;
+    struct avs_stat_generic* st;
 
   public:
-    AvsLstatHookFile(istring&& path, NormPath&& norm_path, struct avs_stat* st)
+    AvsLstatHookFile(istring&& path, NormPath&& norm_path, struct avs_stat_generic* st)
         : AvsHookFile(std::move(path), std::move(norm_path))
         , st(st) {}
 

@@ -18,7 +18,35 @@ property_node_datasize(root node)  0
 */
 
 #pragma pack(push, 1)
-struct avs_stat {
+
+struct avs_stat_100 {
+    int64_t st_ctime;
+    int64_t st_mtime;
+    int64_t st_atime;
+    int32_t mode;
+    uint32_t filesize;
+};
+
+struct avs_stat_400_1000 {
+    int64_t st_ctime;
+    int64_t st_mtime;
+    int64_t st_atime;
+    uint16_t mode;
+    uint16_t perm;
+    uint32_t filesize;
+};
+
+struct avs_stat_1100_1200 {
+    int64_t st_ctime;
+    int64_t st_mtime;
+    int64_t st_atime;
+    int32_t link_count;
+    uint32_t filesize;
+    uint32_t mode;
+    uint32_t perm;
+};
+
+struct avs_stat_modern {
     int64_t st_ctime;
     int64_t st_mtime;
     int64_t st_atime;
@@ -28,6 +56,34 @@ struct avs_stat {
     uint16_t mode;
     uint16_t perm;
 };
+
+struct avs_stat_generic {
+    int64_t st_ctime;
+    int64_t st_mtime;
+    int64_t st_atime;
+    int32_t _;
+    uint32_t filesize;
+    uint32_t __;
+    uint16_t ___;
+    uint16_t ____;
+};
+
+namespace detail {
+template <typename T>
+constexpr bool matches_generic() {
+    return sizeof(avs_stat_generic) >= sizeof(T) &&
+           offsetof(T, st_ctime) == offsetof(avs_stat_generic, st_ctime) &&
+           offsetof(T, st_mtime) == offsetof(avs_stat_generic, st_mtime) &&
+           offsetof(T, st_atime) == offsetof(avs_stat_generic, st_atime) &&
+           offsetof(T, filesize) == offsetof(avs_stat_generic, filesize);
+}
+
+static_assert(matches_generic<avs_stat_100>());
+static_assert(matches_generic<avs_stat_400_1000>());
+static_assert(matches_generic<avs_stat_1100_1200>());
+static_assert(matches_generic<avs_stat_modern>());
+
+}; // namespace detail
 
 typedef struct {
     uint8_t* output_buffer;
@@ -190,8 +246,8 @@ typedef void (*avs_log_writer_gte_1500_t)(const char* chars, uint32_t nchars, vo
     X(void, avs_fs_close, AVS_FILE f)                                                              \
     /* TODO: claude reckons this buffer is 512 bytes on AVS 2.13.x and below */                    \
     X(int, avs_fs_convert_path, char dest_path[256], const char* path)                             \
-    X(int, avs_fs_fstat, AVS_FILE f, struct avs_stat* st)                                          \
-    X(int, avs_fs_lstat, const char* path, struct avs_stat* st)                                    \
+    X(int, avs_fs_fstat, AVS_FILE f, struct avs_stat_generic* st)                                  \
+    X(int, avs_fs_lstat, const char* path, struct avs_stat_generic* st)                            \
     X(int, avs_fs_lseek, AVS_FILE f, long int offset, int origin)                                  \
     X(int, avs_fs_mount, const char* mountpoint, const char* fsroot, const char* fstype,           \
         const char* flags)                                                                         \

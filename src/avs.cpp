@@ -448,7 +448,7 @@ static char* prop_to_xml_string(property_t prop, rapidxml::xml_document<>& alloc
 }
 
 char* avs_file_to_string(AVS_FILE f, rapidxml::xml_document<>& allocator) {
-    avs_stat stat = {0};
+    avs_stat_generic stat = {0};
     avs_fs_fstat(f, &stat);
     char* ret = allocator.allocate_string(NULL, stat.filesize + 1);
     avs_fs_read(f, ret, stat.filesize);
@@ -457,7 +457,7 @@ char* avs_file_to_string(AVS_FILE f, rapidxml::xml_document<>& allocator) {
 }
 
 std::vector<uint8_t> avs_file_to_vec(AVS_FILE f) {
-    avs_stat stat = {0};
+    avs_stat_generic stat = {0};
     avs_fs_fstat(f, &stat);
     std::vector<uint8_t> ret;
     ret.resize(stat.filesize);

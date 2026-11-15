@@ -78,7 +78,7 @@ void avs_playpen() {
     // log_assert(f >= 0);
 
     // // avs_file_to_vec but using the hook_read so ramfs demangler catches it
-    // avs_stat stat = {0};
+    // avs_stat_generic stat = {0};
     // avs_fs_fstat(f, &stat);
     // std::vector<uint8_t> contents;
     // contents.resize(stat.filesize);
