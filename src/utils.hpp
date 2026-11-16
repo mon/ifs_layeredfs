@@ -82,6 +82,9 @@ class istring : public std::basic_string<char, char_traits_insensitive> {
     istring operator/(istring_view component) const {
         return istring(fmt::format("{}/{}", downcast_ref(), component));
     }
+    istring& operator/=(const char* component) { return *this = *this / component; }
+    istring& operator/=(std::string_view component) { return *this = *this / component; }
+    istring& operator/=(istring_view component) { return *this = *this / component; }
 
     // as is replacing original names with their modded equivalents
 

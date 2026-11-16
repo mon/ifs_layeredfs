@@ -57,6 +57,9 @@ class Environment : public ::testing::Environment {
         imp_log_body_misc    = log_body_misc;
 
         config.set_mod_folder("./testcases_data_mods");
+        if (args.size() > 1)
+            config.set_cache_subfolder(
+                istring_view(args.back().subview(args.back().rfind("/") + 1)));
         config.verbose_logs = true;
         print_config();
         cache_mods();
@@ -476,8 +479,8 @@ TEST(ArcArchive, IfsWithExtraOverrides) {
     orig.add_or_replace("inner.ifs", inner_ifs_bytes);
     orig.add_or_replace("other.bin", other_bin_bytes);
 
-    auto tmp_path = config.get_mod_folder() / "_cache/ifs_with_extras_orig.arc";
-    mkdir_p(config.get_mod_folder() / "_cache");
+    auto tmp_path = config.get_cache_folder() / "ifs_with_extras_orig.arc";
+    mkdir_p(config.get_cache_folder());
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
     AvsOpenHookFile file(std::move(tmp_path), "ifs_with_extras.arc", avs_open_mode_read(), 420);
@@ -499,8 +502,8 @@ TEST(ArcArchive, OverlayWithTwoMods) {
     orig.add_or_replace("original_file", {'o', 'r', 'i', 'g', 'i', 'n', 'a', 'l'});
     orig.add_or_replace("override_file", {'o', 'l', 'd'});
 
-    auto tmp_path = config.get_mod_folder() / "_cache/overlay_test_orig.arc";
-    mkdir_p(config.get_mod_folder() / "_cache");
+    auto tmp_path = config.get_cache_folder() / "overlay_test_orig.arc";
+    mkdir_p(config.get_cache_folder());
     ASSERT_TRUE(orig.save(tmp_path.c_str()));
 
     AvsOpenHookFile file(std::move(tmp_path), "overlay_test.arc", avs_open_mode_read(), 420);

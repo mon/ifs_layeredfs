@@ -303,6 +303,5 @@ foreach avs_dll : avs_dlls
         # Can't just set PATH due to: https://github.com/mesonbuild/meson/issues/14401
         args: ['avs_dlls/' + avs_dll],
         workdir: meson.current_source_dir(),
-        is_parallel: false,
     )
 endforeach

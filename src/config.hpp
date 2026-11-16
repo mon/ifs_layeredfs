@@ -24,6 +24,9 @@ struct config_t {
         cache_folder = mod_folder / "_cache";
     }
 
+    // only used in tests to avoid parallel runs clobbering each other
+    void set_cache_subfolder(istring_view cache_subfolder) { cache_folder /= cache_subfolder; }
+
     inline const istring& get_mod_folder() const { return mod_folder; }
     inline const istring& get_mod_folder_native() const { return mod_folder_native; }
     inline const istring& get_cache_folder() const { return cache_folder; }
